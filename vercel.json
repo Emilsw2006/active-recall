@@ -1,8 +1,16 @@
 {
   "version": 2,
   "public": true,
-  "cleanUrls": true,
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/TEST-APP/$1" }
+  "builds": [
+    {
+      "src": "TEST-APP/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "TEST-APP/$1"
+    }
   ]
 }
