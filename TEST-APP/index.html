@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<title>Active Recall</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css" />
+<script src="i18n.js"></script>
+</head>
+<body>
+
+<!-- ════ AUTH ════ -->
+<div id="screen-auth">
+  <div class="auth-bg"></div>
+  <div class="auth-grid"></div>
+  <div class="auth-box">
+    <div class="auth-logo">
+      <div class="wm">Active <em>Recall</em></div>
+      <div class="tg" data-i18n="app_tagline">Estudio activo con IA</div>
+    </div>
+    <div class="auth-tabs">
+      <button class="auth-tab on" id="tab-login" onclick="switchTab('login')" data-i18n="auth_login_tab">Entrar</button>
+      <button class="auth-tab" id="tab-register" onclick="switchTab('register')" data-i18n="auth_register_tab">Crear cuenta</button>
+    </div>
+    <div class="auth-err" id="auth-err"></div>
+
+    <div id="form-login">
+      <div class="fld"><label data-i18n="auth_email">Email</label><input type="email" id="l-email" data-i18n-ph="auth_email_ph" placeholder="tu@email.com" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <div class="fld"><label data-i18n="auth_password">Contraseña</label><input type="password" id="l-pass" data-i18n-ph="auth_password_ph" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <button class="btn-p" id="btn-login" onclick="doLogin()" data-i18n="auth_btn_login">Entrar</button>
+    </div>
+
+    <div id="form-register" style="display:none">
+      <div class="fld"><label data-i18n="auth_name">Nombre</label><input type="text" id="r-name" data-i18n-ph="auth_name_ph" placeholder="Tu nombre"/></div>
+      <div class="fld"><label data-i18n="auth_email">Email</label><input type="email" id="r-email" data-i18n-ph="auth_email_ph" placeholder="tu@email.com"/></div>
+      <div class="fld"><label data-i18n="auth_password">Contraseña</label><input type="password" id="r-pass" data-i18n-ph="auth_password_ph2" placeholder="mínimo 6 caracteres"/></div>
+      <div class="fld">
+        <label data-i18n="auth_passion">¿Qué te apasiona? <span style="color:var(--txt3);font-size:.7rem;letter-spacing:0;text-transform:none" data-i18n="auth_passion_sub">(para analogías personalizadas)</span></label>
+        <input type="text" id="r-mundo" data-i18n-ph="auth_passion_ph" placeholder="ej: fútbol, videojuegos, cocina..."/>
+      </div>
+      <button class="btn-p" id="btn-register" onclick="doRegister()" data-i18n="auth_btn_register">Crear cuenta</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ APP (HUB MINIMALISTA) ════ -->
+<!-- ════ APP (7-VIEW ARCHITECTURE) ════ -->
+<div id="screen-app">
+  <div class="bg-orb" id="bg-orb"></div>
+
+  <!-- Header Flotante (Slim) -->
+  <div class="floating-header">
+    <button class="subject-selector" onclick="openModal()" id="subject-selector-btn">
+      <span class="subject-dot" id="header-dot" style="background:var(--amber)"></span>
+      <span id="bc-subject" style="font-weight:600" data-i18n="empty_loading">Cargando...</span>
+      <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style="margin-left:4px; opacity:.5"><path d="M8 11.5l-5-5 1.4-1.4 3.6 3.6 3.6-3.6 1.4 1.4-5 5z"/></svg>
+    </button>
+    <button class="btn-settings" onclick="openAjustesModal()" aria-label="Ajustes">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+        <line x1="3" y1="7" x2="21" y2="7"/><circle cx="8" cy="7" r="2.2" fill="currentColor" stroke="none"/>
+        <line x1="3" y1="14" x2="21" y2="14"/><circle cx="16" cy="14" r="2.2" fill="currentColor" stroke="none"/>
+      </svg>
+    </button>
+  </div>
+
+  <div class="content-slider">
+    
+    <!-- 1. HISTORIAL (Left) -->
+    <div id="v-historial" class="view-slide" style="transform:translateX(-100%)">
+      <div class="view-title" data-i18n="nav_history">Historial</div>
+
+      <!-- Tab switcher -->
+      <div class="hist-tabs" style="display:flex; gap:0; background:var(--s2); border-radius:14px; padding:4px; margin-bottom:20px">
+        <button class="hist-tab on" id="hist-tab-sesiones" onclick="switchHistTab('sesiones')" data-i18n="hist_sessions">Sesiones</button>
+        <button class="hist-tab" id="hist-tab-planes" onclick="switchHistTab('planes')" data-i18n="hist_plans">Planes</button>
+      </div>
+
+      <!-- Panel Sesiones -->
+      <div id="hist-panel-sesiones">
+        <div id="sessions-list" style="display:flex;flex-direction:column;gap:0">
+          <div class="empty-state" data-i18n="hist_empty_sessions">No hay sesiones aún.</div>
+        </div>
+      </div>
+
+      <!-- Panel Planes -->
+      <div id="hist-panel-planes" style="display:none">
+        <button class="plan-new-btn" onclick="openPlanWizard()">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span data-i18n="hist_new_plan">Nuevo plan</span>
+        </button>
+        <div id="planes-list">
+          <div class="empty-state" data-i18n="hist_empty_plans">No hay planes aún.</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2. HUB (Home) -->
+    <div id="v-hub" class="view-slide active" style="transform:translateX(0)">
+      <!-- Saludo -->
+      <div id="user-greeting">
+        <span class="greet-label" data-i18n="hub_greeting">Hola,</span>
+        <span class="greet-name" id="greet-name">Estudiante</span>
+      </div>
+
+      <!-- Notificaciones carousel (dinámico) -->
+      <div class="notif-card">
+        <div class="notif-carousel">
+          <div class="notif-track" id="notif-track" onscroll="_onNotifScroll(this)"></div>
+          <div class="notif-dots" id="notif-dots"></div>
+        </div>
+      </div>
+
+      <!-- Orbe CTA -->
+      <div class="orb-start-wrap">
+        <button class="orb-start" onclick="switchView('lobby')">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="opacity:.85;margin-bottom:2px"><path d="M8 5v14l11-7z"/></svg>
+          <span style="display:block;font-size:.72rem;font-weight:700;letter-spacing:.14em" data-i18n="hub_start">INICIAR SESIÓN</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- 3. MATERIALES (Right) -->
+    <div id="v-materiales" class="view-slide" style="transform:translateX(100%)">
+      <div class="view-title" data-i18n="mat_title">Tus Apuntes</div>
+      <div class="doc-list" id="doc-list">
+        <div class="empty-state" data-i18n="mat_empty">No hay apuntes aún. Toca + para subir un PDF.</div>
+      </div>
+    </div>
+
+    <!-- 4. LOBBY (Pre-Sesión — pantalla completa) -->
+    <div id="v-lobby" class="view-slide" style="transform:translateX(100%)">
+      <div class="lobby-wrap">
+        <!-- Topbar -->
+        <div class="lobby-topbar">
+          <button class="lobby-close-btn" onclick="switchView('hub')" aria-label="Cerrar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+
+        <!-- Scrollable content -->
+        <div class="lobby-scroll">
+
+          <!-- Mode tabs: Oral / Test -->
+          <div class="lobby-mode-tabs">
+            <button class="lm-tab active" id="ltab-voz" onclick="setStudyMode('voz')" data-i18n="lobby_mode_oral">Oral</button>
+            <button class="lm-tab" id="ltab-test" onclick="setStudyMode('test')" data-i18n="lobby_mode_test">Test</button>
+            <div class="lm-indicator" id="lm-indicator"></div>
+          </div>
+
+          <!-- Mic warning -->
+          <div id="lobby-mic-check" style="display:none; background:rgba(255,209,102,0.12); border:1px solid rgba(255,209,102,0.30); border-radius:14px; padding:13px 16px; margin-bottom:20px; font-size:.82rem; color:var(--txt)">
+            <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+              <span data-i18n="lobby_mic_warning">El modo oral requiere acceso al micrófono</span>
+            </div>
+            <button class="duelo-btn" style="width:100%; justify-content:center" onclick="requestLobbyMic()" data-i18n="lobby_mic_allow">Permitir micrófono</button>
+          </div>
+
+          <!-- Duration -->
+          <div class="lobby-label" data-i18n="lobby_duration">Duración</div>
+          <div class="lobby-dur-row">
+            <button class="ldur-pill on" id="dur-corta" onclick="pickDuration('corta')">
+              <span class="ldur-pill-name" data-i18n="lobby_short">Corta</span>
+              <span class="ldur-pill-sub" data-i18n="lobby_short_sub">~5 min</span>
+            </button>
+            <button class="ldur-pill" id="dur-larga" onclick="pickDuration('larga')">
+              <span class="ldur-pill-name" data-i18n="lobby_long">Larga</span>
+              <span class="ldur-pill-sub" data-i18n="lobby_long_sub">~15 min</span>
+            </button>
+          </div>
+
+          <!-- Topics -->
+          <div class="lobby-label" data-i18n="lobby_topics">Subtemas</div>
+          <div id="topic-list" class="lobby-topic-list">
+            <div class="empty-state" style="padding:20px" data-i18n="lobby_loading_topics">Cargando temas...</div>
+          </div>
+
+          <!-- Start button -->
+          <button class="lobby-start-btn" onclick="startSessionFlow()" data-i18n="lobby_start">EMPEZAR →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5. DUELO (Sesión Activa) -->
+    <div id="v-duelo" class="view-slide" style="transform:translateX(100%)">
+      <!-- Top bar — session only (header/nav hidden via CSS .session-mode) -->
+      <div class="duelo-topbar">
+        <button id="btn-sess-hist" class="duelo-topbar-hist" onclick="openSessHistory()" style="display:none">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          <span id="sess-hist-count"></span>
+        </button>
+        <span class="duelo-counter" id="duel-counter">Pregunta 1/5</span>
+        <button class="duelo-topbar-pause" onclick="pausarSesion()" title="Pausar">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          <span data-i18n="sess_pause">Pausar</span>
+        </button>
+      </div>
+
+      <!-- Question (tap to expand if long) -->
+      <div class="duelo-question" id="duel-question">Escuchando...</div>
+
+      <!-- Blob orb -->
+      <div class="duelo-blob-wrap">
+        <div class="duelo-blob-glow"></div>
+        <div id="orb-visual" class="voice-orb" onclick="orbClick()">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+        </div>
+      </div>
+
+      <!-- Transcript/status -->
+      <div class="duelo-transcript" id="duel-transcript"></div>
+
+      <!-- Hint box (persistent, shown on pista) -->
+      <div class="hint-box" id="hint-box" style="display:none">
+        <span class="hint-box-icon">💡</span>
+        <span class="hint-box-text" id="hint-box-text"></span>
+      </div>
+
+      <!-- Action buttons — simplified, extra ones hidden/shown by WS state -->
+      <div class="duelo-actions">
+        <button id="btn-pista" class="duelo-btn" onclick="pedirPista()" data-i18n="sess_hint">Pista</button>
+        <button id="btn-saltar" class="duelo-btn" onclick="skipPregunta()" data-i18n="sess_skip">Saltar</button>
+        <button id="btn-enviar" class="duelo-btn" style="display:none" onclick="enviarRespuesta()" data-i18n="sess_send">Enviar</button>
+        <button id="btn-reanudar-escucha" class="duelo-btn" style="display:none" onclick="reanudarEscucha()" data-i18n="sess_listen">Escuchar</button>
+        <button id="btn-siguiente" class="duelo-btn" style="display:none" onclick="siguientePregunta()" data-i18n="sess_next">Siguiente</button>
+      </div>
+    </div>
+
+    <!-- 6. RESUMEN -->
+    <div id="v-resumen" class="view-slide" style="transform:translateX(100%)">
+      <div class="resumen-wrap">
+        <div class="resumen-headline" data-i18n="res_completed">¡Sesión completada!</div>
+
+        <div class="resumen-score-card">
+          <div class="resumen-pct" id="res-score">85%</div>
+          <div class="resumen-pills">
+            <div class="resumen-pill g"><span id="res-aciertos">0</span><span class="rp-label" data-i18n="res_correct">Correctas</span></div>
+            <div class="resumen-pill y"><span id="res-amarillos">0</span><span class="rp-label" data-i18n="res_partial">Parciales</span></div>
+            <div class="resumen-pill r"><span id="res-fallos">0</span><span class="rp-label" data-i18n="res_errors">Errores</span></div>
+          </div>
+        </div>
+
+        <div class="resumen-actions">
+          <button id="btn-test-sesion" class="resumen-btn primary" onclick="iniciarTestSesion()" style="display:none">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+            <span data-i18n="res_test_session">Test de esta sesión</span>
+          </button>
+          <button id="btn-test-plan" class="resumen-btn primary" onclick="iniciarTestPlan()" style="display:none">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+            <span data-i18n="res_test_plan">Test del plan completo</span>
+          </button>
+          <button class="resumen-btn secondary" onclick="switchView('historial'); loadSessions()" data-i18n="res_view_history">Ver historial</button>
+          <button class="resumen-btn secondary" onclick="switchView('hub')" data-i18n="res_go_home">Ir al inicio</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7. TEST -->
+    <div id="v-test" class="view-slide" style="transform:translateX(100%)">
+
+      <!-- Loading screen -->
+      <div id="test-loading" class="test-loading-screen">
+        <div class="test-loading-orb">
+          <div class="test-loading-ring"></div>
+          <div class="test-loading-ring test-loading-ring-2"></div>
+        </div>
+        <div class="test-loading-title" data-i18n="test_generating">Generando test</div>
+        <div class="test-loading-sub" data-i18n="test_generating_sub">Preparando preguntas personalizadas...</div>
+      </div>
+
+      <!-- Question screen -->
+      <div id="test-content" class="test-content-screen" style="display:none">
+        <div class="test-topbar">
+          <button class="test-back-btn" onclick="exitTest()">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <div class="test-prog-wrap">
+            <div class="test-prog-track"><div class="test-prog-fill" id="test-prog-fill"></div></div>
+            <span class="test-prog-label" id="test-progreso">1 / 5</span>
+          </div>
+        </div>
+        <div class="test-scrollable">
+          <div class="test-q-card">
+            <div class="test-tipo-label" id="test-tipo-label">Selecciona la correcta</div>
+            <div class="test-question" id="test-pregunta"></div>
+          </div>
+          <div class="test-options" id="test-opciones"></div>
+          <div class="test-feedback" id="test-feedback" style="display:none">
+            <div class="test-feedback-text" id="test-feedback-text"></div>
+          </div>
+        </div>
+        <div class="test-bottom">
+          <button class="test-action-btn" id="btn-test-confirm" onclick="confirmarRespuesta()" style="display:none" data-i18n="test_confirm">Confirmar respuesta</button>
+          <button class="test-action-btn" id="btn-test-next" onclick="nextTestQuestion()" style="display:none" data-i18n="test_next">Siguiente →</button>
+        </div>
+      </div>
+
+      <!-- Results screen -->
+      <div id="test-results" class="test-results-screen" style="display:none">
+        <div class="test-res-circle">
+          <span class="test-res-pct" id="test-res-pct">—</span>
+        </div>
+        <div class="test-res-title" id="test-res-title">¡Completado!</div>
+        <div class="test-res-sub" id="test-res-sub"></div>
+        <div class="test-res-actions">
+          <button class="test-res-btn-review" onclick="openTestRevision()" data-i18n="test_see_review">Ver revisión</button>
+          <button class="test-res-btn-exit" onclick="exitTest()" data-i18n="test_back">Volver</button>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Navegación Flotante Inferior -->
+  <div class="floating-nav">
+    <button class="nav-pill" onclick="switchView('historial')" id="nav-btn-historial" title="Historial" data-i18n="nav_history" aria-label="Historial">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-6M9 20v-10M15 20v-4M3 20h18"/></svg>
+    </button>
+    <button class="nav-pill active" onclick="switchView('hub')" id="nav-btn-hub" title="Inicio">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+    </button>
+    <button class="nav-pill" onclick="switchView('materiales')" id="nav-btn-materiales" title="Materiales">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+    </button>
+  </div>
+
+  <!-- FAB separado — solo en Materiales -->
+  <button class="mat-fab" id="mat-fab" onclick="document.getElementById('file-inp').click()" title="Añadir Apunte">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  </button>
+
+  <input type="file" id="file-inp" accept=".pdf" style="display:none" onchange="fileSelected(event)"/>
+  <div id="toasts"></div>
+
+  <!-- ── Error flashcard panel (slides up on rojo) ── -->
+  <div id="error-panel" class="error-panel">
+    <div class="error-panel-handle"></div>
+    <div class="error-panel-header">
+      <span class="error-panel-badge">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        <span data-i18n="panel_wrong_badge">Respuesta incorrecta</span>
+      </span>
+      <button class="ajustes-close" onclick="closeErrorPanel()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Swipeable flashcards: 2 cards -->
+    <div class="fc-track" id="fc-track" onscroll="_onFcScroll(this)">
+      <!-- Card 1: Comparison — user answer vs correct + why wrong -->
+      <div class="fc-card fc-card-error">
+        <div class="fc-card-label" data-i18n="panel_why_wrong">Por qué está mal</div>
+        <div class="fc-card-section fc-section-user">
+          <span class="fc-card-sublabel" data-i18n="panel_you_said">Dijiste:</span>
+          <div class="fc-card-text" id="fc-respuesta-usuario"></div>
+        </div>
+        <div class="fc-card-section fc-section-correct">
+          <span class="fc-card-sublabel" data-i18n="panel_correct_answer">Lo correcto:</span>
+          <div class="fc-card-text" id="fc-respuesta-correcta"></div>
+        </div>
+        <div class="fc-card-text fc-explanation" id="fc-por-que-mal"></div>
+      </div>
+      <!-- Card 2: Analogy -->
+      <div class="fc-card fc-card-analogy">
+        <div class="fc-card-label" data-i18n="panel_analogy">Analogía</div>
+        <div class="fc-card-text" id="fc-analogia"></div>
+      </div>
+    </div>
+    <div class="fc-dots" id="fc-dots">
+      <span class="fc-dot active"></span>
+      <span class="fc-dot"></span>
+    </div>
+
+    <div class="error-panel-actions">
+      <button class="ep-btn-secondary" onclick="closeErrorPanel(); siguientePregunta()" data-i18n="panel_continue">Continuar →</button>
+      <button class="ep-btn-primary" onclick="repetirPregunta()" data-i18n="panel_repeat">Repetir pregunta</button>
+    </div>
+  </div>
+
+  <!-- ── Answer panel (slides up on verde/amarillo) ── -->
+  <div id="answer-panel" class="answer-panel">
+    <div class="answer-panel-handle"></div>
+    <div class="answer-panel-header">
+      <span class="answer-panel-badge" id="answer-panel-badge">✓ Correcto</span>
+      <button class="ajustes-close" onclick="closeAnswerPanel()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="answer-panel-body answer-panel-user-section" id="answer-panel-user-section" style="display:none">
+      <div class="answer-panel-label" data-i18n="panel_your_answer">Lo que dijiste</div>
+      <div class="answer-panel-text" id="answer-panel-user-text"></div>
+    </div>
+    <div class="answer-panel-body">
+      <div class="answer-panel-label" data-i18n="panel_the_answer">La respuesta</div>
+      <div class="answer-panel-text" id="answer-panel-text"></div>
+    </div>
+    <div class="answer-panel-body answer-panel-analogy-section" id="answer-panel-analogy-section" style="display:none">
+      <div class="answer-panel-label" data-i18n="panel_analogy">Analogía</div>
+      <div class="answer-panel-text" id="answer-panel-analogy"></div>
+    </div>
+    <div class="answer-panel-actions">
+      <button class="ep-btn-secondary" id="answer-panel-next" onclick="closeAnswerPanel(); siguientePregunta()" data-i18n="panel_next">Siguiente →</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Asignaturas (Bottom Sheet) -->
+<div class="modal-bg" id="modal-bg" onclick="closeModalBg(event)">
+  <div class="modal" id="modal-subjects">
+    <!-- Header del modal -->
+    <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:12px">
+      <h2 style="font-family:'Inter',sans-serif; font-weight:600; font-size:1rem; margin:0" data-i18n="subj_modal_title">Asignaturas</h2>
+      <div style="display:flex; gap:6px; align-items:center">
+        <button class="btn-icon" onclick="toggleSubjectSearch()" id="btn-search-subj" title="Buscar" aria-label="Buscar asignatura">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </button>
+        <button class="btn-icon btn-icon-primary" onclick="openSubjectWizard()" title="Nueva asignatura" aria-label="Crear asignatura">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <button class="btn-icon" onclick="closeModal()" aria-label="Cerrar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+    </div>
+    <!-- Buscador (oculto por defecto) -->
+    <div id="search-subj-wrap" style="display:none; margin-bottom:10px">
+      <input type="text" id="search-subj-input" placeholder="Buscar asignatura..." 
+        oninput="filterSubjects(this.value)"
+        style="width:100%; padding:10px 14px; border-radius:12px; border:1px solid var(--border2); background:var(--s2); color:var(--txt); font-family:'Inter',sans-serif; font-size:.9rem; outline:none"/>
+    </div>
+    <!-- Lista de asignaturas -->
+    <div id="sb-subjects" class="sheet-list"></div>
+    <!-- Formulario crear (oculto) -->
+    <div id="create-subj-form" style="display:none; border-top:1px solid var(--border); padding-top:16px; margin-top:8px">
+      <div style="display:flex; align-items:center; gap:10px; margin-bottom:12px">
+        <button class="btn-icon" onclick="hideCreateSubject()" title="Cancelar"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg></button>
+        <h3 style="font-family:'Inter',sans-serif; font-weight:600; font-size:.95rem; margin:0" data-i18n="subj_new_title">Nueva asignatura</h3>
+      </div>
+      <div class="fld"><input type="text" id="m-name" placeholder="ej: Anatomía, Finanzas..." onkeydown="if(event.key==='Enter')createSubject()" style="background:var(--s2); border:1px solid var(--border2); padding:12px 14px; border-radius:12px; width:100%"/></div>
+      <div class="fld" style="margin-top:10px">
+        <label style="font-size:.7rem; color:var(--txt3); margin-bottom:8px; display:block; text-transform:uppercase; letter-spacing:.05em" data-i18n="subj_color">Color</label>
+        <div class="color-picker" id="color-picker" style="display:flex; gap:8px; flex-wrap:wrap"></div>
+      </div>
+      <button class="btn-a" onclick="createSubject()" style="width:100%; margin-top:16px; border-radius:12px" data-i18n="subj_create_btn">+ Crear</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Ajustes -->
+<div class="modal-bg" id="modal-ajustes" onclick="closeAjustesBg(event)">
+  <div class="ajustes-sheet">
+    <div class="ajustes-handle"></div>
+
+    <!-- User header -->
+    <div class="ajustes-user">
+      <div class="ajustes-avatar" id="ajustes-avatar">E</div>
+      <div style="flex:1; min-width:0">
+        <div class="ajustes-name-row">
+          <div class="ajustes-username" id="ajustes-name">Estudiante</div>
+          <button class="ajustes-edit-btn" id="ajustes-edit-btn" onclick="startEditName()" title="Editar nombre">
+            <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          </button>
+        </div>
+        <div class="ajustes-subtitle" id="ajustes-email-lbl"></div>
+      </div>
+      <button class="ajustes-close" onclick="closeAjustesModal()" aria-label="Cerrar">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+
+    <!-- Inline name edit (hidden by default) -->
+    <div id="ajustes-name-edit" style="display:none; margin-bottom:14px; display:none">
+      <div style="display:flex; gap:8px; align-items:center">
+        <input type="text" id="ajustes-name-inp" class="ajustes-name-input" placeholder="Tu nombre"
+          onkeydown="if(event.key==='Enter')saveEditName()"/>
+        <button class="ajustes-save-btn" onclick="saveEditName()" data-i18n="settings_save">Guardar</button>
+        <button class="ajustes-close" onclick="cancelEditName()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Inline mundo analogias edit (hidden by default) -->
+    <div id="ajustes-mundo-edit" style="display:none; margin-bottom:14px">
+      <div style="display:flex; gap:8px; align-items:center">
+        <input type="text" id="ajustes-mundo-inp" class="ajustes-name-input" placeholder="p.ej. fútbol, música, videojuegos"
+          onkeydown="if(event.key==='Enter')saveMundoEdit()"/>
+        <button class="ajustes-save-btn" onclick="saveMundoEdit()" data-i18n="settings_save">Guardar</button>
+        <button class="ajustes-close" onclick="cancelMundoEdit()">
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Setting rows -->
+    <div class="ajustes-rows">
+      <!-- Voz del tutor -->
+      <button class="ajustes-row" onclick="closeAjustesModal(); setTimeout(openVoicePicker, 180)">
+        <div class="ajustes-row-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
+        </div>
+        <div class="ajustes-row-text">
+          <span class="ajustes-row-label" data-i18n="settings_voice">Voz del tutor</span>
+          <span class="ajustes-row-value" id="lbl-voz-actual">Dora · Español</span>
+        </div>
+        <svg class="ajustes-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+      <!-- Tipo de analogías -->
+      <button class="ajustes-row" onclick="openMundoEdit()">
+        <div class="ajustes-row-icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="9" y1="18" x2="15" y2="18"/><line x1="10" y1="22" x2="14" y2="22"/><path d="M15.09 14c.18-.98.65-1.74 1.41-2.5A4.65 4.65 0 0 0 18 8 6 6 0 0 0 6 8c0 1 .23 2.23 1.5 3.5A4.61 4.61 0 0 1 8.91 14"/></svg>
+        </div>
+        <div class="ajustes-row-text">
+          <span class="ajustes-row-label" data-i18n="settings_analogy">Tipo de analogías</span>
+          <span class="ajustes-row-value" id="lbl-mundo-actual">Sin definir</span>
+        </div>
+        <svg class="ajustes-row-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    <!-- Language picker -->
+    <div class="ajustes-lang-row">
+      <div class="ajustes-lang-label" data-i18n="settings_language">Idioma</div>
+      <div class="lang-picker">
+        <button class="lang-btn active" data-lang="es" onclick="changeLang('es')">🇪🇸 <span data-i18n="lang_es">Español</span></button>
+        <button class="lang-btn" data-lang="en" onclick="changeLang('en')">🇬🇧 <span data-i18n="lang_en">English</span></button>
+        <button class="lang-btn" data-lang="de" onclick="changeLang('de')">🇩🇪 <span data-i18n="lang_de">Deutsch</span></button>
+      </div>
+    </div>
+
+    <!-- Logout -->
+    <button class="ajustes-logout" onclick="logout()">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+      <span data-i18n="settings_logout">Cerrar sesión</span>
+    </button>
+  </div>
+</div>
+
+<!-- Voice Picker -->
+<div class="modal-bg" id="voice-picker-modal" onclick="if(event.target===this)closeVoicePicker()" style="z-index:4000">
+  <div class="ajustes-sheet" style="max-width:360px">
+    <div class="ajustes-handle"></div>
+    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; padding:0 4px">
+      <span style="font-family:'Cormorant Garamond',serif; font-size:1.5rem; font-weight:500; color:#fff" data-i18n="voice_title">Voz del tutor</span>
+      <button class="ajustes-close" onclick="closeVoicePicker()">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <p style="font-size:.75rem; color:rgba(255,255,255,0.45); padding:0 4px; margin-bottom:16px" data-i18n="voice_instruction">Toca el icono para probarla antes de elegir</p>
+    <div id="kokoro-voice-list" style="display:flex; flex-direction:column; gap:8px"></div>
+  </div>
+</div>
+
+<!-- Fallos Overlay -->
+<div class="fallos-overlay" id="fallos-overlay">
+  <div class="fallos-header">
+    <div class="fallos-header-left">
+      <button class="ajustes-close" onclick="closeFallos()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <h2 id="fallos-overlay-title" data-i18n="rev_errors">Errores</h2>
+    </div>
+    <div class="fallos-q-dots" id="fallos-q-dots"></div>
+  </div>
+  <div class="fallos-q-track" id="fallos-q-track"></div>
+</div>
+
+<!-- Plan Detail Overlay -->
+<div class="plan-detail-overlay" id="plan-detail-overlay">
+  <div class="plan-detail-header">
+    <div class="fallos-header-left">
+      <button class="ajustes-close" onclick="closePlanDetail()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div>
+        <div class="plan-detail-title" id="plan-detail-title">Plan</div>
+        <div class="plan-detail-meta-text" id="plan-detail-meta"></div>
+      </div>
+    </div>
+  </div>
+  <div class="plan-detail-body" id="plan-detail-body"></div>
+</div>
+
+<!-- ════ SUBJECT WIZARD ════ -->
+<div id="subject-wizard" style="display:none">
+
+  <!-- Step 1: Nombre + Color -->
+  <div class="wizard-step active" id="wizard-step1">
+    <div class="wizard-step-header">
+      <div class="wizard-step-titles">
+        <div class="wizard-step-title" data-i18n="subj_new_title">Nueva asignatura</div>
+        <div class="wizard-step-num" data-i18n="wiz_step1">Paso 1 de 2</div>
+      </div>
+      <button class="wizard-close-btn" onclick="closeSubjectWizard()">✕</button>
+    </div>
+    <div class="wizard-body">
+      <div class="wizard-label" data-i18n="wiz_name_label">Nombre</div>
+      <input class="wizard-input" type="text" id="wiz-name" data-i18n-ph="subj_name_ph" placeholder="ej: Anatomía, Derecho Penal..."
+        onkeydown="if(event.key==='Enter')wizardStep1Next()"/>
+      <div class="wizard-label" data-i18n="wiz_color_label">Color</div>
+      <div class="color-picker" id="wiz-color-picker" style="margin-bottom: 0"></div>
+    </div>
+    <div class="wizard-footer">
+      <button class="wizard-btn-primary" id="wiz-btn-next" onclick="wizardStep1Next()" data-i18n="wiz_next">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Subir archivos -->
+  <div class="wizard-step" id="wizard-step2">
+    <div class="wizard-step-header">
+      <button class="wizard-back-btn" onclick="wizardBack()">←</button>
+      <div class="wizard-step-titles">
+        <div class="wizard-step-title" id="wiz-subject-name">Asignatura</div>
+        <div class="wizard-step-num" data-i18n="wiz_step2">Paso 2 de 2 · Añadir apuntes</div>
+      </div>
+    </div>
+    <div class="wizard-body">
+      <div class="wiz-upload-zone" onclick="document.getElementById('wiz-file-inp').click()">
+        <div class="wiz-upload-icon">
+          <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity:.7"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+        </div>
+        <div class="wiz-upload-text"><span data-i18n="wiz_upload_prompt">Toca para subir PDFs</span><br><span style="font-size:.78rem;opacity:.6" data-i18n="wiz_upload_sub">Puedes añadir más después</span></div>
+      </div>
+      <input type="file" id="wiz-file-inp" accept=".pdf" style="display:none" multiple onchange="wizardFileSelected(event)"/>
+      <div class="wiz-file-list" id="wiz-file-list"></div>
+    </div>
+    <div class="wizard-footer">
+      <button class="wizard-btn-primary" onclick="wizardFinish()" data-i18n="wiz_start">Empezar →</button>
+      <button class="wizard-btn-secondary" onclick="wizardFinish()" data-i18n="wiz_skip">Omitir por ahora</button>
+    </div>
+  </div>
+
+</div>
+
+<!-- ════ PLAN WIZARD ════ -->
+<div id="plan-wizard" class="plan-wizard-overlay" style="display:none">
+
+  <!-- Step 1: Temas -->
+  <div id="plan-wiz-step1" class="plan-wiz-step">
+    <div class="plan-wiz-topbar">
+      <button class="lobby-close-btn" onclick="closePlanWizard()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <span class="plan-wiz-topbar-title" data-i18n="plan_new">Nuevo plan</span>
+    </div>
+    <div class="plan-wiz-scroll">
+      <div class="plan-wiz-sub" id="plan-wiz-subject" style="margin-bottom:24px">Cargando...</div>
+      <div class="lobby-label" data-i18n="plan_topics">Temas a incluir</div>
+      <div id="plan-wiz-topics" class="lobby-topic-list" style="margin-bottom:28px">
+        <div class="atom-loading" data-i18n="lobby_loading_topics">Cargando temas...</div>
+      </div>
+      <button class="lobby-start-btn" onclick="planWizStep1Next()" data-i18n="wiz_next">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Fecha examen -->
+  <div id="plan-wiz-step2" class="plan-wiz-step" style="display:none">
+    <div class="plan-wiz-topbar plan-wiz-topbar-end">
+      <span class="plan-wiz-topbar-title" data-i18n="plan_exam_date">Fecha</span>
+      <button class="lobby-close-btn" onclick="showPlanWizStep(1)">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+    </div>
+    <div class="plan-wiz-scroll">
+      <input type="date" id="plan-exam-date" class="plan-date-input" />
+
+      <div class="lobby-label" style="margin-top:24px" data-i18n="plan_questions">Preguntas por sesión</div>
+      <div class="plan-range-row">
+        <span class="plan-range-bound">5</span>
+        <input type="range" id="plan-atoms-slider" min="5" max="20" value="10" step="1"
+               class="plan-range-slider" oninput="setPlanAtomsSlider(this.value)"/>
+        <span class="plan-range-bound">20</span>
+      </div>
+      <div class="plan-range-val" id="plan-atoms-val">10 preguntas</div>
+
+      <button class="lobby-start-btn" id="plan-wiz-submit-btn" onclick="submitPlanWizard()" style="margin-top:28px" data-i18n="plan_create">Crear plan</button>
+    </div>
+  </div>
+
+</div>
+
+<script src="app.js"></script>
+<script>
+// ─ Notification carousel ─
+let _notifIdx = 0;
+function goNotif(idx) {
+  const track = document.getElementById('notif-track');
+  const dots  = document.querySelectorAll('.notif-dot');
+  if (!track) return;
+  const items = track.querySelectorAll('.notif-item');
+  idx = Math.max(0, Math.min(idx, items.length - 1));
+  _notifIdx = idx;
+  track.style.transform = `translateX(${-idx * 100}%)`;
+  dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+}
+// Touch/mouse swipe
+(function() {
+  const carousel = document.querySelector('.notif-carousel');
+  if (!carousel) return;
+  let startX = 0, dragging = false;
+  carousel.addEventListener('touchstart', e => { startX = e.touches[0].clientX; dragging = true; }, { passive: true });
+  carousel.addEventListener('touchend', e => {
+    if (!dragging) return; dragging = false;
+    const dx = e.changedTouches[0].clientX - startX;
+    if (Math.abs(dx) > 40) goNotif(_notifIdx + (dx < 0 ? 1 : -1));
+  });
+  carousel.addEventListener('mousedown', e => { startX = e.clientX; dragging = true; });
+  window.addEventListener('mouseup', e => {
+    if (!dragging) return; dragging = false;
+    const dx = e.clientX - startX;
+    if (Math.abs(dx) > 40) goNotif(_notifIdx + (dx < 0 ? 1 : -1));
+  });
+})();
+// Auto-advance every 5s
+setInterval(() => { const track = document.getElementById('notif-track'); if (track) { const n = track.querySelectorAll('.notif-item').length; goNotif((_notifIdx + 1) % n); } }, 5000);
+
+// ─ Lobby mode tabs swipe (works on tabs area) ─
+(function() {
+  const el = document.querySelector('.lobby-mode-tabs');
+  if (!el) return;
+  let sx = 0, sw = false;
+  el.addEventListener('touchstart', e => { sx = e.touches[0].clientX; sw = true; }, { passive: true });
+  el.addEventListener('touchend', e => {
+    if (!sw) return; sw = false;
+    const dx = e.changedTouches[0].clientX - sx;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0 && typeof setStudyMode === 'function') setStudyMode('test');
+      else if (dx > 0 && typeof setStudyMode === 'function') setStudyMode('voz');
+    }
+  });
+  // Also mouse swipe for desktop
+  el.addEventListener('mousedown', e => { sx = e.clientX; sw = true; });
+  window.addEventListener('mouseup', e => {
+    if (!sw) return; sw = false;
+    const dx = e.clientX - sx;
+    if (Math.abs(dx) > 40) {
+      if (dx < 0 && typeof setStudyMode === 'function') setStudyMode('test');
+      else if (dx > 0 && typeof setStudyMode === 'function') setStudyMode('voz');
+    }
+  });
+})();
+</script>
+</body>
+</html>

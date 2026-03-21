@@ -1,0 +1,11 @@
+.next/
+node_modules/
+__pycache__/
+*.pyc
+.env
+.DS_Store
+*.pem
+*.key
+BACKEND/cert.pem
+BACKEND/key.pem
+.claude/
