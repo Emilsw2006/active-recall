@@ -1,0 +1,7 @@
+{
+  "name": "active-recall",
+  "version": "1.0.0",
+  "scripts": {
+    "vercel-build": "echo 'No build needed'"
+  }
+}
