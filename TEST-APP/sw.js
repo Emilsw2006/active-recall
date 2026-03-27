@@ -1,13 +1,12 @@
-const CACHE_NAME = 'active-recall-v1';
+const CACHE_NAME = 'active-recall-v2';
 const PRECACHE = [
-  '/',
-  '/index.html',
-  '/style.css',
-  '/app.js',
-  '/i18n.js',
-  '/manifest.json',
-  '/icons/icon-192.png',
-  '/icons/icon-512.png'
+  '/app',
+  '/app/style.css',
+  '/app/app.js',
+  '/app/i18n.js',
+  '/app/manifest.json',
+  '/app/icons/icon-192.png',
+  '/app/icons/icon-512.png'
 ];
 
 // Install — precache shell
@@ -35,7 +34,9 @@ self.addEventListener('fetch', e => {
   // Skip non-GET, WebSocket, and API requests
   if (e.request.method !== 'GET') return;
   if (url.protocol === 'ws:' || url.protocol === 'wss:') return;
-  if (url.origin !== location.origin) return;
+
+  // Skip API endpoints (only cache static assets under /app)
+  if (!url.pathname.startsWith('/app')) return;
 
   e.respondWith(
     caches.match(e.request).then(cached => {

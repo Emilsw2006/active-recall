@@ -17,7 +17,7 @@ const COLORS = ['#e8a030','#4f7eff','#4dd68a','#ff5c5c','#a78bfa','#f472b6','#38
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('/app/sw.js', { scope: '/app' }).catch(() => {});
   });
 }
 
