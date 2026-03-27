@@ -330,6 +330,33 @@ async def get_notificaciones(usuario_id: str, lang: str = "es"):
 async def serve_app():
     return FileResponse(FRONTEND_DIR / "index.html")
 
+@app.get("/app/", response_class=FileResponse)
+async def serve_app_slash():
+    return FileResponse(FRONTEND_DIR / "index.html")
+
+@app.get("/app/{filepath:path}")
+async def serve_app_files(filepath: str):
+    """Serve any file under /app/ from TEST-APP directory."""
+    file_path = FRONTEND_DIR / filepath
+    if file_path.is_file():
+        media_types = {
+            ".js": "application/javascript",
+            ".css": "text/css",
+            ".json": "application/json",
+            ".png": "image/png",
+            ".svg": "image/svg+xml",
+            ".ico": "image/x-icon",
+            ".webmanifest": "application/manifest+json",
+        }
+        suffix = file_path.suffix.lower()
+        media_type = media_types.get(suffix, "application/octet-stream")
+        headers = {}
+        if filepath == "sw.js":
+            headers["Service-Worker-Allowed"] = "/app"
+        return FileResponse(file_path, media_type=media_type, headers=headers)
+    return FileResponse(FRONTEND_DIR / "index.html")
+
+# Keep old routes for backward compatibility
 @app.get("/style.css", response_class=FileResponse)
 async def serve_style():
     return FileResponse(FRONTEND_DIR / "style.css")
