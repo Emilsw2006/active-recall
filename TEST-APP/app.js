@@ -9,10 +9,17 @@ if (window.trustedTypes && window.trustedTypes.createPolicy) {
 
 // Si el frontend viene del propio backend...
 // Si viene del servidor estático (8080), apuntamos al backend manualmente
-const API = (location.port === '8080')
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
   ? `http://${location.hostname}:8000`
-  : location.origin;
+  : 'https://activerecallmvp.duckdns.org';
 const COLORS = ['#e8a030','#4f7eff','#4dd68a','#ff5c5c','#a78bfa','#f472b6','#38bdf8','#fb923c','#facc15','#34d399'];
+
+// Register Service Worker for PWA
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
 
 // Stop audio when tab goes hidden (phone locks screen, switches app, etc.)
 document.addEventListener('visibilitychange', () => {
