@@ -1,4 +1,4 @@
-# Active Recall — Dockerfile (ARM64 / Oracle Cloud Always Free)
+# Active Recall — Dockerfile
 # Build context: project root (ACTIVE RECALL/)
 FROM python:3.11-slim
 
@@ -9,7 +9,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libsndfile1 \
     libsndfile1-dev \
     ffmpeg \
-    git \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -25,15 +24,16 @@ COPY BACKEND/ ./BACKEND/
 # Copy frontend (served as static files from /app route)
 COPY TEST-APP/ ./TEST-APP/
 
-# Kokoro model cache directory (mounted as volume in production)
+# Model cache directories (mounted as volumes in production)
 RUN mkdir -p /root/.cache/huggingface /app/BACKEND/.piper_models
 
 WORKDIR /app/BACKEND
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 EXPOSE 8000
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+# Single worker to save RAM — increase to 2 on servers with 4GB+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

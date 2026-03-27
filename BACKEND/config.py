@@ -12,11 +12,11 @@ class Settings(BaseSettings):
     supabase_service_key: str
     secret_key: str = "Hjhdeivacdlfn23"
     
-    # TTS — prioridad: Kokoro (local) → Azure → ElevenLabs → OpenAI → browser
-    # Kokoro (open source, local, sin coste)
+    # TTS — prioridad: Kokoro (local) → Piper → Edge → gTTS → Azure → browser
+    # Kokoro (open source, local, sin coste) — needs ~500MB RAM
     use_kokoro_tts: bool = True
     kokoro_voice: str = "ef_dora"
-    # Piper TTS (local, neural quality)
+    # Piper TTS (local, neural quality) — needs ~100MB RAM
     use_piper_tts: bool = False
     # Azure TTS (5 millones chars/mes gratis)
     azure_tts_key: str = ""
