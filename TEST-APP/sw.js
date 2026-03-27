@@ -1,22 +1,7 @@
-const CACHE_NAME = 'active-recall-v2';
-const PRECACHE = [
-  '/app',
-  '/app/style.css',
-  '/app/app.js',
-  '/app/i18n.js',
-  '/app/manifest.json',
-  '/app/icons/icon-192.png',
-  '/app/icons/icon-512.png'
-];
+const CACHE_NAME = 'active-recall-v3';
 
-// Install — precache shell
-self.addEventListener('install', e => {
-  e.waitUntil(
-    caches.open(CACHE_NAME)
-      .then(cache => cache.addAll(PRECACHE))
-      .then(() => self.skipWaiting())
-  );
-});
+// Install — skip precaching to avoid path issues, cache on demand
+self.addEventListener('install', () => self.skipWaiting());
 
 // Activate — clean old caches
 self.addEventListener('activate', e => {
@@ -27,7 +12,7 @@ self.addEventListener('activate', e => {
   );
 });
 
-// Fetch — network first for API, cache first for assets
+// Fetch — network first, fallback to cache
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
@@ -35,20 +20,19 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET') return;
   if (url.protocol === 'ws:' || url.protocol === 'wss:') return;
 
-  // Skip API endpoints (only cache static assets under /app)
-  if (!url.pathname.startsWith('/app')) return;
+  // Only cache static assets (css, js, images, fonts)
+  const isStatic = /\.(css|js|png|svg|ico|woff2?|ttf|json)$/.test(url.pathname)
+    || url.pathname.endsWith('/app') || url.pathname === '/';
+
+  if (!isStatic) return;
 
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      const fetchPromise = fetch(e.request).then(response => {
-        if (response && response.status === 200) {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
-        }
-        return response;
-      }).catch(() => cached);
-
-      return cached || fetchPromise;
-    })
+    fetch(e.request).then(response => {
+      if (response && response.status === 200) {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(e.request, clone));
+      }
+      return response;
+    }).catch(() => caches.match(e.request))
   );
 });

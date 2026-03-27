@@ -17,7 +17,9 @@ const COLORS = ['#e8a030','#4f7eff','#4dd68a','#ff5c5c','#a78bfa','#f472b6','#38
 // Register Service Worker for PWA
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/app/sw.js', { scope: '/app' }).catch(() => {});
+    const swPath = location.pathname.startsWith('/app') ? '/app/sw.js' : '/sw.js';
+    const swScope = location.pathname.startsWith('/app') ? '/app' : '/';
+    navigator.serviceWorker.register(swPath, { scope: swScope }).catch(() => {});
   });
 }
 
