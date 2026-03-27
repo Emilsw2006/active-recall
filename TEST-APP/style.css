@@ -2078,6 +2078,49 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 }
 .pwa-install-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+/* PWA install overlay */
+.pwa-install-overlay {
+  position: fixed; inset: 0; z-index: 10000;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+  display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.3s;
+}
+.pwa-install-overlay.visible { opacity: 1; }
+.pwa-install-card {
+  background: rgba(15,17,23,0.97); border: 1px solid rgba(232,160,48,0.2);
+  border-radius: 20px; padding: 32px 28px; max-width: 320px; width: 90%;
+  text-align: center; box-shadow: 0 16px 48px rgba(0,0,0,0.5);
+  transform: scale(0.9); transition: transform 0.3s;
+}
+.pwa-install-overlay.visible .pwa-install-card { transform: scale(1); }
+.pwa-install-icon { margin-bottom: 16px; }
+.pwa-install-title {
+  font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; font-weight: 400;
+  color: #fff; margin: 0 0 8px;
+}
+.pwa-install-desc {
+  font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 400;
+  color: rgba(255,255,255,0.6); margin: 0 0 12px; line-height: 1.4;
+}
+.pwa-install-instructions {
+  font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 400;
+  color: rgba(232,160,48,0.9); margin: 0 0 18px; line-height: 1.4;
+}
+.pwa-install-confirm-btn {
+  width: 100%; padding: 14px; border: none; border-radius: 12px;
+  background: rgba(232,160,48,0.9); color: #0f1117;
+  font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 600;
+  cursor: pointer; margin-bottom: 10px; transition: background 0.2s;
+}
+.pwa-install-confirm-btn:active { background: rgba(232,160,48,1); }
+.pwa-install-cancel {
+  width: 100%; padding: 12px; border: none; border-radius: 12px;
+  background: rgba(255,255,255,0.06); color: rgba(255,255,255,0.5);
+  font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 400;
+  cursor: pointer; transition: background 0.2s;
+}
+.pwa-install-cancel:active { background: rgba(255,255,255,0.1); }
+
 /* PWA install row highlight */
 .pwa-install-row {
   background: rgba(232,160,48,0.06) !important;

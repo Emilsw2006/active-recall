@@ -47,25 +47,57 @@ window.addEventListener('load', () => {
 });
 
 function installPWA() {
+  // Show install overlay
+  const overlay = document.createElement('div');
+  overlay.className = 'pwa-install-overlay';
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+
+  let btnHtml = '';
   if (_deferredInstallPrompt) {
-    // Chrome/Edge/Android — native install prompt
-    _deferredInstallPrompt.prompt();
-    _deferredInstallPrompt.userChoice.then(r => {
-      if (r.outcome === 'accepted') _deferredInstallPrompt = null;
-    });
-  } else {
-    // iOS Safari or browser without beforeinstallprompt
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    const msg = isIOS
-      ? (T('install_ios') || 'Tap the Share button (↑) then "Add to Home Screen"')
-      : (T('install_android') || 'Tap the menu (⋮) then "Install app" or "Add to Home Screen"');
-    // Show a small toast with instructions
-    const toast = document.createElement('div');
-    toast.className = 'pwa-install-toast';
-    toast.textContent = msg;
-    document.body.appendChild(toast);
-    setTimeout(() => toast.classList.add('visible'), 50);
-    setTimeout(() => { toast.classList.remove('visible'); setTimeout(() => toast.remove(), 400); }, 5000);
+    btnHtml = `<button class="pwa-install-confirm-btn" id="pwa-do-install">${T('install_btn') || 'Instalar'}</button>`;
+  }
+
+  const instructions = isIOS
+    ? (T('install_ios') || 'Pulsa Compartir (↑) y luego "Añadir a pantalla de inicio"')
+    : (!_deferredInstallPrompt ? (T('install_android') || 'Pulsa el menú (⋮) y luego "Instalar app"') : '');
+
+  overlay.innerHTML = `
+    <div class="pwa-install-card">
+      <div class="pwa-install-icon">
+        <img src="icons/icon-192.png" alt="Active Recall" width="64" height="64" style="border-radius:14px"/>
+      </div>
+      <h3 class="pwa-install-title">${T('install_title') || 'Instalar Active Recall'}</h3>
+      <p class="pwa-install-desc">${T('install_desc') || 'Accede directamente desde tu pantalla de inicio, sin navegador.'}</p>
+      ${instructions ? `<p class="pwa-install-instructions">${instructions}</p>` : ''}
+      ${btnHtml}
+      <button class="pwa-install-cancel" id="pwa-cancel">${T('cancel') || 'Cancelar'}</button>
+    </div>
+  `;
+
+  document.body.appendChild(overlay);
+  requestAnimationFrame(() => overlay.classList.add('visible'));
+
+  overlay.querySelector('#pwa-cancel').onclick = () => {
+    overlay.classList.remove('visible');
+    setTimeout(() => overlay.remove(), 300);
+  };
+  overlay.addEventListener('click', e => {
+    if (e.target === overlay) {
+      overlay.classList.remove('visible');
+      setTimeout(() => overlay.remove(), 300);
+    }
+  });
+
+  const installBtn = overlay.querySelector('#pwa-do-install');
+  if (installBtn && _deferredInstallPrompt) {
+    installBtn.onclick = () => {
+      _deferredInstallPrompt.prompt();
+      _deferredInstallPrompt.userChoice.then(r => {
+        if (r.outcome === 'accepted') _deferredInstallPrompt = null;
+        overlay.classList.remove('visible');
+        setTimeout(() => overlay.remove(), 300);
+      });
+    };
   }
 }
 
