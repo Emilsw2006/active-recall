@@ -89,22 +89,31 @@ async def _tts_kokoro(texto: str, voz: str = "") -> bytes:
 
 _EDGE_DEFAULT_VOICES = {
     "es": "es-ES-ElviraNeural",
-    "en": "en-US-AvaNeural",
-    "de": "de-DE-SeraphinaMultilingualNeural",
+    "en": "en-US-JennyNeural",
+    "de": "de-DE-KatjaNeural",
 }
 
 async def _tts_edge(texto: str, voice_name: str = "", lang: str = "es") -> bytes:
     """Microsoft Edge TTS — free, no API key, supports all Azure Neural voices."""
     import edge_tts
     voice = voice_name if voice_name else _EDGE_DEFAULT_VOICES.get(lang, "es-ES-ElviraNeural")
-    communicate = edge_tts.Communicate(texto, voice)
-    chunks = []
-    async for chunk in communicate.stream():
-        if chunk["type"] == "audio":
-            chunks.append(chunk["data"])
-    if not chunks:
-        raise ValueError("edge-tts no generó audio")
-    return b"".join(chunks)
+
+    async def _do_edge(v: str) -> bytes:
+        communicate = edge_tts.Communicate(texto, v)
+        chunks = []
+        async for chunk in communicate.stream():
+            if chunk["type"] == "audio":
+                chunks.append(chunk["data"])
+        if not chunks:
+            raise ValueError("edge-tts no generó audio")
+        return b"".join(chunks)
+
+    try:
+        return await asyncio.wait_for(_do_edge(voice), timeout=15)
+    except Exception:
+        if voice != _EDGE_DEFAULT_VOICES.get(lang, voice):
+            return await asyncio.wait_for(_do_edge(_EDGE_DEFAULT_VOICES[lang]), timeout=15)
+        raise
 
 
 # ─── 2b. Piper TTS (local, neural quality — needs piper-tts + model files) ────

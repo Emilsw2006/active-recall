@@ -95,6 +95,7 @@ async def websocket_sesion(
 ):
     await websocket.accept()
     logger.info(f"[{sesion_id}] WebSocket conectado")
+    await websocket.send_json({"type": "estado", "estado": "loading_session"})
 
     db = get_service_client()
     sesion = get_sesion(sesion_id)
