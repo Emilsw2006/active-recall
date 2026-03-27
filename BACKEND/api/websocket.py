@@ -125,6 +125,7 @@ async def websocket_sesion(
             temas_elegidos=row["temas_elegidos"],
             duration_type=row.get("duration_type", "corta"),
             start_index=row.get("current_question_index", 0),
+            max_atomos=row.get("n_preguntas"),  # respetar límite de la parte
         )
 
         if not sesion.atomos:
@@ -136,10 +137,11 @@ async def websocket_sesion(
             await websocket.close()
             return
 
-    # Aplicar voz Kokoro recibida por query param
-    if voice in ("ef_dora", "em_alex", "em_santa"):
+    # Aplicar voz recibida por query param (Kokoro — cualquier prefijo de 2 letras — o Neural)
+    _KOKORO_PREFIXES = ('af_','am_','bf_','bm_','ef_','em_','ff_','fm_','hf_','hm_','if_','im_','pf_','pm_','jf_','jm_','zf_','zm_')
+    if voice.startswith(_KOKORO_PREFIXES) or "Neural" in voice:
         sesion.kokoro_voice = voice
-        logger.info(f"[{sesion_id}] Voz Kokoro: {voice}")
+        logger.info(f"[{sesion_id}] Voz: {voice}")
 
     # Marcar sesión como empezada en DB
     await asyncio.to_thread(
@@ -161,9 +163,13 @@ async def websocket_sesion(
         return "", "mp3"
 
     # ── Prefetch Manager ──────────────────────────────────────────────────
+    async def _generar_pregunta_prefetch(atomo_id, texto_completo, titulo_corto):
+        """Wrapper que lee lang en el momento de la llamada (puede cambiar mid-session)."""
+        return await generar_pregunta_cached(atomo_id, texto_completo, titulo_corto, lang=lang)
+
     prefetch_mgr = PrefetchManager(
         sesion=sesion,
-        generar_pregunta_fn=generar_pregunta_cached,
+        generar_pregunta_fn=_generar_pregunta_prefetch,
         tts_fn=_tts,
     )
 
@@ -250,14 +256,23 @@ async def websocket_sesion(
                     logger.info(f"[{sesion_id}] Trigger phrase detectada tras {SILENCIO_RAPIDO}s — procesando")
                     await procesar_respuesta()
                     return
-                # Si hay pocas palabras, aún no evaluar — esperar más silencio
+                # Si hay pocas palabras, notificar al frontend para que el usuario decida
                 palabras = len(texto_limpio.split())
                 if palabras < MIN_PALABRAS_AUTO:
-                    logger.info(f"[{sesion_id}] Respuesta corta ({palabras} palabras) — esperando más ({SILENCIO_LARGO}s total)")
+                    logger.info(f"[{sesion_id}] Respuesta corta ({palabras} palabras) — notificando al frontend")
+                    if ws_connected:
+                        await websocket.send_json({
+                            "type": "respuesta_corta",
+                            "transcript": texto_limpio,
+                        })
             except Exception:
                 pass  # Si falla la transcripción rápida, seguimos al timeout largo
 
-        # No auto-evaluar por silencio — el usuario pulsa Enviar cuando esté listo
+        # Fase 2: auto-evaluar tras silencio largo (fallback si el usuario no pulsa Enviar)
+        await asyncio.sleep(SILENCIO_LARGO - SILENCIO_RAPIDO)
+        if sesion.estado == "LISTENING_USER" and audio_chunks:
+            logger.info(f"[{sesion_id}] Silencio {SILENCIO_LARGO}s — auto-evaluando")
+            await procesar_respuesta()
 
     # ── Procesar respuesta ──────────────────────────────────────────────────
 
@@ -307,21 +322,24 @@ async def websocket_sesion(
                 if not texto_usuario:
                     texto_usuario = "Sin respuesta"
 
-            ruta, similitud, feedback = await evaluar_respuesta(
+            ruta, similitud, feedback, detalle = await evaluar_respuesta(
                 respuesta_usuario=texto_usuario,
                 atomo_texto=atomo.texto_completo,
                 atomo_embedding=atomo.embedding,
                 pregunta=atomo.pregunta,
                 uso_pista=atomo.uso_pista,
                 lang=lang,
+                en_segundo_intento=sesion.en_segundo_intento,
+                tema_analogia=sesion.usuario_mundo_analogias,
             )
             logger.info(f"[{sesion_id}] Ruta={ruta} similitud={similitud:.3f} intento2={sesion.en_segundo_intento}")
 
             # ── RUTA AMARILLA (Método Feynman) ──
-            # Primer intento amarillo: pedir analogía antes de guardar
+            # Primer intento amarillo: pedir transformación antes de guardar
             if ruta == "amarillo" and not sesion.en_segundo_intento:
                 sesion.en_segundo_intento = True
-                feynman_text = _feynman_prompt(atomo.titulo_corto)
+                # Use the evaluator's transformation message (already in correct lang)
+                feynman_text = feedback if feedback else _feynman_prompt(atomo.titulo_corto)
                 audio_feynman, fmt_feynman = await _tts(feynman_text)
                 sesion.estado = "LISTENING_USER"
                 await websocket.send_json({
@@ -336,9 +354,18 @@ async def websocket_sesion(
             sesion.en_segundo_intento = False
             await _guardar_resultado(atomo.id, ruta, texto_usuario, similitud, atomo.pregunta or "")
 
-            # Run flashcard generation and TTS in parallel to cut latency
+            # Build flashcard from evaluator detalle (rojo) — avoids separate LLM call
             flashcard = None
-            if ruta in ("rojo", "amarillo"):
+            if ruta == "rojo" and detalle:
+                flashcard = {
+                    "paso_1_concepto_base":  detalle.get("error", ""),
+                    "paso_2_error_cometido": detalle.get("micro_explicacion", ""),
+                    "paso_3_analogia":       detalle.get("analogia", ""),
+                }
+                await _guardar_flashcard_history(atomo.id, flashcard)
+                audio_feedback_b64, fmt_feedback = await _tts(feedback)
+            elif ruta in ("rojo", "amarillo"):
+                # Fallback: generate flashcard separately (detalle was None)
                 async def _gen_flashcard():
                     fc = await generar_flashcard(
                         atomo_id=atomo.id,
@@ -373,6 +400,7 @@ async def websocket_sesion(
                 "audio_base64": audio_feedback_b64,
                 "audio_format": fmt_feedback,
                 "flashcard": flashcard,
+                "detalle": detalle,
                 "similitud": round(similitud, 3),
                 "progreso": sesion.progreso,
                 "es_ultima": es_ultima,
@@ -548,12 +576,27 @@ async def websocket_sesion(
                     })
                     break  # Cerrar conexión gracefully
 
-                # Cambiar voz Kokoro
+                # Usuario pulsó Enviar — evaluar ahora (llega tras el último chunk de audio)
+                elif t == "enviar" and sesion.estado == "LISTENING_USER":
+                    if silencio_task and not silencio_task.done():
+                        silencio_task.cancel()
+                    logger.info(f"[{sesion_id}] Enviar recibido — evaluando")
+                    await procesar_respuesta()
+
+                # Cambiar voz (Kokoro o Azure Neural)
                 elif t == "set_voice":
                     voz = msg.get("voice", "ef_dora")
-                    if voz in ("ef_dora", "em_alex", "em_santa"):
+                    if voz[:2] in ('af','am','bf','bm','ef','em','ff','fm','hf','hm','if','im','pf','pm','jf','jm','zf','zm') or "Neural" in voz:
                         sesion.kokoro_voice = voz
-                        logger.info(f"[{sesion_id}] Voz Kokoro cambiada a '{voz}'")
+                        logger.info(f"[{sesion_id}] Voz cambiada a '{voz}'")
+
+                # Cambiar idioma de la sesión en tiempo real
+                elif t == "set_lang":
+                    new_lang = msg.get("lang", "es")
+                    if new_lang in ("es", "en", "de"):
+                        lang = new_lang
+                        prefetch_mgr.invalidate()  # Preguntas cacheadas en idioma anterior
+                        logger.info(f"[{sesion_id}] Idioma cambiado a '{new_lang}'")
 
                 # Toggle modo voz/chat
                 elif t == "switch_mode":

@@ -27,6 +27,7 @@ class CrearPlanRequest(BaseModel):
     temas_elegidos: List[str]
     fecha_examen: str          # ISO date "2026-06-15"
     atomos_por_sesion: int = 10
+    lang: str = "es"
 
 
 @router.post("/plan/crear")
@@ -55,14 +56,20 @@ async def crear_plan(body: CrearPlanRequest):
     asig_res = db.table("asignaturas").select("nombre").eq("id", body.asignatura_id).execute()
     asig_nombre = asig_res.data[0]["nombre"] if asig_res.data else "Asignatura"
 
+    _meses = {
+        "es": ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"],
+        "en": ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"],
+        "de": ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"],
+    }
+    _exam_word = {"es": "Examen", "en": "Exam", "de": "Prüfung"}
     try:
         fecha_obj = date.fromisoformat(body.fecha_examen)
-        meses = ["ene","feb","mar","abr","may","jun","jul","ago","sep","oct","nov","dic"]
+        meses = _meses.get(body.lang, _meses["en"])
         fecha_fmt = f"{fecha_obj.day} {meses[fecha_obj.month - 1]} {fecha_obj.year}"
     except Exception:
         fecha_fmt = body.fecha_examen
 
-    plan_nombre = f"{asig_nombre} — Examen {fecha_fmt}"
+    plan_nombre = f"{asig_nombre} — {_exam_word.get(body.lang, 'Exam')} {fecha_fmt}"
 
     # Crear plan
     plan_res = db.table("planes").insert({
@@ -87,6 +94,7 @@ async def crear_plan(body: CrearPlanRequest):
             "status":                "por_empezar",
             "current_question_index": 0,
             "plan_id":               plan_id,
+            "lang":                  body.lang,
         }).execute()
 
     logger.info(f"Plan '{plan_nombre}' creado ({n_sesiones} sesiones, {total_atomos} átomos)")
@@ -127,6 +135,17 @@ async def listar_planes_usuario(
         p["sesiones_totales"]     = len(ses)
 
     return planes
+
+
+@router.get("/plan/{plan_id}")
+async def get_plan(plan_id: str):
+    """Devuelve un plan por ID."""
+    db = get_service_client()
+    res = db.table("planes").select("*").eq("id", plan_id).execute()
+    if not res.data:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Plan no encontrado")
+    return res.data[0]
 
 
 @router.get("/plan/{plan_id}/proxima")

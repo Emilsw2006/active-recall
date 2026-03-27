@@ -9,13 +9,21 @@ Endpoints de sesiones:
 from datetime import datetime
 from typing import List, Literal, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel
 
 from utils.logger import get_logger
 from utils.supabase_client import get_service_client
-from core.session_manager import cargar_sesion, crear_sesiones_asignatura
+import asyncio
+from core.session_manager import (
+    cargar_sesion,
+    crear_sesiones_asignatura,
+    preparar_atomos_priorizados,
+    dividir_en_chunks,
+    MAX_PREGUNTAS,
+)
 from core.flashcard_generator import generar_flashcard
+from core.question_generator import generar_titulo_sesion
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["sesiones"])
@@ -25,8 +33,11 @@ class CrearSesionRequest(BaseModel):
     usuario_id: str
     asignatura_id: str
     temas_elegidos: List[str]
-    duration_type: Literal["corta", "larga"] = "corta"
-    max_atomos: Optional[int] = None  # si se envía, sobreescribe el límite fijo
+    duration_type: Literal["corta", "larga", "test"] = "corta"
+    max_atomos: Optional[int] = None  # sobreescribe el límite fijo
+    n_preguntas: Optional[int] = None  # para sesiones test: nº elegido en slider
+    completo: bool = False  # True → estudiar TODOS los átomos, dividir en partes
+    lang: str = "es"
 
 
 @router.get("/sesiones/usuario/{usuario_id}")
@@ -36,7 +47,7 @@ async def listar_sesiones_usuario(usuario_id: str):
 
     sesiones_res = (
         db.table("sesiones")
-        .select("id, asignatura_id, duration_type, status, fecha_inicio, fecha_fin, current_question_index, temas_elegidos, plan_id")
+        .select("id, asignatura_id, duration_type, status, fecha_inicio, fecha_fin, current_question_index, temas_elegidos, plan_id, lang, nombre, n_preguntas, test_draft")
         .eq("usuario_id", usuario_id)
         .order("fecha_inicio", desc=True)
         .limit(50)
@@ -108,6 +119,10 @@ async def listar_sesiones_usuario(usuario_id: str):
             "temas_nombres": temas_nombres,
             "conteo": c,
             "plan_id": s.get("plan_id"),
+            "lang": s.get("lang", "es"),
+            "nombre": s.get("nombre") or "",
+            "n_preguntas": s.get("n_preguntas"),
+            "has_test_draft": s.get("test_draft") is not None,
         })
 
     return sessions
@@ -117,6 +132,7 @@ class CrearSesionAsignaturaRequest(BaseModel):
     usuario_id: str
     asignatura_id: str
     preguntas_por_sesion: int = 10  # máx 20
+    lang: str = "es"
 
 
 @router.post("/sesion/crear-asignatura")
@@ -148,8 +164,9 @@ async def crear_sesiones_por_asignatura(body: CrearSesionAsignaturaRequest):
                 "asignatura_id": body.asignatura_id,
                 "temas_elegidos": tema_ids,
                 "duration_type": "asignatura",
-                "status": "por_empezar" if i > 0 else "por_empezar",
+                "status": "por_empezar",
                 "current_question_index": 0,
+                "lang": body.lang,
             })
             .execute()
         )
@@ -166,6 +183,16 @@ async def crear_sesiones_por_asignatura(body: CrearSesionAsignaturaRequest):
         duration_type="asignatura",
         max_atomos=preguntas,
     )
+
+    # Generar títulos para todas las sesiones en background
+    async def _set_nombres_asignatura():
+        for sid, chunk in zip(sesion_ids, chunks):
+            textos = [a.get("texto_completo", "") for a in chunk if a.get("texto_completo")]
+            nombre = await generar_titulo_sesion(textos, lang=body.lang)
+            if nombre:
+                db.table("sesiones").update({"nombre": nombre}).eq("id", sid).execute()
+
+    asyncio.create_task(_set_nombres_asignatura())
 
     logger.info(
         f"Asignatura {body.asignatura_id}: {len(sesion_ids)} sesiones creadas "
@@ -187,12 +214,116 @@ async def crear_sesion(body: CrearSesionRequest):
     db = get_service_client()
     logger.info(
         f"Crear sesión: usuario={body.usuario_id} "
-        f"asignatura={body.asignatura_id} tipo={body.duration_type}"
+        f"asignatura={body.asignatura_id} tipo={body.duration_type} "
+        f"completo={body.completo}"
     )
 
     if not body.temas_elegidos:
         raise HTTPException(status_code=400, detail="Debes elegir al menos un tema")
 
+    # ══════════════════════════════════════════════════════════════════
+    # MODO COMPLETO: todos los átomos → dividir en partes
+    # ══════════════════════════════════════════════════════════════════
+    if body.completo:
+        # Límite por parte
+        if body.max_atomos or body.n_preguntas:
+            preguntas_por_sesion = min(body.max_atomos or body.n_preguntas, MAX_PREGUNTAS)
+        elif body.duration_type == "test":
+            preguntas_por_sesion = body.n_preguntas or 10
+        else:
+            preguntas_por_sesion = 10  # chunks de 10
+
+        atomos_priorizados = await preparar_atomos_priorizados(
+            temas_elegidos=body.temas_elegidos,
+            usuario_id=body.usuario_id,
+        )
+        if not atomos_priorizados:
+            raise HTTPException(status_code=400, detail="Sin átomos disponibles")
+
+        chunks = dividir_en_chunks(atomos_priorizados, preguntas_por_sesion)
+        n_partes = len(chunks)
+
+        # Si hay 2+ partes → crear un plan real que las agrupe
+        plan_id = None
+        if n_partes > 1:
+            plan_res = db.table("planes").insert({
+                "usuario_id": body.usuario_id,
+                "asignatura_id": body.asignatura_id,
+                "nombre": "",  # se genera en background
+                "temas_elegidos": body.temas_elegidos,
+                "total_sesiones": n_partes,
+                "atomos_por_sesion": preguntas_por_sesion,
+                "status": "activo",
+                "lang": body.lang,
+            }).execute()
+            plan_id = plan_res.data[0]["id"]
+            logger.info(f"Plan COMPLETO creado: {plan_id} — {n_partes} sesiones")
+
+        sesion_ids = []
+        for i, chunk in enumerate(chunks):
+            tema_ids_chunk = list({a["tema_id"] for a in chunk})
+            insert_data = {
+                "usuario_id": body.usuario_id,
+                "asignatura_id": body.asignatura_id,
+                "temas_elegidos": tema_ids_chunk,
+                "duration_type": "plan" if plan_id else body.duration_type,
+                "status": "por_empezar",
+                "current_question_index": 0,
+                "lang": body.lang,
+                "n_preguntas": len(chunk),
+                **({"plan_id": plan_id} if plan_id else {}),
+            }
+            res = db.table("sesiones").insert(insert_data).execute()
+            sesion_ids.append(res.data[0]["id"])
+
+        # Pre-cargar la primera sesión
+        primera_id = sesion_ids[0]
+        primera_chunk = chunks[0]
+        tema_ids_primera = list({a["tema_id"] for a in primera_chunk})
+        sesion = await cargar_sesion(
+            sesion_id=primera_id,
+            usuario_id=body.usuario_id,
+            temas_elegidos=tema_ids_primera,
+            duration_type="plan" if plan_id else body.duration_type,
+            max_atomos=len(primera_chunk),
+        )
+
+        logger.info(
+            f"Sesión COMPLETA {primera_id} — {len(sesion.atomos)} átomos "
+            f"({body.duration_type}) [{n_partes} parte(s)]"
+        )
+
+        # Generar nombre del plan + títulos de sesiones en background
+        async def _set_nombres():
+            # Nombre del plan: usar todos los textos del primer chunk
+            if plan_id:
+                textos_plan = [a.get("texto_completo", "") for a in chunks[0] if a.get("texto_completo")]
+                nombre_plan = await generar_titulo_sesion(textos_plan, lang=body.lang)
+                if nombre_plan:
+                    db.table("planes").update({"nombre": nombre_plan}).eq("id", plan_id).execute()
+            for i, (sid, chunk) in enumerate(zip(sesion_ids, chunks)):
+                textos = [a.get("texto_completo", "") for a in chunk if a.get("texto_completo")]
+                nombre = await generar_titulo_sesion(textos, lang=body.lang)
+                if nombre and n_partes > 1:
+                    nombre = f"{nombre} ({i + 1}/{n_partes})"
+                if nombre:
+                    db.table("sesiones").update({"nombre": nombre}).eq("id", sid).execute()
+        asyncio.create_task(_set_nombres())
+
+        return {
+            "sesion_id": primera_id,
+            "n_atomos": len(sesion.atomos),
+            "duration_type": "plan" if plan_id else body.duration_type,
+            "temas_elegidos": body.temas_elegidos,
+            "sesiones_creadas": n_partes,
+            "sesiones_pendientes": n_partes - 1,
+            "sesion_ids": sesion_ids,
+            "plan_id": plan_id,
+        }
+
+    # ══════════════════════════════════════════════════════════════════
+    # MODO NORMAL: sesión única con subconjunto de átomos
+    # ══════════════════════════════════════════════════════════════════
     res = (
         db.table("sesiones")
         .insert({
@@ -202,6 +333,8 @@ async def crear_sesion(body: CrearSesionRequest):
             "duration_type": body.duration_type,
             "status": "por_empezar",
             "current_question_index": 0,
+            "lang": body.lang,
+            **({"n_preguntas": body.n_preguntas} if body.n_preguntas else {}),
         })
         .execute()
     )
@@ -212,16 +345,27 @@ async def crear_sesion(body: CrearSesionRequest):
         usuario_id=body.usuario_id,
         temas_elegidos=body.temas_elegidos,
         duration_type=body.duration_type,
-        max_atomos=body.max_atomos,
+        max_atomos=body.max_atomos or body.n_preguntas,
     )
 
     logger.info(f"Sesión {sesion_id} creada — {len(sesion.atomos)} átomos ({body.duration_type})")
+
+    # Generar título en background
+    async def _set_nombre():
+        textos = [a.texto_completo for a in sesion.atomos if a.texto_completo]
+        nombre = await generar_titulo_sesion(textos, lang=body.lang)
+        if nombre:
+            db.table("sesiones").update({"nombre": nombre}).eq("id", sesion_id).execute()
+    asyncio.create_task(_set_nombre())
 
     return {
         "sesion_id": sesion_id,
         "n_atomos": len(sesion.atomos),
         "duration_type": body.duration_type,
         "temas_elegidos": body.temas_elegidos,
+        "sesiones_creadas": 1,
+        "sesiones_pendientes": 0,
+        "sesion_ids": [sesion_id],
     }
 
 
@@ -374,6 +518,25 @@ async def revision_sesion(sesion_id: str):
         })
 
     return revision
+
+
+@router.patch("/sesion/{sesion_id}/test-draft")
+async def save_test_draft(sesion_id: str, request: Request):
+    """Guarda (o borra si body=null) el borrador del test en curso."""
+    body = await request.json()
+    db = get_service_client()
+    db.table("sesiones").update({"test_draft": body}).eq("id", sesion_id).execute()
+    return {"ok": True}
+
+
+@router.get("/sesion/{sesion_id}/test-draft")
+async def get_test_draft(sesion_id: str):
+    """Devuelve el borrador del test guardado, o None si no existe."""
+    db = get_service_client()
+    res = db.table("sesiones").select("test_draft").eq("id", sesion_id).execute()
+    if not res.data:
+        return None
+    return res.data[0].get("test_draft")
 
 
 @router.get("/sesion/{sesion_id}/test-atomos")

@@ -29,6 +29,7 @@ let curSubjectName  = localStorage.getItem('ar_subj_name')  || '';
 let curSubjectColor = localStorage.getItem('ar_subj_color') || '';
 let curDocId        = '';
 let pollingTimer    = null;
+let _pollingDocIds  = new Set(); // track which docs are being polled
 let pickedColor     = COLORS[0];
 
 // ─ Helpers ─
@@ -60,6 +61,51 @@ function toggleSessCard(id) {
   const wasOpen = card.classList.contains('open');
   document.querySelectorAll('.sess-acc-item.open').forEach(c => c.classList.remove('open'));
   if (!wasOpen) card.classList.add('open');
+}
+
+let _planBannerTimer = null;
+
+function _showPlanCreatedBanner(nSessions, subjectName, planId) {
+  const banner = $('plan-created-banner');
+  const titleEl = $('plan-created-title');
+  const subEl = $('plan-created-sub');
+  const fill = $('plan-created-progress-fill');
+  if (!banner || !titleEl || !subEl) return;
+
+  titleEl.textContent = subjectName || T('plan_banner_title_default');
+  subEl.textContent = TF('plan_banner_sub', { n: nSessions });
+
+  // Reset animation by cloning fill
+  if (fill) { const clone = fill.cloneNode(true); fill.parentNode.replaceChild(clone, fill); }
+
+  banner.style.display = '';
+
+  if (_planBannerTimer) clearTimeout(_planBannerTimer);
+  _planBannerTimer = setTimeout(dismissPlanBanner, 3500);
+
+  // Poll for the async-generated plan name (ready in ~1-2s)
+  if (planId) {
+    let attempts = 0;
+    const _poll = setInterval(async () => {
+      attempts++;
+      if (attempts > 6 || !$('plan-created-banner') || $('plan-created-banner').style.display === 'none') {
+        clearInterval(_poll); return;
+      }
+      try {
+        const plan = await api(`/plan/${planId}`);
+        if (plan && plan.nombre) {
+          if (titleEl) titleEl.textContent = plan.nombre;
+          clearInterval(_poll);
+        }
+      } catch(e) { /* ignore */ }
+    }, 700);
+  }
+}
+
+function dismissPlanBanner() {
+  const banner = $('plan-created-banner');
+  if (banner) banner.style.display = 'none';
+  if (_planBannerTimer) { clearTimeout(_planBannerTimer); _planBannerTimer = null; }
 }
 
 function toast(msg, type='info') {
@@ -172,7 +218,7 @@ async function refreshNotifications() {
 
   let notifs = [];
   try {
-    notifs = await api(`/notificaciones/${uid}`);
+    notifs = await api(`/notificaciones/${uid}?lang=${currentLang}`);
   } catch(e) { /* silently fail */ }
 
   if (!notifs.length) {
@@ -276,6 +322,15 @@ function changeLang(lang) {
   if (nextBtn && nextBtn.style.display !== 'none') {
     nextBtn.textContent = _testIndex + 1 < _testPreguntas.length ? T('test_next') : T('test_see_result');
   }
+  // Update active session language if WS is open
+  if (sessWs && sessWs.readyState === WebSocket.OPEN) {
+    sessWs.send(JSON.stringify({ type: 'set_lang', lang }));
+  }
+  // Update voice for new language
+  sessKokoroVoice = getVoiceForLang(lang);
+  _updateVozBtn();
+  // Re-fetch notifications in new language if hub is visible
+  refreshNotifications();
 }
 
 function openMundoEdit() {
@@ -379,14 +434,33 @@ function setStudyMode(mode) {
   // Slide indicator
   const ind = $('lm-indicator');
   if (ind) ind.classList.toggle('right', mode === 'test');
+  // Show duration (oral) or question count stepper (test)
+  const durRow = document.querySelector('.lobby-dur-row');
+  const durLabel = document.querySelector('[data-i18n="lobby_duration"]');
+  const nRow = $('lobby-test-n');
+  if (durRow) durRow.style.display = mode === 'test' ? 'none' : '';
+  if (durLabel) durLabel.style.display = mode === 'test' ? 'none' : '';
+  if (nRow) nRow.style.display = mode === 'test' ? '' : 'none';
   checkMicPermission();
 }
 
+function setTestNPreguntas(n) {
+  _testNPreguntas = Math.min(30, Math.max(5, +n));
+  const val = $('lobby-test-n-val');
+  if (val) val.textContent = _testNPreguntas;
+  const slider = $('lobby-test-n-slider');
+  if (slider && +slider.value !== _testNPreguntas) slider.value = _testNPreguntas;
+}
+
 function pickDuration(dur) {
-  sessDurationType = dur; // also update session variable
+  sessDurationType = dur;
   ['dur-corta','dur-larga'].forEach(id => $(id) && $(id).classList.remove('on'));
   const active = dur === 'corta' ? 'dur-corta' : 'dur-larga';
   if ($(active)) $(active).classList.add('on');
+}
+
+function toggleCompleto(checked) {
+  sessCompleto = checked;
 }
 
 function setTheme(theme) {
@@ -472,46 +546,62 @@ function enterApp() {
 }
 
 async function loadSubjectsHome() {
+  // 1. Render immediately if we have cached data
+  if (_subjData && _subjData.length) {
+    _renderSubjectsList(_subjData);
+  }
+
   try {
     const data = await api(`/asignaturas/${uid}`);
-    _subjData  = data;
     
-    // Bottom Sheet list with search support & active subject highlight
-    const subjectList = $('sb-subjects');
-    if (subjectList) {
-      if (!data.length) {
-        subjectList.innerHTML = `<div class="empty-state" style="margin-top:16px;font-size:.85rem">${T('empty_no_subjects')}</div>`;
-      } else {
-        const PENCIL = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
-        const TRASH  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
-        const CHECK  = `<svg class="sheet-item-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`;
-        subjectList.innerHTML = data.map(s => `
-          <div class="sheet-item ${s.id === curSubjectId ? 'active-subject' : ''}"
-            data-name="${esc(s.nombre)}"
-            onclick="goSubject('${s.id}', '${esc(s.nombre)}', '${s.color||COLORS[0]}')">
-            <div class="sheet-item-dot" style="background:${s.color||COLORS[0]}"></div>
-            <div class="sheet-item-name">${esc(s.nombre)}</div>
-            <div style="font-size:.73rem; color:var(--txt3); white-space:nowrap; flex-shrink:0">${s.recuento_documentos || 0} docs</div>
-            ${CHECK}
-            <button class="sheet-action-btn" title="Renombrar" onclick="editSubject('${s.id}','${esc(s.nombre)}');event.stopPropagation()">${PENCIL}</button>
-            <button class="sheet-action-btn danger" title="Eliminar" onclick="deleteSubject('${s.id}','${esc(s.nombre)}');event.stopPropagation()">${TRASH}</button>
-          </div>`).join('');
-      }
+    // 2. If data is different from cache, update, re-render and persist
+    if (JSON.stringify(data) !== JSON.stringify(_subjData)) {
+      _subjData = data;
+      localStorage.setItem('ar_subj_data', JSON.stringify(data));
+      _renderSubjectsList(data);
     }
-
+    
     if (!curSubjectId && data.length > 0) {
       goSubject(data[0].id, data[0].nombre, data[0].color);
     } else if (!curSubjectId && data.length === 0) {
-      $('bc-subject').textContent = T('subj_empty');
-      $('header-dot').style.background = 'var(--txt3)';
+      const bcs = $('bc-subject');
+      if (bcs) bcs.textContent = T('subj_empty');
+      const hdot = $('header-dot');
+      if (hdot) hdot.style.background = 'var(--txt3)';
     }
   } catch(e) { console.error(e); }
+}
+
+function _renderSubjectsList(data) {
+  const subjectList = $('sb-subjects');
+  if (!subjectList) return;
+  
+  if (!data.length) {
+    subjectList.innerHTML = `<div class="empty-state" style="margin-top:16px;font-size:.85rem">${T('empty_no_subjects')}</div>`;
+    return;
+  }
+
+  const PENCIL = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>`;
+  const TRASH  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>`;
+  const CHECK  = `<svg class="sheet-item-check" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+
+  subjectList.innerHTML = data.map(s => `
+    <div class="sheet-item ${s.id === curSubjectId ? 'active-subject' : ''}"
+      data-name="${esc(s.nombre)}"
+      onclick="goSubject('${s.id}', '${esc(s.nombre)}', '${s.color||COLORS[0]}')">
+      <div class="sheet-item-dot" style="background:${s.color||COLORS[0]}"></div>
+      <div class="sheet-item-name">${esc(s.nombre)}</div>
+      <div style="font-size:.73rem; color:var(--txt3); white-space:nowrap; flex-shrink:0">${s.recuento_documentos || 0} docs</div>
+      ${CHECK}
+      <button class="sheet-action-btn" title="Renombrar" onclick="editSubject('${s.id}','${esc(s.nombre)}');event.stopPropagation()">${PENCIL}</button>
+      <button class="sheet-action-btn danger" title="Eliminar" onclick="deleteSubject('${s.id}','${esc(s.nombre)}');event.stopPropagation()">${TRASH}</button>
+    </div>`).join('');
 }
 
 
 // ─ Subject edit / delete ─
 async function editSubject(id, currentName) {
-  const newName = prompt('Nuevo nombre:', currentName);
+  const newName = prompt(T('mat_rename_prompt'), currentName);
   if (!newName || newName.trim() === currentName) return;
   try {
     await api(`/asignaturas/${id}`, { method: 'PUT', body: JSON.stringify({ nombre: newName.trim() }) });
@@ -581,7 +671,9 @@ function _applySubjectHeader(name, color) {
 async function loadDocs() {
   if (!curSubjectId) return;
   const list = $('doc-list');
-  list.innerHTML = `<div class="empty-state">${T('empty_loading')}</div>`;
+  if (!list.innerHTML || list.innerHTML.includes('empty-state')) {
+    list.innerHTML = `<div class="empty-state">${T('empty_loading')}</div>`;
+  }
   try {
     const docs = await api(`/documentos/asignatura/${curSubjectId}`);
     if (!docs.length) {
@@ -601,10 +693,10 @@ async function loadDocs() {
       const fecha = d.fecha_subida ? new Date(d.fecha_subida).toLocaleDateString('es',{day:'numeric',month:'short'}) : '—';
       const isProc = d.estado === 'procesando';
       const bodyHtml = isProc
-        ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:.82rem;color:var(--txt2)">${SPIN_ICON} Extrayendo conceptos con IA...</div>`
-        : `<div class="doc-temas-list" id="doc-temas-${d.id}"><div class="atom-loading">Abriendo...</div></div>
+        ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:.82rem;color:var(--txt2)">${SPIN_ICON} ${T('mat_extracting')}</div>`
+        : `<div class="doc-temas-list" id="doc-temas-${d.id}"><div class="atom-loading">${T('mat_opening')}</div></div>
            <div class="doc-card-actions" style="margin-top:10px">
-             <button class="doc-btn danger" onclick="deleteDocument('${d.id}');event.stopPropagation()">Eliminar doc</button>
+             <button class="doc-btn danger" onclick="deleteDocument('${d.id}');event.stopPropagation()">${T('mat_delete_doc')}</button>
            </div>`;
       return `
       <div class="doc-card${isProc ? ' doc-processing' : ''}" id="doc-card-${d.id}" onclick="${isProc ? '' : `toggleDocCard('${d.id}')`}">
@@ -645,12 +737,12 @@ async function loadDocs() {
       list.innerHTML = `<div class="empty-state">${T('empty_no_notes')}</div>`;
     }
 
-    const inProg = docs.some(d => d.estado === 'procesando');
-    if (inProg && !pollingTimer) {
-      pollingTimer = setInterval(loadDocs, 4000);
-    } else if (!inProg && pollingTimer) {
-      clearInterval(pollingTimer);
-      pollingTimer = null;
+    // If any docs still processing, start per-doc polling (no self-loop)
+    const procDocs = docs.filter(d => d.estado === 'procesando');
+    for (const d of procDocs) {
+      if (!_pollingDocIds.has(d.id)) {
+        _pollDocReady(d.id, null);
+      }
     }
   } catch(e) {
     list.innerHTML = `<div class="empty-state" style="color:var(--red)">${e.message}</div>`;
@@ -688,24 +780,27 @@ async function loadDocTemas(docId) {
         </div>`).join('');
       return;
     }
-    container.innerHTML = temas.map(t => `
-      <div class="doc-tema-item" onclick="toggleTemaBody('tema-body-${t.id}');event.stopPropagation()">
+    container.innerHTML = temas.map(t => {
+      const subtemas = t.subtemas || [];
+      const hasSubtemas = subtemas.length > 0;
+      return `
+      <div class="doc-tema-item${hasSubtemas ? ' has-subtemas' : ''}" onclick="${hasSubtemas ? `toggleTemaBody('tema-body-${t.id}');event.stopPropagation()` : 'event.stopPropagation()'}">
         <div class="doc-tema-row">
-          <svg class="doc-tema-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
+          ${hasSubtemas ? `<svg class="doc-tema-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>` : `<div class="doc-tema-dot"></div>`}
           <span class="doc-tema-title">${esc(t.titulo)}</span>
-          <span class="doc-tema-count">${t.n_atomos} átomos</span>
+          <span class="doc-tema-count">${t.n_atomos}</span>
         </div>
+        ${hasSubtemas ? `
         <div class="doc-tema-body" id="tema-body-${t.id}" style="display:none">
-          ${(t.subtemas || []).length
-            ? (t.subtemas || []).map(st => `
-                <div class="doc-subtema-item">
-                  <span class="doc-subtema-title">${esc(st.titulo)}</span>
-                  <span class="doc-tema-count">${st.n_atomos}</span>
-                </div>`).join('')
-            : `<div class="atom-loading" style="padding:8px 0">Sin subtemas</div>`
-          }
-        </div>
-      </div>`).join('');
+          ${subtemas.map(st => `
+            <div class="doc-subtema-item">
+              <div class="doc-subtema-dot"></div>
+              <span class="doc-subtema-title">${esc(st.titulo)}</span>
+              <span class="doc-subtema-count">${st.n_atomos}</span>
+            </div>`).join('')}
+        </div>` : ''}
+      </div>`;
+    }).join('');
   } catch(e) {
     container.innerHTML = `<div class="atom-loading" style="color:var(--red)">${e.message}</div>`;
   }
@@ -732,7 +827,7 @@ async function deleteAtom(atomId, docId) {
     const countEl = document.querySelector(`#doc-card-${docId} .doc-card-atoms-count`);
     if (countEl) {
       const remaining = document.querySelectorAll(`#doc-card-${docId} .atom-item`).length;
-      countEl.textContent = `${remaining} conceptos`;
+      countEl.textContent = TF('mat_concepts_count', {n: remaining});
     }
     toast(T('toast_atoms_deleted'), 'ok');
   } catch(e) {
@@ -748,9 +843,9 @@ async function deleteAllAtoms(docId) {
     await Promise.all(atoms.map(a => api(`/atomos/${a.id}`, { method: 'DELETE' })));
     toast(T('toast_atoms_deleted'), 'ok');
     const container = document.querySelector(`#doc-card-${docId} .doc-card-atoms-list`);
-    if (container) container.innerHTML = '<div class="atom-loading">Sin conceptos extraídos.</div>';
+    if (container) container.innerHTML = `<div class="atom-loading">${T('mat_no_concepts')}</div>`;
     const countEl = document.querySelector(`#doc-card-${docId} .doc-card-atoms-count`);
-    if (countEl) countEl.textContent = '0 conceptos';
+    if (countEl) countEl.textContent = TF('mat_concepts_count', {n: 0});
   } catch(e) {
     toast(e.message, 'err');
   }
@@ -791,7 +886,25 @@ async function uploadFile(file) {
   if (!file.name.toLowerCase().endsWith('.pdf')) return toast(T('toast_pdf_only'),'err');
   $('file-inp').value = '';
   const displayName = cleanDocTitle(file.name);
-  toast(T('toast_uploading'), 'info');
+
+  // ── Optimistic card: show immediately with spinner ──
+  const tempId = 'upload-' + Date.now();
+  const SPIN_ICON = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="animation:spin .9s linear infinite;flex-shrink:0"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
+  const list = $('doc-list');
+  const emptyState = list.querySelector('.empty-state');
+  if (emptyState) emptyState.remove();
+  const tempCard = document.createElement('div');
+  tempCard.id = `doc-card-${tempId}`;
+  tempCard.className = 'doc-card doc-processing doc-uploading';
+  tempCard.innerHTML = `
+    <div class="doc-card-header" style="cursor:default">
+      <span class="doc-card-icon">${SPIN_ICON}</span>
+      <div class="doc-card-info">
+        <div class="doc-card-title">${esc(displayName)}</div>
+        <div class="doc-card-date" id="upload-status-${tempId}">${T('mat_uploading_file')}</div>
+      </div>
+    </div>`;
+  list.prepend(tempCard);
 
   const form = new FormData();
   form.append('pdf_file', file);
@@ -806,27 +919,53 @@ async function uploadFile(file) {
     if (!res.ok) throw new Error(d.detail);
     curDocId = d.documento_id;
 
-    toast(T('toast_uploaded_processing'), 'info');
-    await loadDocs();
+    // Update temp card status
+    const statusEl = $(`upload-status-${tempId}`);
+    if (statusEl) statusEl.textContent = T('mat_processing');
 
-    clearInterval(pollingTimer);
-    pollingTimer = setInterval(async () => {
-      try {
-        const estado = await api(`/documento/${curDocId}/estado`);
-        if (estado.estado === 'listo') {
-          clearInterval(pollingTimer); pollingTimer = null;
-          toast(T('toast_doc_ready'), 'ok');
-          await loadDocs();
-        } else if (estado.estado === 'error') {
-          clearInterval(pollingTimer); pollingTimer = null;
-          toast(T('toast_processing_error'), 'err');
-          await loadDocs();
-        }
-      } catch {}
-    }, 3500);
+    // Start polling for this doc — let loadDocs handle its own polling
+    _pollDocReady(curDocId, tempId);
+
   } catch(e) {
+    // Remove temp card on error
+    const tc = $(`doc-card-${tempId}`);
+    if (tc) {
+      tc.classList.add('doc-upload-error');
+      const statusEl = $(`upload-status-${tempId}`);
+      if (statusEl) statusEl.textContent = T('mat_error_upload');
+      setTimeout(() => tc.remove(), 2500);
+    }
     toast(e.message, 'err');
   }
+}
+
+/** Poll a specific document until ready/error, then refresh list. */
+function _pollDocReady(docId, tempCardId) {
+  if (_pollingDocIds.has(docId)) return; // already polling
+  _pollingDocIds.add(docId);
+  const timer = setInterval(async () => {
+    try {
+      const estado = await api(`/documento/${docId}/estado`);
+      if (estado.estado === 'listo') {
+        clearInterval(timer);
+        _pollingDocIds.delete(docId);
+        toast(T('toast_doc_ready'), 'ok');
+        await loadDocs();
+      } else if (estado.estado === 'error') {
+        clearInterval(timer);
+        _pollingDocIds.delete(docId);
+        toast(T('toast_processing_error'), 'err');
+        // Remove temp card with fade
+        const tc = tempCardId && $(`doc-card-${tempCardId}`);
+        if (tc) {
+          tc.classList.add('doc-upload-error');
+          setTimeout(() => { tc.remove(); loadDocs(); }, 2000);
+        } else {
+          await loadDocs();
+        }
+      }
+    } catch {}
+  }, 3500);
 }
 
 // Document viewer atom list removed to keep experience minimal y clean.
@@ -1076,11 +1215,15 @@ async function wizardFinish() {
 // ─ Session state ─
 let sessSubjectId = '';
 let sessDurationType = 'corta';
+let sessCompleto = false;
 let sessModoVoz = true;
 let sessSubjectName = '';
 let sessDocTopics = []; // [{id, titulo, n_atomos}]
 let sessId = '';
 let sessPlanId = ''; // plan_id if this session belongs to a plan
+let sessLang = ''; // lang the session was created in (overrides currentLang for WS)
+let sessPartIds = [];   // all session IDs when split into parts
+let sessPartIndex = 0;  // current part index (0-based)
 let sessWs = null;
 let sessMediaRecorder = null;
 let sessStream = null;
@@ -1108,7 +1251,7 @@ function renderTopicList() {
     <div class="lobby-topic-item checked" id="topic-${i}" onclick="toggleTopic(${i})">
       <div class="lobby-topic-cb">${CHECK_SVG}</div>
       <span class="lobby-topic-name">${esc(t.titulo)}</span>
-      <span class="lobby-topic-n">${t.n_atomos} átomos</span>
+      <span class="lobby-topic-n">${TF('mat_atoms_count', {n: t.n_atomos})}</span>
     </div>
   `).join('');
 }
@@ -1125,6 +1268,9 @@ function loadTopicsLobby() {
   // Reset lobby state to defaults
   setStudyMode(modeSelector || 'voz');
   pickDuration(sessDurationType || 'corta');
+  sessCompleto = false;
+  const completoCheck = $('lobby-completo-check');
+  if (completoCheck) completoCheck.checked = false;
   const subId = curSubjectId || sessSubjectId;
   if (!subId) {
     list.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.50);font-size:.85rem">${T('validation_select_subject')}</div>`;
@@ -1163,12 +1309,25 @@ function startSessionFlow() {
       usuario_id: uid,
       asignatura_id: curSubjectId,
       temas_elegidos: selected.map(t => t.id),
-      duration_type: sessDurationType || 'corta',
+      duration_type: modeSelector === 'test' ? 'test' : (sessDurationType || 'corta'),
+      completo: sessCompleto,
+      lang: currentLang,
+      ...(modeSelector === 'test' ? { n_preguntas: _testNPreguntas } : {}),
     }),
   }).then(res => {
     sessId = res.sesion_id;
-    sessPlanId = ''; // not a plan session
+    sessPlanId = res.plan_id || '';   // plan real si fue modo completo con 2+ partes
+    sessLang = currentLang;
     sessGreenCount = 0; sessYellowCount = 0; sessRedCount = 0;
+
+    // Multi-session: store part IDs
+    sessPartIds = res.sesion_ids || [sessId];
+    sessPartIndex = 0;
+
+    if (res.sesiones_creadas > 1) {
+      _showPlanCreatedBanner(res.sesiones_creadas, curSubjectName, res.plan_id);
+    }
+
     if (modeSelector === 'test') {
       switchView('test');
       loadTestQuestions();
@@ -1177,6 +1336,23 @@ function startSessionFlow() {
       connectSessionWS(res.n_atomos);
     }
   }).catch(e => toast(e.message, 'err'));
+}
+
+/** Inicia la siguiente parte de una sesión multi-parte. */
+function startNextPart() {
+  if (sessPartIndex >= sessPartIds.length - 1) return;
+  sessPartIndex++;
+  sessId = sessPartIds[sessPartIndex];
+  sessGreenCount = 0; sessYellowCount = 0; sessRedCount = 0;
+  _sessAnswered = [];
+  toast(TF('sess_starting_part', {current: sessPartIndex + 1, total: sessPartIds.length}), 'info');
+  if (modeSelector === 'test') {
+    switchView('test');
+    loadTestQuestions();
+  } else {
+    switchView('duelo');
+    connectSessionWS(0); // el backend conoce los átomos
+  }
 }
 
 async function loadTopicsForSession() {
@@ -1192,9 +1368,11 @@ function connectSessionWS(totalAtomos) {
   _sessAnswered = [];
   _currentQPregunta = '';
   _updateHistBtn();
+  const _wsLang = sessLang || currentLang;
+  sessKokoroVoice = getVoiceForLang(_wsLang);
   const wsProto = API.startsWith('https') ? 'wss' : 'ws';
   const wsHost = API.replace(/^https?:\/\//, '');
-  const wsUrl = `${wsProto}://${wsHost}/ws/sesion/${sessId}?voice=${encodeURIComponent(sessKokoroVoice)}&lang=${encodeURIComponent(currentLang)}`;
+  const wsUrl = `${wsProto}://${wsHost}/ws/sesion/${sessId}?voice=${encodeURIComponent(sessKokoroVoice)}&lang=${encodeURIComponent(_wsLang)}`;
   sessWs = new WebSocket(wsUrl);
   sessWs.binaryType = 'arraybuffer';
   setVoiceState('connecting');
@@ -1323,12 +1501,17 @@ function connectSessionWS(totalAtomos) {
       await playAudio(msg.audio_base64, _primeraOracion(msg.respuesta_voz), msg.audio_format);
 
       if (msg.ruta === 'rojo') {
+        // Prefer structured detalle (new evaluator) over flashcard fallback
+        const d = msg.detalle;
         showErrorPanel(
           msg.respuesta_usuario || '',
-          msg.flashcard?.paso_1_concepto_base || '',
-          msg.texto_completo || msg.flashcard?.paso_2_error_cometido || '',
-          msg.flashcard?.paso_3_analogia || ''
+          d?.error || msg.flashcard?.paso_1_concepto_base || '',
+          d?.respuesta_correcta || msg.texto_completo || msg.flashcard?.paso_2_error_cometido || '',
+          d?.analogia || msg.flashcard?.paso_3_analogia || ''
         );
+      } else if (msg.ruta === 'amarillo') {
+        // For partial: show evaluator feedback (why partial), not full concept
+        showAnswerPanel(msg.ruta, msg.respuesta_voz || msg.texto_completo, msg.es_ultima, msg.respuesta_usuario, msg.flashcard);
       } else {
         showAnswerPanel(msg.ruta, msg.texto_completo, msg.es_ultima, msg.respuesta_usuario, msg.flashcard);
       }
@@ -1375,6 +1558,17 @@ function connectSessionWS(totalAtomos) {
       showComplete();
     }
 
+    else if (msg.type === 'respuesta_corta') {
+      // Short answer detected — show transcript and let user continue or submit
+      const trEl = $('duel-transcript');
+      if (trEl) trEl.textContent = msg.transcript || '';
+      setVoiceState('listening');
+      _showBtn('btn-enviar', true);
+      _showBtn('btn-saltar', true);
+      startMicrophone();
+      toast(T('stt_short_answer_hint'), 'info');
+    }
+
     else if (msg.type === 'stt_error') {
       // Transcription failed — ask user to repeat, restart mic
       const trEl = $('duel-transcript');
@@ -1386,7 +1580,18 @@ function connectSessionWS(totalAtomos) {
     }
 
     else if (msg.type === 'error') {
-      toast(msg.mensaje, 'err');
+      toast(msg.mensaje || '❌ Error del servidor', 'err');
+      // Recover: restore listening state so user can retry or skip
+      if (sessState !== 'complete') {
+        stopMicrophone();
+        const trEl = $('duel-transcript');
+        if (trEl) trEl.textContent = '';
+        setVoiceState('listening');
+        _showBtn('btn-enviar', true);
+        _showBtn('btn-saltar', true);
+        _showBtn('btn-pista', true);
+        startMicrophone();
+      }
     }
   };
 
@@ -1593,6 +1798,12 @@ function stopMicrophone() {
     setVoiceState('processing');
   }
   if (sessMediaRecorder && sessMediaRecorder.state !== 'inactive') {
+    // onstop fires AFTER the last ondataavailable — guarantees audio arrives before the signal
+    sessMediaRecorder.onstop = () => {
+      if (sessWs && sessWs.readyState === WebSocket.OPEN) {
+        sessWs.send(JSON.stringify({ type: 'enviar' }));
+      }
+    };
     sessMediaRecorder.stop();
   }
   if (sessStream) {
@@ -1741,10 +1952,22 @@ async function showComplete() {
   // Show/hide test buttons
   const btnTestSesion = $('btn-test-sesion');
   const btnTestPlan   = $('btn-test-plan');
+  const btnNextPart   = $('btn-next-part');
   if (btnTestSesion) btnTestSesion.style.display = 'none';
   if (btnTestPlan)   btnTestPlan.style.display   = 'none';
+  if (btnNextPart)   btnNextPart.style.display   = 'none';
 
-  if (sessId) {
+  // Multi-part: show "Next Part" button if there are remaining parts
+  const hasNextPart = sessPartIds.length > 1 && sessPartIndex < sessPartIds.length - 1;
+  if (hasNextPart && btnNextPart) {
+    const nextNum = sessPartIndex + 2;
+    const totalParts = sessPartIds.length;
+    const label = $('btn-next-part-label');
+    if (label) label.textContent = TF('sess_next_part', {current: nextNum, total: totalParts});
+    btnNextPart.style.display = '';
+  }
+
+  if (sessId && !hasNextPart) {
     if (btnTestSesion) btnTestSesion.style.display = '';
   }
 
@@ -1784,15 +2007,15 @@ let _testSeleccionadas = new Set();
 let _testRespuestas  = [];   // [{pregunta_id, seleccionadas, correcta}]
 let _testSavedId     = null;
 let _testSavedPregs  = [];   // saved for revision overlay
+let _testNPreguntas  = 10;   // chosen in lobby slider (5-30)
+let _testPaused      = false;
 
 function iniciarTestSesion() {
   if (!sessId) return toast(T('toast_no_session'), 'err');
   _testMode = 'sesion'; _testSesionId = sessId; _testPlanId = '';
   _resetTestState();
   switchView('test');
-  const lims = { corta: 5, larga: 10, plan: 8, asignatura: 8 };
-  const n = lims[sessDurationType] || 6;
-  _generarTest({ sesion_id: sessId, usuario_id: uid, asignatura_id: curSubjectId, n_preguntas: n, lang: currentLang });
+  _generarTest({ sesion_id: sessId, usuario_id: uid, asignatura_id: curSubjectId, n_preguntas: _testNPreguntas, lang: currentLang });
 }
 
 function iniciarTestPlan() {
@@ -1807,6 +2030,21 @@ function _resetTestState() {
   _testPreguntas = []; _testIndex = 0;
   _testSeleccionadas = new Set(); _testRespuestas = [];
   _testSavedId = null; _testSavedPregs = [];
+}
+
+async function _saveTestDraft() {
+  if (!_testSesionId || !_testPreguntas.length) return;
+  try {
+    await api(`/sesion/${_testSesionId}/test-draft`, {
+      method: 'PATCH',
+      body: JSON.stringify({ preguntas: _testPreguntas, respuestas: _testRespuestas }),
+    });
+  } catch(e) { /* non-critical */ }
+}
+
+async function _clearTestDraft() {
+  if (!_testSesionId) return;
+  api(`/sesion/${_testSesionId}/test-draft`, { method: 'PATCH', body: 'null' }).catch(() => {});
 }
 
 async function _generarTest(body) {
@@ -1866,11 +2104,12 @@ function _renderTestQuestion() {
   const opcsEl = $('test-opciones');
   if (!opcsEl) return;
   opcsEl.innerHTML = '';
+  const letters = ['A', 'B', 'C', 'D'];
   p.opciones.forEach((opt, i) => {
     const div = document.createElement('div');
     div.className = 'test-option';
     div.dataset.idx = String(i);
-    div.innerHTML = `<div class="test-option-check"></div><div class="test-option-content"><span class="test-option-text">${esc(opt)}</span><span class="test-option-explain" id="test-opt-ex-${i}"></span></div>`;
+    div.innerHTML = `<div class="test-option-check" data-letter="${letters[i]}"></div><div class="test-option-content"><span class="test-option-text">${esc(opt)}</span><span class="test-option-explain" id="test-opt-ex-${i}"></span></div>`;
     div.onclick = () => _toggleTestOption(div, i, p);
     opcsEl.appendChild(div);
   });
@@ -1918,9 +2157,11 @@ function confirmarRespuesta() {
     else if (!isCorrectOpt && wasSelected) opt.classList.add('a-wrong');
     else if (isCorrectOpt && !wasSelected) opt.classList.add('a-reveal');
     else opt.classList.add('a-neutral');
-    // Show per-option explanation
+    // Show explanation only for options the user interacted with or that are correct
     const exEl = document.getElementById(`test-opt-ex-${i}`);
-    if (exEl && p.explicaciones_opciones?.[i]) exEl.textContent = p.explicaciones_opciones[i];
+    if (exEl && p.explicaciones_opciones?.[i] && (wasSelected || isCorrectOpt)) {
+      exEl.textContent = p.explicaciones_opciones[i];
+    }
   });
 
   // Overall feedback
@@ -1937,6 +2178,8 @@ function confirmarRespuesta() {
     nextBtn.style.display = '';
     nextBtn.textContent = _testIndex + 1 < _testPreguntas.length ? T('test_next') : T('test_see_result');
   }
+  // Auto-save progress after each answer
+  if (_testSesionId) _saveTestDraft().catch(() => {});
 }
 
 function nextTestQuestion() {
@@ -1971,11 +2214,16 @@ async function _mostrarResultados() {
         usuario_id: uid, asignatura_id: curSubjectId || null,
         sesion_id: _testSesionId || null, plan_id: _testPlanId || null,
         preguntas: _testPreguntas, respuestas: _testRespuestas,
-        puntuacion: correctas, total, tipo: _testMode,
+        puntuacion: correctas, total, tipo: _testMode, lang: currentLang,
       })
     });
     _testSavedId = saved.id;
     _testSavedPregs = _testPreguntas;
+    // Mark the oral session as completed so it shows correctly in history
+    if (_testSesionId) {
+      api(`/sesion/${_testSesionId}/finalizar`, { method: 'POST' }).catch(() => {});
+      _clearTestDraft();
+    }
   } catch(e) {
     console.warn('No se pudo guardar el test:', e);
   }
@@ -1998,6 +2246,7 @@ function openTestRevision() {
     const resp = _testRespuestas[i] || { seleccionadas: [], correcta: false };
     const correct = [...p.correctas].sort((a,b) => a-b);
     const tipoLabels = { una_correcta: T('test_select_one'), dos_correctas: T('test_select_two'), una_incorrecta: T('test_which_wrong') };
+    const revLetters = ['A', 'B', 'C', 'D'];
     const optsHtml = p.opciones.map((opt, oi) => {
       const wasSelected = resp.seleccionadas.includes(oi);
       const isCorrectOpt = correct.includes(oi);
@@ -2008,7 +2257,7 @@ function openTestRevision() {
       else cls = 'a-neutral';
       const explain = p.explicaciones_opciones?.[oi]
         ? `<div class="test-option-explain" style="display:block;margin-top:4px">${esc(p.explicaciones_opciones[oi])}</div>` : '';
-      return `<div class="test-option answered ${cls}" style="margin-bottom:8px;cursor:default"><div class="test-option-check"></div><div class="test-option-content"><span class="test-option-text">${esc(opt)}</span>${explain}</div></div>`;
+      return `<div class="test-option answered ${cls}" style="margin-bottom:8px;cursor:default"><div class="test-option-check" data-letter="${revLetters[oi]}"></div><div class="test-option-content"><span class="test-option-text">${esc(opt)}</span>${explain}</div></div>`;
     }).join('');
     const badge = resp.correcta
       ? `<span style="color:#34d399;font-size:.78rem;font-weight:700">${esc(T('panel_correct_badge'))}</span>`
@@ -2038,11 +2287,33 @@ function openTestRevision() {
 }
 
 function exitTest() {
+  if (_testSesionId && _testPreguntas.length && _testRespuestas.length > 0) {
+    _saveTestDraft().catch(() => {});
+  }
+  _testPaused = false;
   switchView('hub');
 }
 
+function pauseTest() {
+  _testPaused = true;
+  if (_testSesionId && _testPreguntas.length) _saveTestDraft().catch(() => {});
+  const overlay = $('test-pause-overlay');
+  if (overlay) overlay.style.display = '';
+  const sub = $('test-pause-sub');
+  if (sub) sub.textContent = `${_testIndex + 1} / ${_testPreguntas.length}`;
+}
+
+function resumeTest() {
+  _testPaused = false;
+  const overlay = $('test-pause-overlay');
+  if (overlay) overlay.style.display = 'none';
+}
+
 function loadTestQuestions() {
-  connectSessionWS(20);
+  // Called when user starts a session in Test mode from lobby
+  _testMode = 'sesion'; _testSesionId = sessId; _testPlanId = '';
+  _resetTestState();
+  _generarTest({ sesion_id: sessId, asignatura_id: curSubjectId, usuario_id: uid, n_preguntas: _testNPreguntas, lang: currentLang });
 }
 
 function closeSession() {
@@ -2105,6 +2376,10 @@ function showAnswerPanel(ruta, textoCompleto, esUltima, respuestaUsuario, flashc
     badge.className = 'answer-panel-badge' + (ruta === 'amarillo' ? ' amarillo' : '');
   }
   if (text) text.textContent = textoCompleto || '';
+  // Update label based on ruta
+  const lbl = $('answer-panel-text')?.previousElementSibling;
+  if (lbl) lbl.setAttribute('data-i18n', ruta === 'amarillo' ? 'panel_why_partial' : 'panel_the_answer');
+  if (lbl) lbl.textContent = T(ruta === 'amarillo' ? 'panel_why_partial' : 'panel_the_answer');
 
   // Show user answer section for amarillo
   const userSec = $('answer-panel-user-section');
@@ -2181,24 +2456,55 @@ function reanudarEscucha() {
   startMicrophone();
 }
 
-// ─ Selector de voz Kokoro ─
-const KOKORO_VOICES = [
-  { id: 'ef_dora',  label: 'Dora',  genero: 'Mujer' },
-  { id: 'em_alex',  label: 'Alex',  genero: 'Hombre' },
-  { id: 'em_santa', label: 'Santa', genero: 'Hombre' },
-];
+// ─ Selector de voz (multi-idioma) ─
+const VOICE_REGISTRY = {
+  es: [
+    { id: 'ef_dora',  label: 'Dora',  engine: 'kokoro', gender: 'female', preview: 'Hola, soy Dora. ¿Empezamos a estudiar?' },
+    { id: 'em_alex',  label: 'Álex',  engine: 'kokoro', gender: 'male',   preview: 'Hola, soy Álex. ¿Listo para aprender?' },
+    { id: 'em_santa', label: 'Santa', engine: 'kokoro', gender: 'male',   preview: 'Hola, soy Santa. Prepárate para aprender.' },
+  ],
+  en: [
+    { id: 'af_sarah',  label: 'Sarah',  engine: 'kokoro', gender: 'female', preview: "Hi, I'm Sarah. Let's start studying!" },
+    { id: 'af_bella',  label: 'Bella',  engine: 'kokoro', gender: 'female', preview: "Hi, I'm Bella. Ready to learn?" },
+    { id: 'am_michael',label: 'Michael',engine: 'kokoro', gender: 'male',   preview: "Hi, I'm Michael. Let's review together!" },
+  ],
+  de: [
+    { id: 'de-DE-KatjaNeural',  label: 'Katja',  engine: 'edge', gender: 'female', preview: 'Hallo, ich bin Katja. Lass uns lernen!' },
+    { id: 'de-DE-AmalaNeural',  label: 'Amala',  engine: 'edge', gender: 'female', preview: 'Hallo, ich bin Amala. Bereit zum Lernen?' },
+    { id: 'de-DE-ConradNeural', label: 'Conrad', engine: 'edge', gender: 'male',   preview: "Hallo, ich bin Conrad. Los geht's!" },
+  ],
+};
 
-let sessKokoroVoice = localStorage.getItem('ar_kokoro_voice') || 'ef_dora';
+function getVoiceForLang(lang) {
+  // Migrate old storage key
+  if (lang === 'es' && !localStorage.getItem('ar_voice_es') && localStorage.getItem('ar_kokoro_voice')) {
+    localStorage.setItem('ar_voice_es', localStorage.getItem('ar_kokoro_voice'));
+  }
+  const voices = VOICE_REGISTRY[lang] || VOICE_REGISTRY.es;
+  const stored = localStorage.getItem('ar_voice_' + lang);
+  // Validate stored voice still exists in current registry — clears stale entries (e.g. old Edge voice IDs)
+  if (stored && voices.some(v => v.id === stored)) return stored;
+  if (stored) localStorage.removeItem('ar_voice_' + lang);
+  return voices[0].id;
+}
+function setVoiceForLang(lang, voiceId) {
+  localStorage.setItem('ar_voice_' + lang, voiceId);
+}
+
+let sessKokoroVoice = getVoiceForLang(currentLang);
 
 function _updateVozBtn() {
-  const v = KOKORO_VOICES.find(v => v.id === sessKokoroVoice) || KOKORO_VOICES[0];
+  const voices = VOICE_REGISTRY[currentLang] || VOICE_REGISTRY.es;
+  const voiceId = getVoiceForLang(currentLang);
+  const v = voices.find(x => x.id === voiceId) || voices[0];
+  const langName = T('lang_' + currentLang);
   const el = $('lbl-voz-actual');
-  if (el) el.textContent = `${v.label} · ${T('lang_es')}`;
+  if (el) el.textContent = v.label + ' · ' + langName;
 }
 _updateVozBtn();
 
 function openVoicePicker() {
-  _renderKokoroVoiceList();
+  _renderVoiceList();
   $('voice-picker-modal').classList.add('open');
 }
 
@@ -2209,19 +2515,23 @@ function closeVoicePicker() {
 
 let _voicePreviewAudio = null;
 
-function _renderKokoroVoiceList() {
+function _renderVoiceList() {
   const CHECK = `<svg class="voice-item-check" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`;
   const PLAY_ICON = `<svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>`;
-  $('kokoro-voice-list').innerHTML = KOKORO_VOICES.map(v => {
-    const sel = v.id === sessKokoroVoice;
+  const voices = VOICE_REGISTRY[currentLang] || VOICE_REGISTRY.es;
+  const selectedId = getVoiceForLang(currentLang);
+  $('kokoro-voice-list').innerHTML = voices.map(v => {
+    const sel = v.id === selectedId;
+    const genderLabel = v.gender === 'female' ? T('voice_gender_female') : T('voice_gender_male');
+    const engineBadge = v.engine === 'kokoro' ? T('voice_engine_local') : (v.engine === 'edge' ? T('voice_engine_edge') : T('voice_engine_cloud'));
     return `<div class="voice-item ${sel ? 'selected' : ''}" id="voice-item-${v.id}">
       <button class="voice-preview-btn" id="vpreview-${v.id}"
-        onclick="previewVoice('${v.id}');event.stopPropagation()" title="Probar voz">
+        onclick="previewVoice('${v.id}');event.stopPropagation()" title="${T('voice_instruction')}">
         ${PLAY_ICON}
       </button>
-      <div class="voice-item-info" onclick="selectKokoroVoice('${v.id}')">
+      <div class="voice-item-info" onclick="selectVoice('${v.id}')">
         <div class="voice-item-name">${v.label}</div>
-        <div class="voice-item-lang">${v.genero === 'Mujer' ? T('voice_gender_female') : T('voice_gender_male')} · ${T('lang_es')}</div>
+        <div class="voice-item-lang">${genderLabel} · ${engineBadge}</div>
       </div>
       ${sel ? CHECK : '<div style="width:15px"></div>'}
     </div>`;
@@ -2234,35 +2544,56 @@ async function previewVoice(voiceId) {
   // Stop any playing preview
   if (_voicePreviewAudio) { _voicePreviewAudio.pause(); _voicePreviewAudio = null; }
   document.querySelectorAll('.voice-preview-btn.playing').forEach(b => { if (b.id !== `vpreview-${voiceId}`) b.classList.remove('playing'); });
+
+  const done = () => { if (btn) btn.classList.remove('playing'); };
+
   try {
-    const res = await api(`/tts/preview?voice=${voiceId}`);
-    if (!res.audio_b64) { toast(T('toast_preview_unavailable'), 'info'); return; }
-    const mime = res.format === 'wav' ? 'audio/wav' : 'audio/mpeg';
-    const src = `data:${mime};base64,${res.audio_b64}`;
-    _voicePreviewAudio = new Audio(src);
-    _voicePreviewAudio.onended = () => { if (btn) btn.classList.remove('playing'); };
-    _voicePreviewAudio.onerror = () => { if (btn) btn.classList.remove('playing'); };
-    await _voicePreviewAudio.play();
-  } catch(e) {
-    if (btn) btn.classList.remove('playing');
-    toast(T('toast_preview_failed'), 'info');
+    const res = await api(`/tts/preview?voice=${voiceId}&lang=${currentLang}`);
+    if (res.audio_b64) {
+      const mime = res.format === 'wav' ? 'audio/wav' : 'audio/mpeg';
+      _voicePreviewAudio = new Audio(`data:${mime};base64,${res.audio_b64}`);
+      _voicePreviewAudio.onended = done;
+      _voicePreviewAudio.onerror = done;
+      await _voicePreviewAudio.play();
+      return;
+    }
+  } catch(_) { /* fall through to Web Speech */ }
+
+  // Fallback: Web Speech API (works in any browser, uses OS voices)
+  if ('speechSynthesis' in window) {
+    const voices = VOICE_REGISTRY[currentLang] || VOICE_REGISTRY.es;
+    const vEntry = voices.find(v => v.id === voiceId);
+    const text = vEntry?.preview || voiceId;
+    const langCode = { es: 'es-ES', en: 'en-US', de: 'de-DE' }[currentLang] || 'es-ES';
+    const utt = new SpeechSynthesisUtterance(text);
+    utt.lang = langCode;
+    utt.onend = done;
+    utt.onerror = done;
+    speechSynthesis.cancel();
+    speechSynthesis.speak(utt);
+  } else {
+    done();
+    toast(T('toast_preview_unavailable'), 'info');
   }
 }
 
-function selectKokoroVoice(voiceId) {
+function selectVoice(voiceId) {
   // Stop preview if playing
   if (_voicePreviewAudio) { _voicePreviewAudio.pause(); _voicePreviewAudio = null; }
+  setVoiceForLang(currentLang, voiceId);
   sessKokoroVoice = voiceId;
-  localStorage.setItem('ar_kokoro_voice', voiceId);
   _updateVozBtn();
-  _renderKokoroVoiceList();
+  _renderVoiceList();
   if (sessWs && sessWs.readyState === WebSocket.OPEN) {
     sessWs.send(JSON.stringify({ type: 'set_voice', voice: voiceId }));
   }
-  const v = KOKORO_VOICES.find(v => v.id === voiceId);
-  toast(TF('toast_voice_selected', {name: v.label}), 'ok');
+  const voices = VOICE_REGISTRY[currentLang] || VOICE_REGISTRY.es;
+  const v = voices.find(x => x.id === voiceId);
+  toast(TF('toast_voice_selected', {name: v ? v.label : voiceId}), 'ok');
   closeVoicePicker();
 }
+// Keep old name as alias for any remaining references
+const selectKokoroVoice = selectVoice;
 
 // voice-picker-modal backdrop close handled via onclick in HTML
 
@@ -2381,6 +2712,7 @@ async function submitPlanWizard() {
         temas_elegidos:    selected.map(t => t.id),
         fecha_examen:      dateInp.value,
         atomos_por_sesion: _planAtomosPorSesion,
+        lang:              currentLang,
       }),
     });
     toast(TF('toast_plan_created', {n: res.total_sesiones}), 'ok');
@@ -2398,7 +2730,9 @@ async function loadPlanes() {
   if (!curSubjectId) return;
   const listEl = $('planes-list');
   if (!listEl) return;
-  listEl.innerHTML = `<div class="empty-state">${T('hist_loading_plans')}</div>`;
+  if (!listEl.innerHTML || listEl.innerHTML.includes('empty-state')) {
+    listEl.innerHTML = `<div class="empty-state">${T('hist_loading_plans')}</div>`;
+  }
   try {
     const planes = await api(`/planes/usuario/${uid}?asignatura_id=${curSubjectId}`);
     if (!planes.length) {
@@ -2426,7 +2760,7 @@ async function loadPlanes() {
         <div class="plan-card" id="plan-card-${p.id}" onclick="openPlanDetail('${p.id}')">
           <div class="plan-card-header">
             <div class="plan-card-name">${esc(p.nombre)}</div>
-            <button class="plan-card-del" onclick="event.stopPropagation();deletePlan('${p.id}')" title="Eliminar">
+            <button class="plan-card-del" onclick="event.stopPropagation();deletePlan('${p.id}')" title="${T('hist_delete')}">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
@@ -2477,7 +2811,9 @@ const _planCache = {};
 async function loadSessions() {
   if (!curSubjectId) return;
   const list = $('sessions-list');
-  list.innerHTML = `<div class="empty-state">${T('hist_loading')}</div>`;
+  if (!list.innerHTML || list.innerHTML.includes('empty-state')) {
+    list.innerHTML = `<div class="empty-state">${T('hist_loading')}</div>`;
+  }
   try {
     // Fetch oral sessions + tests in parallel
     const [sessions, tests] = await Promise.all([
@@ -2495,9 +2831,17 @@ async function loadSessions() {
       return;
     }
 
+    // Map sesion_id → test_id for completed test sessions
+    const sesionToTestId = {};
+    filteredTests.forEach(t => { if (t.sesion_id) sesionToTestId[t.sesion_id] = t.test_id; });
+
     // Build mixed items sorted by date desc
     const items = [];
-    filteredSess.forEach(s => items.push({ _type: 'session', _date: s.fecha_inicio || '', ...s }));
+    // Hide oral test sessions that are 'completada' AND have a saved test — they appear as test cards already
+    filteredSess.forEach(s => {
+      if (s.duration_type === 'test' && s.status === 'completada' && sesionToTestId[s.sesion_id]) return;
+      items.push({ _type: 'session', _date: s.fecha_inicio || '', ...s });
+    });
     filteredTests.forEach(t => items.push({ _type: 'test', _date: t.fecha || '', ...t }));
     items.sort((a, b) => new Date(b._date) - new Date(a._date));
 
@@ -2506,8 +2850,9 @@ async function loadSessions() {
       if (item._type === 'test') {
         // ── Test card ──
         const t = item;
-        const fecha = t.fecha ? new Date(t.fecha).toLocaleDateString('es',{day:'numeric',month:'short'}) : '—';
-        const hora  = t.fecha ? new Date(t.fecha).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'}) : '';
+        const tLocale = t.lang || currentLang;
+        const fecha = t.fecha ? new Date(t.fecha).toLocaleDateString(tLocale,{day:'numeric',month:'short'}) : '—';
+        const hora  = t.fecha ? new Date(t.fecha).toLocaleTimeString(tLocale,{hour:'2-digit',minute:'2-digit'}) : '';
         const pct   = t.total > 0 ? Math.round((t.puntuacion / t.total) * 100) : 0;
         const pctColor = pct >= 80 ? '#34d399' : pct >= 60 ? '#e8a030' : '#f87171';
         return `
@@ -2516,7 +2861,7 @@ async function loadSessions() {
               <div class="sess-acc-info">
                 <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px">
                   <span class="sess-acc-test-badge">TEST</span>
-                  ${t.tipo === 'plan' ? T('hist_test_plan') : T('hist_test_session')}
+                  ${t.nombre || (t.tipo === 'plan' ? TLang('hist_test_plan', tLocale) : TLang('hist_test_session', tLocale))}
                 </div>
                 <div class="sess-acc-meta">${fecha}${hora ? ' · ' + hora : ''} · <span style="color:${pctColor};font-weight:700">${TF('hist_n_correct', {n: t.puntuacion, total: t.total})} (${pct}%)</span></div>
               </div>
@@ -2533,11 +2878,14 @@ async function loadSessions() {
         // ── Oral session card ──
         const s = item;
         _sessHistData[s.sesion_id] = s;
-        const fecha = s.fecha_inicio ? new Date(s.fecha_inicio).toLocaleDateString('es',{day:'numeric',month:'short'}) : '—';
-        const hora  = s.fecha_inicio ? new Date(s.fecha_inicio).toLocaleTimeString('es',{hour:'2-digit',minute:'2-digit'}) : '';
+        const sLocale = s.lang || currentLang;
+        const fecha = s.fecha_inicio ? new Date(s.fecha_inicio).toLocaleDateString(sLocale,{day:'numeric',month:'short'}) : '—';
+        const hora  = s.fecha_inicio ? new Date(s.fecha_inicio).toLocaleTimeString(sLocale,{hour:'2-digit',minute:'2-digit'}) : '';
         const c = s.conteo || {};
         const temas = s.temas_nombres || [];
-        const sesNombre = temas.length ? temas.slice(0,2).join(' · ') + (temas.length > 2 ? ` +${temas.length-2}` : '') : (s.duration_type === 'larga' ? T('hist_session_long') : T('hist_session_short'));
+        const _sesTypeKey = {larga: 'hist_session_long', plan: 'hist_session_plan', asignatura: 'hist_session_subject', test: 'hist_session_test'}[s.duration_type] || 'hist_session_short';
+        const sesNombre = s.nombre || TLang(_sesTypeKey, sLocale);
+        const isTestSess = s.duration_type === 'test';
         const done = s.status === 'completada';
         const answered = c.total || 0;
         const fraccion = done
@@ -2549,7 +2897,8 @@ async function loadSessions() {
           <span class="sess-score-pill y">◐ ${c.amarillo||0}</span>
           <span class="sess-score-pill r">✕ ${c.rojo||0}</span>
         </div>` : '';
-        const resumeBtn = !done ? `<button class="sess-acc-btn" onclick="resumeSessionFromHistory('${s.sesion_id}','${s.asignatura_id}','${esc(s.asignatura_nombre)}','${s.duration_type||'corta'}');event.stopPropagation()">${T('hist_resume')}</button>` : '';
+        const resumeLabel = isTestSess && s.has_test_draft ? T('test_continue_draft') : T('hist_resume');
+        const resumeBtn = !done ? `<button class="sess-acc-btn${isTestSess && s.has_test_draft ? ' accent' : ''}" onclick="resumeSessionFromHistory('${s.sesion_id}','${s.asignatura_id}','${esc(s.asignatura_nombre)}','${s.duration_type||'corta'}','${s.lang||'es'}',${s.n_preguntas||10});event.stopPropagation()">${resumeLabel}</button>` : '';
         const repetirBtn = done ? `<button class="sess-acc-btn" onclick="repetirSesion('${s.sesion_id}');event.stopPropagation()">${T('hist_repeat')}</button>` : '';
         const revisarBtn = (c.total > 0) ? `<button class="sess-acc-btn" onclick="openRevision('${s.sesion_id}');event.stopPropagation()">${T('hist_review')} (${c.total})</button>` : '';
         const deleteBtn = `<button class="sess-acc-btn danger" onclick="confirmDeleteSession('${s.sesion_id}');event.stopPropagation()">${T('hist_delete')}</button>`;
@@ -2557,7 +2906,7 @@ async function loadSessions() {
           <div class="sess-acc-item" id="sess-acc-${s.sesion_id}" onclick="toggleSessCard('${s.sesion_id}')">
             <div class="sess-acc-header">
               <div class="sess-acc-info">
-                <div class="sess-acc-title">${esc(sesNombre)}</div>
+                <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px">${isTestSess ? '<span class="sess-acc-test-badge">TEST</span>' : ''}${esc(sesNombre)}</div>
                 <div class="sess-acc-meta">${fecha}${hora ? ' · ' + hora : ''} · <span style="font-variant-numeric:tabular-nums;color:rgba(255,255,255,0.60)">${fraccion}</span></div>
               </div>
               <span class="sess-acc-badge">${badgeTxt}</span>
@@ -2588,10 +2937,11 @@ async function openTestRevisionFromHistory(testId) {
   }
 }
 
-async function resumeSessionFromHistory(sesionId, asignaturaId, asignaturaNombre, durationType) {
+async function resumeSessionFromHistory(sesionId, asignaturaId, asignaturaNombre, durationType, lang, nPreguntas) {
   sessSubjectId = asignaturaId;
   sessSubjectName = asignaturaNombre;
   sessId = sesionId;
+  sessLang = lang || '';
   if (durationType) sessDurationType = durationType;
   if (!sessPlanId) sessPlanId = ''; // keep if set by startPlanSession, clear otherwise
   sessGreenCount = 0; sessYellowCount = 0; sessRedCount = 0;
@@ -2604,6 +2954,29 @@ async function resumeSessionFromHistory(sesionId, asignaturaId, asignaturaNombre
     localStorage.setItem('ar_subj_id', asignaturaId);
     localStorage.setItem('ar_subj_name', asignaturaNombre);
     _applySubjectHeader(asignaturaNombre, curSubjectColor);
+  }
+
+  if (durationType === 'test') {
+    if (nPreguntas) _testNPreguntas = nPreguntas;
+    _testMode = 'sesion'; _testSesionId = sesionId; _testPlanId = '';
+    _resetTestState();
+    switchView('test');
+    // Try to restore saved draft before regenerating
+    try {
+      const draft = await api(`/sesion/${sesionId}/test-draft`);
+      if (draft && draft.preguntas && draft.preguntas.length) {
+        _testPreguntas = draft.preguntas;
+        _testRespuestas = draft.respuestas || [];
+        _testIndex = _testRespuestas.length; // continue from first unanswered
+        const loading = $('test-loading'), content = $('test-content');
+        if (loading) loading.style.display = 'none';
+        if (content) content.style.display = '';
+        if (_testIndex >= _testPreguntas.length) { _mostrarResultados(); } else { _renderTestQuestion(); }
+        return;
+      }
+    } catch(e) { /* fallback to generate */ }
+    _generarTest({ sesion_id: sesionId, asignatura_id: asignaturaId, usuario_id: uid, n_preguntas: _testNPreguntas, lang: lang || currentLang });
+    return;
   }
 
   const counter = $('duel-counter');
@@ -2960,13 +3333,19 @@ async function repetirSesion(sesionId) {
     sessGreenCount = 0; sessYellowCount = 0; sessRedCount = 0;
     sessModoVoz = true;
 
-    const counter = $('duel-counter');
-    if (counter) counter.textContent = TF('label_question_counter', {n: 1, total: '—'});
-    const question = $('duel-question');
-    if (question) question.textContent = T('sess_starting');
-
-    switchView('duelo');
-    connectSessionWS(res.n_atomos);
+    if (s.duration_type === 'test') {
+      _testMode = 'sesion'; _testSesionId = res.sesion_id; _testPlanId = '';
+      _resetTestState();
+      switchView('test');
+      _generarTest({ sesion_id: res.sesion_id, asignatura_id: s.asignatura_id, usuario_id: uid, n_preguntas: _testNPreguntas, lang: s.lang || currentLang });
+    } else {
+      const counter = $('duel-counter');
+      if (counter) counter.textContent = TF('label_question_counter', {n: 1, total: '—'});
+      const question = $('duel-question');
+      if (question) question.textContent = T('sess_starting');
+      switchView('duelo');
+      connectSessionWS(res.n_atomos);
+    }
   } catch(e) {
     toast(e.message, 'err');
   }
@@ -2988,6 +3367,11 @@ async function confirmDeleteSession(sesionId) {
 
 // ─ Init ─
 let _subjData = [];
+try {
+  const cached = localStorage.getItem('ar_subj_data');
+  if (cached) _subjData = JSON.parse(cached);
+} catch(e) {}
+
 // Forzar tema claro siempre — el tema oscuro fue eliminado del diseño
 localStorage.removeItem('ar_theme');
 document.documentElement.removeAttribute('data-theme');
@@ -3006,6 +3390,7 @@ if (token && uid) {
     .then(data => {
       // Token valid — refresh subjects silently
       _subjData = data;
+      localStorage.setItem('ar_subj_data', JSON.stringify(data));
       if (!curSubjectId && data.length > 0) {
         goSubject(data[0].id, data[0].nombre, data[0].color);
       }

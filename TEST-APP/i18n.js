@@ -46,6 +46,7 @@ const TRANSLATIONS = {
     mat_title: 'Tus Apuntes',
     mat_empty: 'No hay apuntes aún. Toca + para subir un PDF.',
     mat_uploading: 'Subiendo...',
+    mat_uploading_file: 'Subiendo archivo...',
     mat_processing: 'Procesando...',
     mat_error_upload: '✕ Error al subir',
     mat_add: 'Añadir Apunte',
@@ -70,6 +71,8 @@ const TRANSLATIONS = {
     lobby_short_sub: '~5 min',
     lobby_long: 'Larga',
     lobby_long_sub: '~15 min',
+    lobby_complete: 'Completo',
+    lobby_complete_desc: 'Estudiar todos los átomos',
     lobby_topics: 'Subtemas',
     lobby_loading_topics: 'Cargando temas...',
     lobby_n_atoms: '{n} átomos',
@@ -87,6 +90,12 @@ const TRANSLATIONS = {
     sess_connecting: 'Conectando...',
     sess_resuming: 'Reanudando...',
     sess_starting: 'Iniciando sesión...',
+    sess_parts_created: '{n} sesiones creadas — empezando Parte 1',
+    plan_banner_title_default: 'Modo completo',
+    plan_banner_sub: 'Se han creado {n} sesiones. Empezarás por la primera ahora.',
+    plan_banner_start: 'Empezar sesión 1',
+    sess_starting_part: 'Empezando Parte {current} de {total}...',
+    sess_next_part: 'Siguiente parte ({current}/{total})',
     sess_busy: 'Servidor ocupado, un momento...',
     sess_next_q: 'Preparando la siguiente pregunta...',
 
@@ -95,10 +104,11 @@ const TRANSLATIONS = {
     panel_almost_badge: '◐ Casi correcto',
     panel_wrong_badge: 'Respuesta incorrecta',
     panel_why_wrong: 'Por qué está mal',
-    panel_you_said: 'Dijiste:',
-    panel_correct_answer: 'Lo correcto:',
+    panel_you_said: 'Tu respuesta',
+    panel_correct_answer: 'Respuesta correcta',
     panel_your_answer: 'Lo que dijiste',
     panel_the_answer: 'La respuesta',
+    panel_why_partial: 'Por qué es parcial',
     panel_analogy: 'Analogía',
     panel_continue: 'Continuar →',
     panel_repeat: 'Repetir pregunta',
@@ -149,6 +159,7 @@ const TRANSLATIONS = {
     voice_gender_male: 'Hombre',
     voice_engine_local: 'Local',
     voice_engine_cloud: 'Cloud',
+    voice_engine_edge: 'Edge',
 
     // History
     hist_sessions: 'Sesiones',
@@ -159,6 +170,7 @@ const TRANSLATIONS = {
     hist_loading: 'Cargando historial...',
     hist_loading_plans: 'Cargando planes...',
     hist_resume: 'Reanudar',
+    test_continue_draft: 'Continuar test',
     hist_repeat: 'Repetir',
     hist_review: 'Revisar',
     hist_delete: 'Eliminar',
@@ -202,8 +214,21 @@ const TRANSLATIONS = {
     plan_questions_label: '{n} preguntas',
     hist_session_long: 'Sesión larga',
     hist_session_short: 'Sesión corta',
+    hist_session_plan: 'Sesión de plan',
+    hist_session_subject: 'Sesión de asignatura',
+    hist_session_test: 'Sesión de test',
     hist_completed: 'Completada',
     hist_n_correct: '{n}/{total} correctas',
+
+    // Materials/atoms
+    mat_extracting: 'Extrayendo conceptos con IA...',
+    mat_opening: 'Abriendo...',
+    mat_delete_doc: 'Eliminar doc',
+    mat_atoms_count: '{n} átomos',
+    mat_no_subtopics: 'Sin subtemas',
+    mat_concepts_count: '{n} conceptos',
+    mat_no_concepts: 'Sin conceptos extraídos.',
+    mat_rename_prompt: 'Nuevo nombre:',
 
     // Subject wizard
     wiz_step1: 'Paso 1 de 2',
@@ -297,6 +322,10 @@ const TRANSLATIONS = {
 
     // STT/TTS
     stt_error: 'No te he entendido bien, ¿lo repites?',
+    stt_short_answer_hint: 'Respuesta corta — sigue hablando o pulsa Enviar',
+    test_n_questions_label: 'Número de preguntas',
+    test_paused_title: 'Test pausado',
+    test_resume: 'Continuar',
   },
 
   /* ─────────────────── ENGLISH ─────────────────── */
@@ -335,6 +364,7 @@ const TRANSLATIONS = {
     mat_title: 'Your Notes',
     mat_empty: 'No notes yet. Tap + to upload a PDF.',
     mat_uploading: 'Uploading...',
+    mat_uploading_file: 'Uploading file...',
     mat_processing: 'Processing...',
     mat_error_upload: '✕ Upload failed',
     mat_add: 'Add Note',
@@ -357,6 +387,8 @@ const TRANSLATIONS = {
     lobby_short_sub: '~5 min',
     lobby_long: 'Long',
     lobby_long_sub: '~15 min',
+    lobby_complete: 'Complete',
+    lobby_complete_desc: 'Study all atoms',
     lobby_topics: 'Topics',
     lobby_loading_topics: 'Loading topics...',
     lobby_n_atoms: '{n} atoms',
@@ -373,6 +405,12 @@ const TRANSLATIONS = {
     sess_connecting: 'Connecting...',
     sess_resuming: 'Resuming...',
     sess_starting: 'Starting session...',
+    plan_banner_title_default: 'Complete mode',
+    plan_banner_sub: '{n} sessions have been created. You\'ll start with session 1 now.',
+    plan_banner_start: 'Start session 1',
+    sess_parts_created: '{n} sessions created — starting Part 1',
+    sess_starting_part: 'Starting Part {current} of {total}...',
+    sess_next_part: 'Next part ({current}/{total})',
     sess_busy: 'Server busy, one moment...',
     sess_next_q: 'Preparing next question...',
 
@@ -380,10 +418,11 @@ const TRANSLATIONS = {
     panel_almost_badge: '◐ Almost correct',
     panel_wrong_badge: 'Incorrect answer',
     panel_why_wrong: 'Why it\'s wrong',
-    panel_you_said: 'You said:',
-    panel_correct_answer: 'Correct:',
+    panel_you_said: 'Your answer',
+    panel_correct_answer: 'Correct answer',
     panel_your_answer: 'What you said',
     panel_the_answer: 'The answer',
+    panel_why_partial: 'Why it\'s partial',
     panel_analogy: 'Analogy',
     panel_continue: 'Continue →',
     panel_repeat: 'Repeat question',
@@ -430,6 +469,7 @@ const TRANSLATIONS = {
     voice_gender_male: 'Male',
     voice_engine_local: 'Local',
     voice_engine_cloud: 'Cloud',
+    voice_engine_edge: 'Edge',
 
     hist_sessions: 'Sessions',
     hist_plans: 'Plans',
@@ -439,6 +479,7 @@ const TRANSLATIONS = {
     hist_loading: 'Loading history...',
     hist_loading_plans: 'Loading plans...',
     hist_resume: 'Resume',
+    test_continue_draft: 'Continue test',
     hist_repeat: 'Repeat',
     hist_review: 'Review',
     hist_delete: 'Delete',
@@ -480,8 +521,21 @@ const TRANSLATIONS = {
     plan_questions_label: '{n} questions',
     hist_session_long: 'Long session',
     hist_session_short: 'Short session',
+    hist_session_plan: 'Plan session',
+    hist_session_subject: 'Subject session',
+    hist_session_test: 'Test session',
     hist_completed: 'Completed',
     hist_n_correct: '{n}/{total} correct',
+
+    // Materials/atoms
+    mat_extracting: 'Extracting concepts with AI...',
+    mat_opening: 'Opening...',
+    mat_delete_doc: 'Delete doc',
+    mat_atoms_count: '{n} atoms',
+    mat_no_subtopics: 'No subtopics',
+    mat_concepts_count: '{n} concepts',
+    mat_no_concepts: 'No concepts extracted.',
+    mat_rename_prompt: 'New name:',
 
     wiz_step1: 'Step 1 of 2',
     wiz_step2: 'Step 2 of 2 · Add notes',
@@ -566,6 +620,10 @@ const TRANSLATIONS = {
     lang_de: 'Deutsch',
 
     stt_error: 'I didn\'t catch that, could you repeat?',
+    stt_short_answer_hint: 'Short answer — keep talking or press Send',
+    test_n_questions_label: 'Number of questions',
+    test_paused_title: 'Test paused',
+    test_resume: 'Resume',
   },
 
   /* ─────────────────── DEUTSCH ─────────────────── */
@@ -604,6 +662,7 @@ const TRANSLATIONS = {
     mat_title: 'Deine Notizen',
     mat_empty: 'Noch keine Notizen. Tippe +, um ein PDF hochzuladen.',
     mat_uploading: 'Wird hochgeladen...',
+    mat_uploading_file: 'Datei wird hochgeladen...',
     mat_processing: 'Wird verarbeitet...',
     mat_error_upload: '✕ Upload fehlgeschlagen',
     mat_add: 'Notiz hinzufügen',
@@ -626,6 +685,8 @@ const TRANSLATIONS = {
     lobby_short_sub: '~5 Min',
     lobby_long: 'Lang',
     lobby_long_sub: '~15 Min',
+    lobby_complete: 'Vollständig',
+    lobby_complete_desc: 'Alle Atome lernen',
     lobby_topics: 'Themen',
     lobby_loading_topics: 'Themen laden...',
     lobby_n_atoms: '{n} Atome',
@@ -641,7 +702,13 @@ const TRANSLATIONS = {
     sess_listening: 'Höre zu...',
     sess_connecting: 'Verbinde...',
     sess_resuming: 'Fortsetzen...',
+    plan_banner_title_default: 'Vollständiger Modus',
+    plan_banner_sub: 'Es wurden {n} Sitzungen erstellt. Du beginnst jetzt mit Sitzung 1.',
+    plan_banner_start: 'Sitzung 1 starten',
     sess_starting: 'Sitzung wird gestartet...',
+    sess_parts_created: '{n} Sitzungen erstellt — Teil 1 beginnt',
+    sess_starting_part: 'Teil {current} von {total} beginnt...',
+    sess_next_part: 'Nächster Teil ({current}/{total})',
     sess_busy: 'Server beschäftigt, einen Moment...',
     sess_next_q: 'Nächste Frage wird vorbereitet...',
 
@@ -649,10 +716,11 @@ const TRANSLATIONS = {
     panel_almost_badge: '◐ Fast richtig',
     panel_wrong_badge: 'Falsche Antwort',
     panel_why_wrong: 'Warum falsch',
-    panel_you_said: 'Du sagtest:',
-    panel_correct_answer: 'Richtig:',
+    panel_you_said: 'Deine Antwort',
+    panel_correct_answer: 'Richtige Antwort',
     panel_your_answer: 'Was du gesagt hast',
     panel_the_answer: 'Die Antwort',
+    panel_why_partial: 'Warum unvollständig',
     panel_analogy: 'Analogie',
     panel_continue: 'Weiter →',
     panel_repeat: 'Frage wiederholen',
@@ -699,6 +767,7 @@ const TRANSLATIONS = {
     voice_gender_male: 'Männlich',
     voice_engine_local: 'Lokal',
     voice_engine_cloud: 'Cloud',
+    voice_engine_edge: 'Edge',
 
     hist_sessions: 'Sitzungen',
     hist_plans: 'Pläne',
@@ -708,6 +777,7 @@ const TRANSLATIONS = {
     hist_loading: 'Verlauf wird geladen...',
     hist_loading_plans: 'Pläne werden geladen...',
     hist_resume: 'Fortsetzen',
+    test_continue_draft: 'Test fortsetzen',
     hist_repeat: 'Wiederholen',
     hist_review: 'Überprüfen',
     hist_delete: 'Löschen',
@@ -749,8 +819,21 @@ const TRANSLATIONS = {
     plan_questions_label: '{n} Fragen',
     hist_session_long: 'Lange Sitzung',
     hist_session_short: 'Kurze Sitzung',
+    hist_session_plan: 'Plansitzung',
+    hist_session_subject: 'Fachsitzung',
+    hist_session_test: 'Test-Sitzung',
     hist_completed: 'Abgeschlossen',
     hist_n_correct: '{n}/{total} richtig',
+
+    // Materials/atoms
+    mat_extracting: 'Konzepte werden mit KI extrahiert...',
+    mat_opening: 'Öffnen...',
+    mat_delete_doc: 'Dok. löschen',
+    mat_atoms_count: '{n} Atome',
+    mat_no_subtopics: 'Keine Unterthemen',
+    mat_concepts_count: '{n} Konzepte',
+    mat_no_concepts: 'Keine Konzepte extrahiert.',
+    mat_rename_prompt: 'Neuer Name:',
 
     wiz_step1: 'Schritt 1 von 2',
     wiz_step2: 'Schritt 2 von 2 · Notizen hinzufügen',
@@ -835,6 +918,10 @@ const TRANSLATIONS = {
     lang_de: 'Deutsch',
 
     stt_error: 'Ich habe das nicht verstanden, kannst du es wiederholen?',
+    stt_short_answer_hint: 'Kurze Antwort — sprich weiter oder drücke Senden',
+    test_n_questions_label: 'Anzahl der Fragen',
+    test_paused_title: 'Test pausiert',
+    test_resume: 'Weiter',
   },
 };
 
@@ -848,6 +935,13 @@ let currentLang = localStorage.getItem('ar_lang') || 'es';
  */
 function T(key) {
   return TRANSLATIONS[currentLang]?.[key]
+    ?? TRANSLATIONS.es[key]
+    ?? key;
+}
+
+/** Translate a key in a specific language (not the current UI language). */
+function TLang(key, lang) {
+  return TRANSLATIONS[lang]?.[key]
     ?? TRANSLATIONS.es[key]
     ?? key;
 }
@@ -873,10 +967,19 @@ function applyLang(lang) {
   currentLang = lang;
   localStorage.setItem('ar_lang', lang);
 
-  // Text content
+  // Text content (skip if it has aria/title only)
   document.querySelectorAll('[data-i18n]').forEach(el => {
-    const key = el.dataset.i18n;
-    el.textContent = T(key);
+    el.textContent = T(el.dataset.i18n);
+  });
+
+  // Aria-label
+  document.querySelectorAll('[data-i18n-aria]').forEach(el => {
+    el.setAttribute('aria-label', T(el.dataset.i18nAria));
+  });
+
+  // Title
+  document.querySelectorAll('[data-i18n-title]').forEach(el => {
+    el.title = T(el.dataset.i18nTitle);
   });
 
   // Placeholder

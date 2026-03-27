@@ -14,6 +14,8 @@ class Settings(BaseSettings):
     # Kokoro (open source, local, sin coste)
     use_kokoro_tts: bool = False
     kokoro_voice: str = "ef_dora"           # Voz española femenina de Kokoro
+    # Piper TTS (local, neural quality, no internet — needs model files in .piper_models/)
+    use_piper_tts: bool = False
     # Azure TTS (5 millones chars/mes gratis, voces neurales excelentes)
     azure_tts_key: str = ""
     azure_tts_region: str = "eastus"

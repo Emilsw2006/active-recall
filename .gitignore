@@ -1,11 +1,37 @@
 .next/
 node_modules/
 __pycache__/
+**/__pycache__/
 *.pyc
+*.pyo
+
+# Secrets — NUNCA subir a GitHub
 .env
-.DS_Store
+.env.local
+BACKEND/.env
+BACKEND/.env.local
+
+# Certificados SSL locales
 *.pem
 *.key
 BACKEND/cert.pem
 BACKEND/key.pem
+
+# Modelos de TTS (archivos grandes — descargar en el servidor)
+BACKEND/.piper_models/
+.piper_models/
+
+# Cache de modelos Hugging Face (Kokoro, sentence-transformers)
+.cache/
+
+# IDE / OS
+.DS_Store
+.vscode/
+*.swp
+
+# Claude Code (contexto local)
 .claude/
+
+# Logs
+*.log
+logs/

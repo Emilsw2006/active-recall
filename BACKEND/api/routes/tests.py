@@ -7,12 +7,14 @@ Endpoints de tipo test:
 """
 
 import asyncio
+import traceback
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from core.test_generator import generar_preguntas_test
+from core.question_generator import generar_titulo_sesion
 from utils.logger import get_logger
 from utils.supabase_client import get_service_client
 
@@ -39,6 +41,7 @@ class GuardarTestRequest(BaseModel):
     puntuacion: int
     total: int
     tipo: str = "sesion"
+    lang: str = "es"
 
 
 @router.post("/test/generar")
@@ -76,21 +79,32 @@ async def generar_test(body: GenerarTestRequest):
             )
             atomo_ids = {r["atomo_id"] for r in (res.data or [])}
 
-    if not atomo_ids:
+    import random
+
+    if atomo_ids:
+        atomos_res = await asyncio.to_thread(
+            lambda: db.table("atomos")
+            .select("id, titulo_corto, texto_completo")
+            .in_("id", list(atomo_ids))
+            .execute()
+        )
+        atomos = atomos_res.data or []
+    elif body.asignatura_id:
+        # Fallback: generate test directly from all atoms in the subject
+        atomos_res = await asyncio.to_thread(
+            lambda: db.table("atomos")
+            .select("id, titulo_corto, texto_completo")
+            .eq("asignatura_id", body.asignatura_id)
+            .execute()
+        )
+        atomos = atomos_res.data or []
+    else:
         raise HTTPException(status_code=404, detail="No hay átomos para generar el test")
 
-    atomos_res = await asyncio.to_thread(
-        lambda: db.table("atomos")
-        .select("id, titulo_corto, texto_completo")
-        .in_("id", list(atomo_ids))
-        .execute()
-    )
-    atomos = atomos_res.data or []
     if not atomos:
         raise HTTPException(status_code=404, detail="Átomos no encontrados")
 
     # Shuffle and limit
-    import random
     random.shuffle(atomos)
     n = min(body.n_preguntas, len(atomos), 12)
     atomos = atomos[:n]
@@ -98,8 +112,8 @@ async def generar_test(body: GenerarTestRequest):
     try:
         preguntas = await generar_preguntas_test(atomos, n=n, lang=body.lang)
     except Exception as e:
-        logger.error(f"Error generando test: {e}")
-        raise HTTPException(status_code=500, detail=f"Error generando preguntas: {str(e)}")
+        logger.error(f"Error generando test:\n{traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=f"Error generando preguntas: {type(e).__name__}: {e}")
 
     if not preguntas:
         raise HTTPException(status_code=500, detail="Gemini no generó preguntas válidas")
@@ -121,10 +135,22 @@ async def guardar_test(body: GuardarTestRequest):
         "puntuacion": body.puntuacion,
         "total": body.total,
         "tipo": body.tipo,
+        "lang": body.lang,
     }
     res = await asyncio.to_thread(lambda: db.table("tests").insert(data).execute())
     if not res.data:
         raise HTTPException(status_code=500, detail="Error guardando test")
+    test_id = res.data[0]["id"]
+
+    # Generar título descriptivo en background a partir de las preguntas del test
+    async def _set_nombre_test():
+        textos = [p.get("pregunta", "") for p in (body.preguntas or []) if p.get("pregunta")]
+        nombre = await generar_titulo_sesion(textos, lang=body.lang)
+        if nombre:
+            await asyncio.to_thread(lambda: db.table("tests").update({"nombre": nombre}).eq("id", test_id).execute())
+
+    asyncio.create_task(_set_nombre_test())
+
     return res.data[0]
 
 
@@ -135,7 +161,7 @@ async def listar_tests_usuario(usuario_id: str):
 
     tests_res = await asyncio.to_thread(
         lambda: db.table("tests")
-        .select("id, asignatura_id, sesion_id, plan_id, puntuacion, total, tipo, fecha")
+        .select("id, asignatura_id, sesion_id, plan_id, puntuacion, total, tipo, fecha, lang, nombre")
         .eq("usuario_id", usuario_id)
         .order("fecha", desc=True)
         .limit(50)
@@ -167,6 +193,8 @@ async def listar_tests_usuario(usuario_id: str):
             "total": t["total"],
             "tipo": t["tipo"],
             "fecha": t["fecha"],
+            "lang": t.get("lang", "es"),
+            "nombre": t.get("nombre") or "",
         })
 
     return result

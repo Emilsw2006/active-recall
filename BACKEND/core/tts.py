@@ -1,10 +1,14 @@
 """
 Text-to-Speech — prioridad:
-  1. Kokoro   (open source, local)   USE_KOKORO_TTS=true en .env
-  2. Azure    (neural, 5M gratis)    AZURE_TTS_KEY en .env
-  3. ElevenLabs (10k gratis)         ELEVENLABS_API_KEY en .env
-  4. OpenAI TTS                      OPENAI_API_KEY en .env
-  5. Vacío → frontend usa Web Speech API
+  1. Kokoro     (open source, local)        USE_KOKORO_TTS=true en .env  [EN/ES]
+  2. Piper TTS  (local, neural quality)     USE_PIPER_TTS=true en .env   [DE/EN/ES]
+  3. Edge TTS   (gratis, sin API key)       siempre activo, voces Neural multilingual
+  4. gTTS       (Google, sin API key)       siempre activo, endpoint distinto a Bing
+  5. Azure      (neural, 5M gratis)         AZURE_TTS_KEY en .env
+  6. ElevenLabs (10k gratis)                ELEVENLABS_API_KEY en .env
+  7. OpenAI TTS                             OPENAI_API_KEY en .env
+  8. Kokoro fallback                        last resort para EN/ES
+  9. Vacío → frontend usa Web Speech API
 
 Speech-to-Text: Groq Whisper (sin cambios).
 """
@@ -26,17 +30,35 @@ logger = get_logger(__name__)
 groq_client = Groq(api_key=settings.groq_api_key)
 
 # ─── 1. Kokoro (local, open source) ───────────────────────────────────────────
+# Supported lang_codes: 'a'=American EN, 'b'=British EN, 'e'=ES,
+#   'f'=FR, 'h'=HI, 'i'=IT, 'p'=PT-BR, 'j'=JA, 'z'=ZH
+# Voice prefix → lang_code mapping:
+_VOICE_LANGCODE = {
+    'af': 'a', 'am': 'a',  # American English
+    'bf': 'b', 'bm': 'b',  # British English
+    'ef': 'e', 'em': 'e',  # Spanish
+    'ff': 'f', 'fm': 'f',  # French
+    'hf': 'h', 'hm': 'h',  # Hindi
+    'if': 'i', 'im': 'i',  # Italian
+    'pf': 'p', 'pm': 'p',  # Portuguese
+    'jf': 'j', 'jm': 'j',  # Japanese
+    'zf': 'z', 'zm': 'z',  # Mandarin
+}
 
-_kokoro_pipeline = None
+_kokoro_pipelines: dict = {}  # lang_code → KPipeline
 
-def _get_kokoro_pipeline():
-    """Carga Kokoro una sola vez (lazy)."""
-    global _kokoro_pipeline
-    if _kokoro_pipeline is None:
-        from kokoro import KPipeline  # noqa: importado solo si se usa
-        _kokoro_pipeline = KPipeline(lang_code='e')  # 'e' = español
-        logger.info("Kokoro TTS cargado (español)")
-    return _kokoro_pipeline
+def _get_kokoro_pipeline(lang_code: str = 'e'):
+    """Carga la pipeline Kokoro para el lang_code dado (lazy, una vez por idioma)."""
+    if lang_code not in _kokoro_pipelines:
+        from kokoro import KPipeline
+        _kokoro_pipelines[lang_code] = KPipeline(lang_code=lang_code)
+        logger.info(f"Kokoro TTS cargado (lang_code='{lang_code}')")
+    return _kokoro_pipelines[lang_code]
+
+
+def _lang_code_for_voice(voz: str) -> str:
+    prefix = voz[:2] if len(voz) >= 2 else ''
+    return _VOICE_LANGCODE.get(prefix, 'e')
 
 
 async def _tts_kokoro(texto: str, voz: str = "") -> bytes:
@@ -45,9 +67,10 @@ async def _tts_kokoro(texto: str, voz: str = "") -> bytes:
     import soundfile as sf
 
     voice = voz if voz else settings.kokoro_voice
+    lang_code = _lang_code_for_voice(voice)
 
     def _generate():
-        pipeline = _get_kokoro_pipeline()
+        pipeline = _get_kokoro_pipeline(lang_code)
         chunks = []
         for _, _, audio in pipeline(texto, voice=voice, speed=1.0):
             chunks.append(audio)
@@ -62,7 +85,91 @@ async def _tts_kokoro(texto: str, voz: str = "") -> bytes:
     return await asyncio.to_thread(_generate)
 
 
-# ─── 2. Azure TTS ─────────────────────────────────────────────────────────────
+# ─── 2. Edge TTS (free, no API key, same voices as Azure Neural) ──────────────
+
+_EDGE_DEFAULT_VOICES = {
+    "es": "es-ES-ElviraNeural",
+    "en": "en-US-SaraNeural",
+    "de": "de-DE-KatjaNeural",
+}
+
+async def _tts_edge(texto: str, voice_name: str = "", lang: str = "es") -> bytes:
+    """Microsoft Edge TTS — free, no API key, supports all Azure Neural voices."""
+    import edge_tts
+    voice = voice_name if voice_name else _EDGE_DEFAULT_VOICES.get(lang, "es-ES-ElviraNeural")
+    communicate = edge_tts.Communicate(texto, voice)
+    chunks = []
+    async for chunk in communicate.stream():
+        if chunk["type"] == "audio":
+            chunks.append(chunk["data"])
+    if not chunks:
+        raise ValueError("edge-tts no generó audio")
+    return b"".join(chunks)
+
+
+# ─── 2b. Piper TTS (local, neural quality — needs piper-tts + model files) ────
+# Models dir: BACKEND/.piper_models/
+# German: de_DE-thorsten-high.onnx + .onnx.json  (~60 MB, download once)
+# Download: https://huggingface.co/rhasspy/piper-voices/tree/main/de/de_DE/thorsten/high
+
+from pathlib import Path as _Path
+
+_PIPER_MODELS_DIR = _Path(__file__).parent.parent / ".piper_models"
+_PIPER_VOICES = {
+    "de": "de_DE-thorsten-high",
+    "en": "en_US-lessac-high",
+    "es": "es_ES-carlfm-x_low",
+}
+_piper_voice_cache: dict = {}
+
+
+async def _tts_piper(texto: str, lang: str = "de") -> bytes:
+    """Piper TTS — local neural quality, no internet needed after first download."""
+    import wave, io
+
+    voice_name = _PIPER_VOICES.get(lang)
+    if not voice_name:
+        raise ValueError(f"Piper: no voice configured for lang={lang}")
+
+    onnx_path = _PIPER_MODELS_DIR / f"{voice_name}.onnx"
+    json_path = _PIPER_MODELS_DIR / f"{voice_name}.onnx.json"
+    if not onnx_path.exists() or not json_path.exists():
+        raise FileNotFoundError(f"Piper model not found: {onnx_path}")
+
+    def _generate():
+        from piper import PiperVoice
+        if voice_name not in _piper_voice_cache:
+            _piper_voice_cache[voice_name] = PiperVoice.load(str(onnx_path), config_path=str(json_path))
+        voice = _piper_voice_cache[voice_name]
+        buf = io.BytesIO()
+        with wave.open(buf, "wb") as wav_file:
+            voice.synthesize(texto, wav_file)
+        buf.seek(0)
+        return buf.read()
+
+    return await asyncio.to_thread(_generate)
+
+
+# ─── 2c. gTTS (Google Translate TTS — free, no API key, different endpoint than Edge) ──
+
+async def _tts_gtts(texto: str, lang: str = "de") -> bytes:
+    """Google Translate TTS — uses translate.google.com, works when Bing DNS fails."""
+    import io
+    from gtts import gTTS
+
+    gtts_lang = {"es": "es", "en": "en", "de": "de"}.get(lang, "de")
+
+    def _generate():
+        tts = gTTS(text=texto, lang=gtts_lang, slow=False)
+        buf = io.BytesIO()
+        tts.write_to_fp(buf)
+        buf.seek(0)
+        return buf.read()
+
+    return await asyncio.to_thread(_generate)
+
+
+# ─── 3. Azure TTS ─────────────────────────────────────────────────────────────
 
 _AZURE_VOICES = {
     "es": ("es-ES", "es-ES-ElviraNeural"),
@@ -70,12 +177,15 @@ _AZURE_VOICES = {
     "de": ("de-DE", "de-DE-KatjaNeural"),
 }
 
-async def _tts_azure(texto: str, lang: str = "es") -> bytes:
+async def _tts_azure(texto: str, lang: str = "es", voice_name: str = "") -> bytes:
     """Llama a Azure Cognitive Services TTS (neural). Devuelve MP3."""
-    xml_lang, voice_name = _AZURE_VOICES.get(lang, _AZURE_VOICES["es"])
-    # Allow override from settings for Spanish
-    if lang == "es" and settings.azure_tts_voice:
-        voice_name = settings.azure_tts_voice
+    xml_lang, default_voice = _AZURE_VOICES.get(lang, _AZURE_VOICES["es"])
+    if not voice_name:
+        # Allow override from settings for Spanish when no explicit voice
+        if lang == "es" and settings.azure_tts_voice:
+            voice_name = settings.azure_tts_voice
+        else:
+            voice_name = default_voice
     url = f"https://{settings.azure_tts_region}.tts.speech.microsoft.com/cognitiveservices/v1"
     ssml = (
         f"<speak version='1.0' xml:lang='{xml_lang}'>"
@@ -164,8 +274,12 @@ async def texto_a_audio_base64(texto: str, voz: str = "", lang: str = "es") -> s
     audio_bytes: bytes | None = None
     fmt = "mp3"
 
-    # 1. Kokoro local (only Spanish — falls through for EN/DE)
-    if settings.use_kokoro_tts and lang == "es" and audio_bytes is None:
+    # Detect if voice ID is an Azure Neural voice
+    is_azure_voice = "Neural" in voz if voz else False
+
+    # 1. Kokoro local — any supported lang (EN, ES, FR…) via voice prefix; skip Azure/Edge voices
+    is_kokoro_voice = voz[:2] in _VOICE_LANGCODE if voz else False
+    if settings.use_kokoro_tts and (is_kokoro_voice or (lang == "es" and not is_azure_voice)) and audio_bytes is None:
         try:
             audio_bytes = await _tts_kokoro(texto, voz)
             fmt = "wav"
@@ -173,16 +287,47 @@ async def texto_a_audio_base64(texto: str, voz: str = "", lang: str = "es") -> s
         except Exception as e:
             logger.warning(f"TTS Kokoro falló: {e}")
 
-    # 2. Azure (multilingual)
+    # 2. Piper TTS (local, neural quality — no internet needed)
+    if settings.use_piper_tts and audio_bytes is None:
+        try:
+            audio_bytes = await _tts_piper(texto, lang=lang)
+            fmt = "wav"
+            logger.info(f"TTS Piper OK [{lang}] en {(datetime.now()-inicio).total_seconds():.2f}s")
+        except FileNotFoundError:
+            pass  # Model not downloaded yet — skip silently
+        except Exception as e:
+            logger.warning(f"TTS Piper falló: {e}")
+
+    # 3. Edge TTS (free, no API key — multilingual, same Neural voices as Azure)
+    if audio_bytes is None:
+        try:
+            edge_voice = voz if is_azure_voice else ""
+            audio_bytes = await _tts_edge(texto, voice_name=edge_voice, lang=lang)
+            fmt = "mp3"
+            logger.info(f"TTS Edge OK [{lang}] en {(datetime.now()-inicio).total_seconds():.2f}s")
+        except Exception as e:
+            logger.warning(f"TTS Edge falló: {e}")
+
+    # 4. gTTS (Google Translate TTS — different endpoint than Edge, works when Bing DNS fails)
+    if audio_bytes is None:
+        try:
+            audio_bytes = await _tts_gtts(texto, lang=lang)
+            fmt = "mp3"
+            logger.info(f"TTS gTTS OK [{lang}] en {(datetime.now()-inicio).total_seconds():.2f}s")
+        except Exception as e:
+            logger.warning(f"TTS gTTS falló: {e}")
+
+    # 5. Azure (multilingual — pass voice_name if it's an Azure voice ID)  # noqa: E265
     if settings.azure_tts_key and audio_bytes is None:
         try:
-            audio_bytes = await _tts_azure(texto, lang=lang)
+            azure_voice = voz if is_azure_voice else ""
+            audio_bytes = await _tts_azure(texto, lang=lang, voice_name=azure_voice)
             fmt = "mp3"
             logger.info(f"TTS Azure OK [{lang}] en {(datetime.now()-inicio).total_seconds():.2f}s")
         except Exception as e:
             logger.warning(f"TTS Azure falló: {e}")
 
-    # 3. ElevenLabs
+    # 4. ElevenLabs
     if settings.elevenlabs_api_key and audio_bytes is None:
         try:
             audio_bytes = await _tts_elevenlabs(texto)
@@ -191,7 +336,7 @@ async def texto_a_audio_base64(texto: str, voz: str = "", lang: str = "es") -> s
         except Exception as e:
             logger.warning(f"TTS ElevenLabs falló: {e}")
 
-    # 4. OpenAI
+    # 5. OpenAI
     if settings.openai_api_key and audio_bytes is None:
         try:
             audio_bytes = await _tts_openai(texto)
@@ -199,6 +344,16 @@ async def texto_a_audio_base64(texto: str, voz: str = "", lang: str = "es") -> s
             logger.info(f"TTS OpenAI OK en {(datetime.now()-inicio).total_seconds():.2f}s")
         except Exception as e:
             logger.warning(f"TTS OpenAI falló: {e}")
+
+    # Last resort: Kokoro fallback for supported languages when cloud providers fail
+    _KOKORO_FALLBACK = {'en': 'af_sarah', 'es': 'ef_dora'}
+    if settings.use_kokoro_tts and audio_bytes is None and lang in _KOKORO_FALLBACK:
+        try:
+            audio_bytes = await _tts_kokoro(texto, _KOKORO_FALLBACK[lang])
+            fmt = "wav"
+            logger.info(f"TTS Kokoro fallback OK [{lang}]")
+        except Exception as e:
+            logger.warning(f"TTS Kokoro fallback falló: {e}")
 
     if audio_bytes is None:
         logger.warning("TTS: sin proveedor disponible — frontend usará Web Speech API")

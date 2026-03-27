@@ -16,7 +16,7 @@ from utils.supabase_client import get_service_client
 
 logger = get_logger(__name__)
 
-MAX_PREGUNTAS = 20  # límite duro global
+MAX_PREGUNTAS = 30  # límite duro global
 
 
 @dataclass
@@ -163,6 +163,70 @@ async def crear_sesiones_asignatura(
     return chunks
 
 
+# ── Preparar átomos priorizados para temas elegidos ─────────────────────────
+
+async def preparar_atomos_priorizados(
+    temas_elegidos: List[str],
+    usuario_id: str,
+) -> List[dict]:
+    """
+    Recopila átomos de los temas elegidos, excluyendo duplicados,
+    y los ordena por prioridad: rojo → amarillo → nuevo → verde.
+    Devuelve lista de dicts con id, tema_id, orden, titulo_corto,
+    texto_completo, embedding.
+    """
+    db = get_service_client()
+
+    atomos_res = await asyncio.to_thread(
+        lambda: db.table("atomos")
+        .select("id, titulo_corto, texto_completo, embedding, tema_id, orden")
+        .in_("tema_id", temas_elegidos)
+        .is_("es_duplicado_de", "null")
+        .execute()
+    )
+    if not atomos_res.data:
+        return []
+
+    atomo_ids = [a["id"] for a in atomos_res.data]
+
+    # Historial de resultados para priorizar
+    hist_res = await asyncio.to_thread(
+        lambda: db.table("resultados")
+        .select("atomo_id, estado")
+        .in_("atomo_id", atomo_ids)
+        .execute()
+    )
+    ids_rojo = set()
+    ids_amarillo = set()
+    ids_verde = set()
+    for r in (hist_res.data or []):
+        aid, estado = r["atomo_id"], r["estado"]
+        if estado == "rojo":
+            ids_rojo.add(aid); ids_amarillo.discard(aid); ids_verde.discard(aid)
+        elif estado == "amarillo" and aid not in ids_rojo:
+            ids_amarillo.add(aid); ids_verde.discard(aid)
+        elif estado == "verde" and aid not in ids_rojo and aid not in ids_amarillo:
+            ids_verde.add(aid)
+
+    def prioridad(a):
+        aid = a["id"]
+        if aid in ids_rojo:     return (0, a["orden"])
+        if aid in ids_amarillo: return (1, a["orden"])
+        if aid not in ids_verde: return (2, a["orden"])  # nuevo
+        return (3, a["orden"])                            # verde
+
+    return sorted(atomos_res.data, key=prioridad)
+
+
+def dividir_en_chunks(atomos: List[dict], preguntas_por_sesion: int) -> List[List[dict]]:
+    """Divide una lista de átomos en chunks de tamaño preguntas_por_sesion."""
+    preguntas_por_sesion = min(max(preguntas_por_sesion, 1), MAX_PREGUNTAS)
+    chunks = []
+    for i in range(0, len(atomos), preguntas_por_sesion):
+        chunks.append(atomos[i:i + preguntas_por_sesion])
+    return chunks
+
+
 # ── Carga de sesión en memoria ───────────────────────────────────────────────
 
 async def cargar_sesion(
@@ -180,10 +244,9 @@ async def cargar_sesion(
     db = get_service_client()
     inicio = datetime.now()
     from core.session_manager import MAX_PREGUNTAS
-    limite = min(max_atomos or MAX_PREGUNTAS, MAX_PREGUNTAS)
 
     logger.info(
-        f"[{sesion_id}] Cargando sesión — límite={limite} "
+        f"[{sesion_id}] Cargando sesión — tipo={duration_type} "
         f"start_index={start_index} temas={temas_elegidos}"
     )
 
@@ -233,10 +296,18 @@ async def cargar_sesion(
     def sort_key(a):
         return (0 if a["id"] in ids_rojos else 1, a["orden"])
 
-    atomos_ordenados = [
-        a for a in sorted(atomos_res.data, key=sort_key)
-        if a["id"] not in ids_ya_respondidos
-    ][:limite]
+    # Calcular límite según tipo, relativo al contenido disponible
+    disponibles = [a for a in sorted(atomos_res.data, key=sort_key) if a["id"] not in ids_ya_respondidos]
+    total_disp = len(disponibles)
+    if max_atomos:
+        limite = min(max_atomos, MAX_PREGUNTAS)
+    elif duration_type == "corta":
+        limite = max(5, total_disp // 2)  # mitad del contenido elegido
+    else:
+        limite = min(total_disp, MAX_PREGUNTAS)  # todo el contenido (larga, plan, asignatura)
+
+    logger.info(f"[{sesion_id}] {total_disp} disponibles → límite={limite} ({duration_type})")
+    atomos_ordenados = disponibles[:limite]
 
     atomos = [
         AtomoSesion(

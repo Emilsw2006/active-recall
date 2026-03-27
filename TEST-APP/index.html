@@ -57,7 +57,7 @@
   <div class="floating-header">
     <button class="subject-selector" onclick="openModal()" id="subject-selector-btn">
       <span class="subject-dot" id="header-dot" style="background:var(--amber)"></span>
-      <span id="bc-subject" style="font-weight:600" data-i18n="empty_loading">Cargando...</span>
+      <span id="bc-subject" style="font-weight:600">Active Recall</span>
       <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style="margin-left:4px; opacity:.5"><path d="M8 11.5l-5-5 1.4-1.4 3.6 3.6 3.6-3.6 1.4 1.4-5 5z"/></svg>
     </button>
     <button class="btn-settings" onclick="openAjustesModal()" aria-label="Ajustes">
@@ -161,7 +161,7 @@
             <button class="duelo-btn" style="width:100%; justify-content:center" onclick="requestLobbyMic()" data-i18n="lobby_mic_allow">Permitir micrófono</button>
           </div>
 
-          <!-- Duration -->
+          <!-- Duration (oral mode) -->
           <div class="lobby-label" data-i18n="lobby_duration">Duración</div>
           <div class="lobby-dur-row">
             <button class="ldur-pill on" id="dur-corta" onclick="pickDuration('corta')">
@@ -172,6 +172,33 @@
               <span class="ldur-pill-name" data-i18n="lobby_long">Larga</span>
               <span class="ldur-pill-sub" data-i18n="lobby_long_sub">~15 min</span>
             </button>
+          </div>
+
+          <!-- Question count slider (test mode only) -->
+          <div id="lobby-test-n" style="display:none; margin-bottom:20px">
+            <div class="lobby-label" style="display:flex;justify-content:space-between;align-items:center">
+              <span data-i18n="test_n_questions_label">Número de preguntas</span>
+              <span id="lobby-test-n-val" style="font-size:1.1rem;font-weight:700;color:var(--accent)">10</span>
+            </div>
+            <input type="range" id="lobby-test-n-slider" min="5" max="30" value="10" step="1"
+              oninput="setTestNPreguntas(+this.value)"
+              style="width:100%;margin-top:10px;accent-color:var(--accent);cursor:pointer;height:6px">
+            <div style="display:flex;justify-content:space-between;font-size:.72rem;color:rgba(255,255,255,0.40);margin-top:4px">
+              <span>5</span><span>30</span>
+            </div>
+          </div>
+
+          <!-- Complete toggle -->
+          <div id="lobby-completo-row" class="lobby-completo-row">
+            <div class="lobby-completo-left">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+              <span data-i18n="lobby_complete">Completo</span>
+            </div>
+            <div class="lobby-completo-desc" data-i18n="lobby_complete_desc">Estudiar todos los átomos</div>
+            <label class="lobby-toggle">
+              <input type="checkbox" id="lobby-completo-check" onchange="toggleCompleto(this.checked)">
+              <span class="lobby-toggle-slider"></span>
+            </label>
           </div>
 
           <!-- Topics -->
@@ -250,6 +277,10 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
             <span data-i18n="res_test_session">Test de esta sesión</span>
           </button>
+          <button id="btn-next-part" class="resumen-btn primary" onclick="startNextPart()" style="display:none">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="13 17 18 12 13 7"/><polyline points="6 17 11 12 6 7"/></svg>
+            <span id="btn-next-part-label">Siguiente parte</span>
+          </button>
           <button id="btn-test-plan" class="resumen-btn primary" onclick="iniciarTestPlan()" style="display:none">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
             <span data-i18n="res_test_plan">Test del plan completo</span>
@@ -282,6 +313,20 @@
           <div class="test-prog-wrap">
             <div class="test-prog-track"><div class="test-prog-fill" id="test-prog-fill"></div></div>
             <span class="test-prog-label" id="test-progreso">1 / 5</span>
+          </div>
+          <button class="test-pause-btn" onclick="pauseTest()" title="Pausar">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+          </button>
+        </div>
+
+        <!-- Pause overlay -->
+        <div id="test-pause-overlay" class="test-pause-overlay" style="display:none">
+          <div class="test-pause-card">
+            <div class="test-pause-icon">⏸</div>
+            <div class="test-pause-title" data-i18n="test_paused_title">Test pausado</div>
+            <div class="test-pause-sub" id="test-pause-sub"></div>
+            <button class="test-action-btn" onclick="resumeTest()" data-i18n="test_resume">Continuar</button>
+            <button class="test-pause-exit" onclick="exitTest()" data-i18n="test_back">Salir del test</button>
           </div>
         </div>
         <div class="test-scrollable">
@@ -319,13 +364,13 @@
 
   <!-- Navegación Flotante Inferior -->
   <div class="floating-nav">
-    <button class="nav-pill" onclick="switchView('historial')" id="nav-btn-historial" title="Historial" data-i18n="nav_history" aria-label="Historial">
+    <button class="nav-pill" onclick="switchView('historial')" id="nav-btn-historial" aria-label="Historial" data-i18n-aria="nav_history">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20v-6M9 20v-10M15 20v-4M3 20h18"/></svg>
     </button>
-    <button class="nav-pill active" onclick="switchView('hub')" id="nav-btn-hub" title="Inicio">
+    <button class="nav-pill active" onclick="switchView('hub')" id="nav-btn-hub" aria-label="Inicio" data-i18n-aria="nav_home">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
     </button>
-    <button class="nav-pill" onclick="switchView('materiales')" id="nav-btn-materiales" title="Materiales">
+    <button class="nav-pill" onclick="switchView('materiales')" id="nav-btn-materiales" aria-label="Materiales" data-i18n-aria="nav_materials">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
     </button>
   </div>
@@ -351,22 +396,24 @@
       </button>
     </div>
 
-    <!-- Swipeable flashcards: 2 cards -->
+    <!-- Swipeable flashcards: 4 cards -->
     <div class="fc-track" id="fc-track" onscroll="_onFcScroll(this)">
-      <!-- Card 1: Comparison — user answer vs correct + why wrong -->
+      <!-- Card 1: Tu respuesta -->
+      <div class="fc-card fc-card-user">
+        <div class="fc-card-label" data-i18n="panel_you_said">Tu respuesta</div>
+        <div class="fc-card-text fc-card-user-text" id="fc-respuesta-usuario"></div>
+      </div>
+      <!-- Card 2: Por qué está mal -->
       <div class="fc-card fc-card-error">
         <div class="fc-card-label" data-i18n="panel_why_wrong">Por qué está mal</div>
-        <div class="fc-card-section fc-section-user">
-          <span class="fc-card-sublabel" data-i18n="panel_you_said">Dijiste:</span>
-          <div class="fc-card-text" id="fc-respuesta-usuario"></div>
-        </div>
-        <div class="fc-card-section fc-section-correct">
-          <span class="fc-card-sublabel" data-i18n="panel_correct_answer">Lo correcto:</span>
-          <div class="fc-card-text" id="fc-respuesta-correcta"></div>
-        </div>
-        <div class="fc-card-text fc-explanation" id="fc-por-que-mal"></div>
+        <div class="fc-card-text" id="fc-por-que-mal"></div>
       </div>
-      <!-- Card 2: Analogy -->
+      <!-- Card 3: Respuesta correcta -->
+      <div class="fc-card fc-card-correct">
+        <div class="fc-card-label" data-i18n="panel_correct_answer">Respuesta correcta</div>
+        <div class="fc-card-text" id="fc-respuesta-correcta"></div>
+      </div>
+      <!-- Card 4: Analogía -->
       <div class="fc-card fc-card-analogy">
         <div class="fc-card-label" data-i18n="panel_analogy">Analogía</div>
         <div class="fc-card-text" id="fc-analogia"></div>
@@ -374,6 +421,8 @@
     </div>
     <div class="fc-dots" id="fc-dots">
       <span class="fc-dot active"></span>
+      <span class="fc-dot"></span>
+      <span class="fc-dot"></span>
       <span class="fc-dot"></span>
     </div>
 
@@ -552,6 +601,19 @@
     </div>
     <p style="font-size:.75rem; color:rgba(255,255,255,0.45); padding:0 4px; margin-bottom:16px" data-i18n="voice_instruction">Toca el icono para probarla antes de elegir</p>
     <div id="kokoro-voice-list" style="display:flex; flex-direction:column; gap:8px"></div>
+  </div>
+</div>
+
+<!-- Plan Created Banner -->
+<div id="plan-created-banner" class="plan-created-banner" style="display:none" onclick="dismissPlanBanner()">
+  <div class="plan-created-card">
+    <div class="plan-created-icon">📚</div>
+    <div class="plan-created-title" id="plan-created-title"></div>
+    <div class="plan-created-sub" id="plan-created-sub"></div>
+    <div class="plan-created-progress">
+      <div id="plan-created-progress-fill" class="plan-created-progress-fill"></div>
+    </div>
+    <button class="plan-created-btn" onclick="dismissPlanBanner()" data-i18n="plan_banner_start">Empezar sesión 1</button>
   </div>
 </div>
 
