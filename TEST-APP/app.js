@@ -21,6 +21,27 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// ─ PWA Install Prompt ─
+let _deferredInstallPrompt = null;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  _deferredInstallPrompt = e;
+  // Show install button in settings or wherever visible
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'flex';
+});
+window.addEventListener('appinstalled', () => {
+  _deferredInstallPrompt = null;
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'none';
+});
+async function installPWA() {
+  if (!_deferredInstallPrompt) return;
+  _deferredInstallPrompt.prompt();
+  const { outcome } = await _deferredInstallPrompt.userChoice;
+  if (outcome === 'accepted') _deferredInstallPrompt = null;
+}
+
 // Stop audio when tab goes hidden (phone locks screen, switches app, etc.)
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) stopCurrentAudio();

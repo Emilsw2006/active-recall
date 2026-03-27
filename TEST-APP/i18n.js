@@ -149,6 +149,8 @@ const TRANSLATIONS = {
     settings_analogy: 'Tipo de analogías',
     settings_analogy_ph: 'ej: fútbol, música, videojuegos',
     settings_language: 'Idioma',
+    settings_install: 'Instalar app',
+    settings_install_sub: 'Acceso directo en tu pantalla',
     settings_logout: 'Cerrar sesión',
     settings_save: 'Guardar',
 
@@ -460,6 +462,8 @@ const TRANSLATIONS = {
     settings_analogy: 'Analogy type',
     settings_analogy_ph: 'e.g. sport, music, gaming',
     settings_language: 'Language',
+    settings_install: 'Install app',
+    settings_install_sub: 'Quick access from your home screen',
     settings_logout: 'Log out',
     settings_save: 'Save',
 
@@ -758,6 +762,8 @@ const TRANSLATIONS = {
     settings_analogy: 'Analogietyp',
     settings_analogy_ph: 'z.B. Sport, Musik, Gaming',
     settings_language: 'Sprache',
+    settings_install: 'App installieren',
+    settings_install_sub: 'Direktzugriff auf deinem Startbildschirm',
     settings_logout: 'Abmelden',
     settings_save: 'Speichern',
 
