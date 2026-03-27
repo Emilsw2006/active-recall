@@ -89,8 +89,8 @@ async def _tts_kokoro(texto: str, voz: str = "") -> bytes:
 
 _EDGE_DEFAULT_VOICES = {
     "es": "es-ES-ElviraNeural",
-    "en": "en-US-SaraNeural",
-    "de": "de-DE-KatjaNeural",
+    "en": "en-US-AvaNeural",
+    "de": "de-DE-SeraphinaMultilingualNeural",
 }
 
 async def _tts_edge(texto: str, voice_name: str = "", lang: str = "es") -> bytes:
@@ -277,9 +277,9 @@ async def texto_a_audio_base64(texto: str, voz: str = "", lang: str = "es") -> s
     # Detect if voice ID is an Azure Neural voice
     is_azure_voice = "Neural" in voz if voz else False
 
-    # 1. Kokoro local — any supported lang (EN, ES, FR…) via voice prefix; skip Azure/Edge voices
+    # 1. Kokoro local — only if voice is explicitly a Kokoro voice (prefix-based)
     is_kokoro_voice = voz[:2] in _VOICE_LANGCODE if voz else False
-    if settings.use_kokoro_tts and (is_kokoro_voice or (lang == "es" and not is_azure_voice)) and audio_bytes is None:
+    if settings.use_kokoro_tts and is_kokoro_voice and audio_bytes is None:
         try:
             audio_bytes = await _tts_kokoro(texto, voz)
             fmt = "wav"
