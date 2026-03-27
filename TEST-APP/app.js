@@ -23,23 +23,48 @@ if ('serviceWorker' in navigator) {
 
 // ─ PWA Install Prompt ─
 let _deferredInstallPrompt = null;
+const _isStandalone = window.matchMedia('(display-mode: standalone)').matches
+  || window.navigator.standalone === true;
+
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _deferredInstallPrompt = e;
-  // Show install button in settings or wherever visible
-  const btn = document.getElementById('pwa-install-btn');
-  if (btn) btn.style.display = 'flex';
 });
 window.addEventListener('appinstalled', () => {
   _deferredInstallPrompt = null;
   const btn = document.getElementById('pwa-install-btn');
   if (btn) btn.style.display = 'none';
 });
-async function installPWA() {
-  if (!_deferredInstallPrompt) return;
-  _deferredInstallPrompt.prompt();
-  const { outcome } = await _deferredInstallPrompt.userChoice;
-  if (outcome === 'accepted') _deferredInstallPrompt = null;
+
+// Show install button always (unless already installed as standalone)
+window.addEventListener('load', () => {
+  if (!_isStandalone) {
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'flex';
+  }
+});
+
+function installPWA() {
+  if (_deferredInstallPrompt) {
+    // Chrome/Edge/Android — native install prompt
+    _deferredInstallPrompt.prompt();
+    _deferredInstallPrompt.userChoice.then(r => {
+      if (r.outcome === 'accepted') _deferredInstallPrompt = null;
+    });
+  } else {
+    // iOS Safari or browser without beforeinstallprompt
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const msg = isIOS
+      ? (T('install_ios') || 'Tap the Share button (↑) then "Add to Home Screen"')
+      : (T('install_android') || 'Tap the menu (⋮) then "Install app" or "Add to Home Screen"');
+    // Show a small toast with instructions
+    const toast = document.createElement('div');
+    toast.className = 'pwa-install-toast';
+    toast.textContent = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.classList.add('visible'), 50);
+    setTimeout(() => { toast.classList.remove('visible'); setTimeout(() => toast.remove(), 400); }, 5000);
+  }
 }
 
 // Stop audio when tab goes hidden (phone locks screen, switches app, etc.)

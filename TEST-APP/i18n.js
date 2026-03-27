@@ -151,6 +151,8 @@ const TRANSLATIONS = {
     settings_language: 'Idioma',
     settings_install: 'Instalar app',
     settings_install_sub: 'Acceso directo en tu pantalla',
+    install_ios: 'Pulsa Compartir (↑) y luego "Añadir a pantalla de inicio"',
+    install_android: 'Pulsa el menú (⋮) y luego "Instalar app" o "Añadir a inicio"',
     settings_logout: 'Cerrar sesión',
     settings_save: 'Guardar',
 
@@ -464,6 +466,8 @@ const TRANSLATIONS = {
     settings_language: 'Language',
     settings_install: 'Install app',
     settings_install_sub: 'Quick access from your home screen',
+    install_ios: 'Tap Share (↑) then "Add to Home Screen"',
+    install_android: 'Tap menu (⋮) then "Install app" or "Add to Home Screen"',
     settings_logout: 'Log out',
     settings_save: 'Save',
 
@@ -764,6 +768,8 @@ const TRANSLATIONS = {
     settings_language: 'Sprache',
     settings_install: 'App installieren',
     settings_install_sub: 'Direktzugriff auf deinem Startbildschirm',
+    install_ios: 'Tippe auf Teilen (↑) und dann "Zum Home-Bildschirm"',
+    install_android: 'Tippe auf Menü (⋮) und dann "App installieren"',
     settings_logout: 'Abmelden',
     settings_save: 'Speichern',
 

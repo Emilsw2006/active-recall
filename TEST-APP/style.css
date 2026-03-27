@@ -2065,3 +2065,22 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   background: rgba(232,160,48,0.15); border-color: rgba(232,160,48,0.45);
   color: var(--accent); font-weight: 700;
 }
+
+/* PWA install toast */
+.pwa-install-toast {
+  position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(20px);
+  background: rgba(15,17,23,0.95); color: #fff; padding: 14px 22px;
+  border-radius: 14px; border: 1px solid rgba(232,160,48,0.3);
+  font-family: 'Inter', sans-serif; font-size: 0.9rem; font-weight: 400;
+  max-width: 340px; text-align: center; z-index: 9999;
+  opacity: 0; transition: opacity 0.3s, transform 0.3s;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+}
+.pwa-install-toast.visible { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+/* PWA install row highlight */
+.pwa-install-row {
+  background: rgba(232,160,48,0.06) !important;
+  border: 1px solid rgba(232,160,48,0.15) !important;
+  border-radius: 12px !important; margin-bottom: 8px;
+}
