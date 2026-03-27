@@ -356,7 +356,22 @@ async def serve_app_files(filepath: str):
         return FileResponse(file_path, media_type=media_type, headers=headers)
     return FileResponse(FRONTEND_DIR / "index.html")
 
-# Keep old routes for backward compatibility
+# Serve key PWA files at root (relative URLs from /app resolve here)
+@app.get("/manifest.json")
+async def serve_manifest_root():
+    return FileResponse(FRONTEND_DIR / "manifest.json", media_type="application/json")
+
+@app.get("/sw.js")
+async def serve_sw_root():
+    return FileResponse(FRONTEND_DIR / "sw.js", media_type="application/javascript",
+                        headers={"Service-Worker-Allowed": "/"})
+
+@app.get("/icons/{filename}")
+async def serve_icon_root(filename: str):
+    f = FRONTEND_DIR / "icons" / filename
+    if f.is_file():
+        return FileResponse(f, media_type="image/png")
+
 @app.get("/style.css", response_class=FileResponse)
 async def serve_style():
     return FileResponse(FRONTEND_DIR / "style.css")
