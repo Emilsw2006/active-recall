@@ -29,50 +29,53 @@
   </div>
 
   <!-- Top Right controls -->
-  <div class="auth-top-bar" style="position:absolute; top:40px; right:40px; z-index:100; display:flex; flex-direction:column; align-items:flex-end; gap:16px;">
-    <!-- Language Selector -->
-    <div class="auth-lang-selector" style="color:#fff; font-size:0.85rem; font-weight:600; cursor:pointer; opacity:0.8;" onclick="toggleLang()">ESPAÑOL ▼</div>
+  <div class="auth-top-bar" style="position:absolute; top:40px; right:24px; z-index:100; display:flex; flex-direction:column; align-items:flex-end; gap:12px;">
+    <!-- Flag language selector -->
+    <div style="display:flex; gap:6px; align-items:center;">
+      <button onclick="changeLang('es')" id="flag-es" title="Español" style="background:none;border:none;font-size:1.4rem;cursor:pointer;opacity:0.5;transition:opacity .18s;padding:2px;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=document.documentElement.lang==='es'||localStorage.getItem('ar_lang')==='es'||(!localStorage.getItem('ar_lang'))?'1':'0.5'">🇪🇸</button>
+      <button onclick="changeLang('en')" id="flag-en" title="English"  style="background:none;border:none;font-size:1.4rem;cursor:pointer;opacity:0.5;transition:opacity .18s;padding:2px;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=localStorage.getItem('ar_lang')==='en'?'1':'0.5'">🇬🇧</button>
+      <button onclick="changeLang('de')" id="flag-de" title="Deutsch"  style="background:none;border:none;font-size:1.4rem;cursor:pointer;opacity:0.5;transition:opacity .18s;padding:2px;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity=localStorage.getItem('ar_lang')==='de'?'1':'0.5'">🇩🇪</button>
+    </div>
     <button class="auth-top-toggle" id="auth-toggle-btn" onclick="toggleAuthMode()" style="display:none; font-size:0.8rem;">Crear cuenta</button>
   </div>
 
-  <div class="auth-content" style="z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; width: 100%; max-width: 320px; text-align: center; margin-top:20px;">
-    
-    <!-- Welcome message instead of Brand -->
+  <div class="auth-content" style="z-index:10; display:flex; flex-direction:column; align-items:center; justify-content:center; width: 100%; max-width: 320px; text-align: center; margin-top:60px;">
+
     <h1 style="font-size:2.2rem; font-weight:700; color:#fff; letter-spacing:-0.04em; margin-bottom:8px;" id="auth-main-title">Bienvenido</h1>
-    <div style="font-size:0.95rem; color:rgba(255,255,255,0.7); margin-bottom:40px;" id="auth-main-sub">Inicia sesión de forma segura</div>
+    <div style="font-size:0.95rem; color:rgba(255,255,255,0.7); margin-bottom:44px;" id="auth-main-sub">Inicia sesión de forma segura</div>
 
     <div class="auth-err" id="auth-err"></div>
 
     <!-- Social / Initial Buttons -->
     <div id="auth-initial-btns" style="width:100%; display:flex; flex-direction:column; gap:14px;">
-      <button class="auth-btn-google-glass" onclick="typeof authShowEmail==='function' ? authShowEmail('login') : console.log('oAuth')">
-         <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> 
-         Continuar con Google
+      <button class="auth-btn-google-glass" onclick="authWithGoogle()">
+        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continuar con Google
       </button>
-
       <button class="auth-btn-google-glass" onclick="showEmailForm()" style="background:rgba(255,255,255,0.15); border:none; margin-top:4px;">
-        ✉️ Continuar con Email
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        Continuar con Email
       </button>
-
       <div style="font-size:0.85rem; color:rgba(255,255,255,0.7); margin-top:24px; cursor:pointer;" onclick="toggleAuthMode()">¿No tienes cuenta? <strong style="color:#fff;">Regístrate</strong></div>
     </div>
-    
+
     <div id="auth-forms-container" style="width: 100%; display:none;">
-      
       <!-- Login Form -->
-      <div id="form-login" class="auth-form" style="display:flex; flex-direction:column; gap:16px;">
+      <div id="form-login" class="auth-form" style="display:flex; flex-direction:column; gap:14px;">
         <input class="auth-input-glass" type="email" id="l-email" placeholder="Correo electrónico" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()"/>
         <input class="auth-input-glass" type="password" id="l-pass" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()"/>
-        <button class="auth-cta-glass" id="btn-login" onclick="doLogin()" style="margin-top:20px;">Iniciar sesión</button>
+        <button class="auth-cta-glass" id="btn-login" onclick="doLogin()" style="margin-top:8px;">Iniciar sesión</button>
+        <div style="font-size:0.83rem; color:rgba(255,255,255,0.55); margin-top:4px; cursor:pointer;" onclick="toggleAuthMode()">¿Sin cuenta? <strong style="color:rgba(255,255,255,0.85);">Regístrate</strong></div>
       </div>
 
       <!-- Register Form -->
-      <div id="form-register" class="auth-form" style="display:none; flex-direction:column; gap:16px;">
+      <div id="form-register" class="auth-form" style="display:none; flex-direction:column; gap:14px;">
+        <input class="auth-input-glass" type="text" id="r-name" placeholder="Tu nombre"/>
         <input class="auth-input-glass" type="email" id="r-email" placeholder="Correo electrónico"/>
-        <input class="auth-input-glass" type="password" id="r-pass" placeholder="Crea tu contraseña"/>
-        <button class="auth-cta-glass" id="btn-register" onclick="doRegister()" style="margin-top:20px;">Crear cuenta</button>
+        <input class="auth-input-glass" type="password" id="r-pass" placeholder="Contraseña (mín. 6 caracteres)"/>
+        <button class="auth-cta-glass" id="btn-register" onclick="doRegister()" style="margin-top:8px;">Crear cuenta</button>
+        <div style="font-size:0.83rem; color:rgba(255,255,255,0.55); margin-top:4px; cursor:pointer;" onclick="toggleAuthMode()">¿Ya tienes cuenta? <strong style="color:rgba(255,255,255,0.85);">Iniciar sesión</strong></div>
       </div>
-
     </div>
   </div>
   
@@ -112,9 +115,24 @@
       if (err) err.style.display = 'none';
     }
 
-    function toggleLang() {
-      console.log('Language toggled');
+    function toggleLang() {}
+
+    // Highlight active flag on load and after change
+    function _updateFlags() {
+      const lang = localStorage.getItem('ar_lang') || 'es';
+      ['es','en','de'].forEach(l => {
+        const btn = document.getElementById('flag-' + l);
+        if (btn) btn.style.opacity = l === lang ? '1' : '0.45';
+      });
     }
+    // Wrap changeLang to also update flags
+    const _origChangeLang = window.changeLang;
+    window.changeLang = function(lang) {
+      if (typeof _origChangeLang === 'function') _origChangeLang(lang);
+      _updateFlags();
+    };
+    document.addEventListener('DOMContentLoaded', _updateFlags);
+    setTimeout(_updateFlags, 200);
   </script>
 </div>
 
