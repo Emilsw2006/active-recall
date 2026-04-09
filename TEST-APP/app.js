@@ -843,9 +843,9 @@ function _obGoTo(step, animate = true) {
   const fill = $('ob-progress-fill');
   if (fill) fill.style.width = step === 0 ? '0%' : `${Math.round((step / _OB_TOTAL) * 100)}%`;
 
-  // Skip button: visible on steps 1-4
-  const skipBtn = $('ob-skip-btn');
-  if (skipBtn) skipBtn.style.display = (step >= 1 && step <= 4) ? '' : 'none';
+  // Back button: disabled on step 0
+  const backBtn = $('ob2-back-btn');
+  if (backBtn) backBtn.disabled = (step === 0);
 }
 
 function obNext() {
@@ -853,22 +853,21 @@ function obNext() {
 }
 
 function obBack() {
-  if (_obStep > 1) _obGoTo(_obStep - 1);
+  if (_obStep > 0) _obGoTo(_obStep - 1);
 }
 
 function obSelect(key, value, btn) {
   if (key === 'nivel') _obNivel = value;
   else if (key === 'tiempo') _obTiempo = value;
-  // Deactivate siblings in same stack
   if (btn && btn.parentElement) {
-    btn.parentElement.querySelectorAll('.ob-opt-row').forEach(b => b.classList.remove('active'));
+    btn.parentElement.querySelectorAll('.ob2-opt, .ob-opt-row').forEach(b => b.classList.remove('active'));
   }
   if (btn) btn.classList.add('active');
 }
 
 function obSelectAnalogy(val, el) {
   _obMundo = val;
-  document.querySelectorAll('.ob-analogy-chip').forEach(c => c.classList.remove('active'));
+  document.querySelectorAll('#ob-analogy-grid .ob2-opt, .ob-analogy-chip').forEach(c => c.classList.remove('active'));
   if (el) el.classList.add('active');
 }
 

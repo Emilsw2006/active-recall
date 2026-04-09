@@ -162,220 +162,209 @@
   </script>
 </div>
 
-<!-- ════ ONBOARDING — 9 pasos estilo Cal.ai ════ -->
+<!-- ════ ONBOARDING v3 ════ -->
 <div id="screen-onboarding" style="display:none">
-  <div class="ob-wrap">
+  <div class="ob2-wrap">
 
-    <!-- Progress bar (top) -->
-    <div class="ob-topbar">
-      <div class="ob-progress-bar">
-        <div class="ob-progress-fill" id="ob-progress-fill"></div>
+    <!-- Top bar: back + progress -->
+    <div class="ob2-topbar">
+      <button class="ob2-back-btn" id="ob2-back-btn" onclick="obBack()" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="ob2-progress-track">
+        <div class="ob2-progress-fill" id="ob-progress-fill"></div>
       </div>
-      <button class="ob-skip-btn" id="ob-skip-btn" onclick="obSkipToSubject()" style="display:none">Saltar</button>
+      <div class="ob2-top-spacer"></div>
     </div>
 
-    <!-- Slides strip -->
-    <div class="ob-slides" id="ob-slides">
+    <!-- Slides outer (clips) -->
+    <div class="ob2-slides-outer">
+      <div class="ob2-slides-strip" id="ob-slides">
 
-      <!-- ── PASO 0: Nombre e Idioma ─────────────────────────────── -->
-      <div class="ob-slide ob-slide-center" id="ob-step-0">
-        <div class="ob-hero-ring"><div class="ob-hero-orb"></div></div>
-        <h1 class="ob-slide-title ob-title-xl" style="font-size:2.8rem">Un placer conocerte</h1>
-        <p class="ob-slide-sub">Vamos a personalizar tu experiencia de aprendizaje.</p>
-        <div class="ob-form" style="width: 100%;">
-          <div class="ob-slide-label" style="margin-bottom:12px">Tu nombre</div>
-          <input class="ob-input" id="ob-nameInp" type="text" placeholder="Ej: Álex..." onkeydown="if(event.key==='Enter')obSaveNameAndNext()"/>
-          <div class="ob-slide-label" style="margin-top:4px;margin-bottom:12px">Idioma de la IA</div>
-          <div class="ob-option-stack">
-            <button class="ob-opt-row active"><span class="ob-opt-label">Español</span></button>
+        <!-- PASO 0: Nombre -->
+        <div class="ob2-slide" id="ob-step-0">
+          <div class="ob2-body">
+            <h1 class="ob2-title">Hola,<br>¿cómo te llamas?</h1>
+            <p class="ob2-sub">Así podré adaptar la experiencia a ti.</p>
+            <input class="ob2-input" id="ob-nameInp" type="text" placeholder="Tu nombre..."
+              onkeydown="if(event.key==='Enter')obSaveNameAndNext()"/>
+          </div>
+          <div class="ob2-footer">
+            <button class="ob2-continue-btn" onclick="obSaveNameAndNext()">Continuar</button>
           </div>
         </div>
-        <div class="ob-nav ob-nav-single" style="margin-top:20px;">
-          <button class="ob-btn-primary ob-btn-full" onclick="obSaveNameAndNext()">Continuar</button>
-        </div>
-      </div>
 
-      <!-- ── PASO 1: Edad ──────────────────────────────────── -->
-      <div class="ob-slide" id="ob-step-1">
-        <div class="ob-slide-label">Perfil · 1/4</div>
-        <h1 class="ob-slide-title">¿Qué edad tienes?</h1>
-        <p class="ob-slide-sub">La IA adaptará su forma de hablar y nivel de exigencia a ti.</p>
-        <div class="ob-form" style="width:100%;">
-          <input class="ob-input" type="number" id="ob-ageInp" placeholder="Ej: 19" onkeydown="if(event.key==='Enter')obNext()"/>
-        </div>
-        <div class="ob-nav">
-          <button class="ob-btn-ghost" onclick="obBack()">Atrás</button>
-          <button class="ob-btn-primary" onclick="obNext()">Continuar</button>
-        </div>
-      </div>
-
-      <!-- ── PASO 2: Estudios ──────────────────────────────────── -->
-      <div class="ob-slide" id="ob-step-2">
-        <div class="ob-slide-label">Perfil · 2/4</div>
-        <h1 class="ob-slide-title">¿Qué estás estudiando?</h1>
-        <p class="ob-slide-sub">Configura el nivel de profundidad de tus conceptos.</p>
-        <div class="ob-option-stack" id="ob-nivel-opts">
-          <button class="ob-opt-row" onclick="obSelect('nivel','eso',this)"><span class="ob-opt-label">ESO</span></button>
-          <button class="ob-opt-row active" onclick="obSelect('nivel','bachillerato',this)"><span class="ob-opt-label">Bachillerato o Instituto</span></button>
-          <button class="ob-opt-row" onclick="obSelect('nivel','universidad',this)"><span class="ob-opt-label">Universidad / Grado</span></button>
-          <button class="ob-opt-row" onclick="obSelect('nivel','master',this)"><span class="ob-opt-label">Máster / Posgrado</span></button>
-          <button class="ob-opt-row" onclick="obSelect('nivel','oposiciones',this)"><span class="ob-opt-label">Oposiciones</span></button>
-          <button class="ob-opt-row" onclick="obSelect('nivel','libre',this)"><span class="ob-opt-label">Aprendizaje Libre</span></button>
-        </div>
-        <div class="ob-nav">
-          <button class="ob-btn-ghost" onclick="obBack()">Atrás</button>
-          <button class="ob-btn-primary" onclick="obNext()">Continuar</button>
-        </div>
-      </div>
-
-      <!-- ── PASO 3: Adquisición ──────────────────────────────────── -->
-      <div class="ob-slide" id="ob-step-3">
-        <div class="ob-slide-label">Perfil · 3/4</div>
-        <h1 class="ob-slide-title">¿Cómo nos conociste?</h1>
-        <p class="ob-slide-sub">Nos ayuda a mejorar y saber dónde enfocarnos.</p>
-        <div class="ob-option-stack" id="ob-source-opts">
-          <button class="ob-opt-row" onclick="obSelect('source','tiktok',this)"><span class="ob-opt-label">TikTok</span></button>
-          <button class="ob-opt-row" onclick="obSelect('source','instagram',this)"><span class="ob-opt-label">Instagram</span></button>
-          <button class="ob-opt-row" onclick="obSelect('source','amigo',this)"><span class="ob-opt-label">Un amigo o compañero</span></button>
-          <button class="ob-opt-row" onclick="obSelect('source','busqueda',this)"><span class="ob-opt-label">Buscador (Google, etc.)</span></button>
-          <button class="ob-opt-row" onclick="obSelect('source','otro',this)"><span class="ob-opt-label">Otro</span></button>
-        </div>
-        <div class="ob-nav">
-          <button class="ob-btn-ghost" onclick="obBack()">Atrás</button>
-          <button class="ob-btn-primary" onclick="obNext()">Continuar</button>
-        </div>
-      </div>
-
-      <!-- ── PASO 4: Analogías ──────────────────────────────── -->
-      <div class="ob-slide" id="ob-step-4">
-        <div class="ob-slide-label">Perfil · 4/4</div>
-        <h1 class="ob-slide-title">¿Qué te apasiona?</h1>
-        <p class="ob-slide-sub">La IA usará lo que te gusta para explicarte conceptos hiper-complejos como si fueran tu hobby.</p>
-        <div class="ob-analogy-grid" id="ob-analogy-grid">
-          <button class="ob-analogy-chip active" onclick="obSelectAnalogy('deportes',this)">Deportes</button>
-          <button class="ob-analogy-chip" onclick="obSelectAnalogy('videojuegos',this)">Videojuegos</button>
-          <button class="ob-analogy-chip" onclick="obSelectAnalogy('música',this)">Música</button>
-          <button class="ob-analogy-chip" onclick="obSelectAnalogy('series',this)">Series y Cine</button>
-          <button class="ob-analogy-chip" onclick="obSelectAnalogy('tecnología',this)">Tecnología</button>
-          <button class="ob-analogy-chip" onclick="obSelectAnalogy('cocina',this)">Cocina</button>
-        </div>
-        <div class="ob-analogy-other">
-          <input class="ob-input ob-input-sm" id="ob-analogy-other" type="text"
-            placeholder="Escribe otro (ej: Coches, Diseño...)"
-            oninput="if(this.value.trim()) { obSelectAnalogy(this.value.trim(), null); document.querySelectorAll('.ob-analogy-chip').forEach(c=>c.classList.remove('active')); }"/>
-        </div>
-        <div class="ob-nav">
-          <button class="ob-btn-ghost" onclick="obBack()">Atrás</button>
-          <button class="ob-btn-primary" onclick="obSaveAnalogyAndNext()">Continuar</button>
-        </div>
-      </div>
-
-      <!-- ── PASO 5: Primera asignatura ────────────────────── -->
-      <div class="ob-slide" id="ob-step-5">
-        <div class="ob-slide-label">Aprender · 1/2</div>
-        <h1 class="ob-slide-title">Primera Asignatura</h1>
-        <p class="ob-slide-sub">Crea la materia en la que quieres enfocarte ahora mismo.</p>
-        <div class="ob-form" style="width:100%;">
-          <input class="ob-input" id="ob-subj-name" type="text"
-            placeholder="Ej: Historia Medieval, Cálculo II..." maxlength="40"
-            onkeydown="if(event.key==='Enter')obCreateSubject()"/>
-          <div class="ob-color-label">Color del tema</div>
-          <div class="ob-color-row" id="ob-color-picker"></div>
-        </div>
-        <div class="ob-nav">
-          <button class="ob-btn-ghost" onclick="obBack()">Atrás</button>
-          <button class="ob-btn-primary" id="ob-step6-next" onclick="obCreateSubject()">Materia creada →</button>
-        </div>
-      </div>
-
-      <!-- ── PASO 6: Subir apunte ───────────────────────────── -->
-      <div class="ob-slide" id="ob-step-6">
-        <div class="ob-slide-label">Aprender · 2/2</div>
-        <h1 class="ob-slide-title">Sube tus apuntes</h1>
-        <p class="ob-slide-sub">Añade PDFs. La IA destilará de ahí tus flashcards.</p>
-        
-        <div class="ob-upload-zone" id="ob-upload-zone" onclick="document.getElementById('ob-file-inp').click()">
-          <div class="ob-upload-icon">
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-          </div>
-          <span id="ob-upload-label">Toca para seleccionar PDFs</span>
-        </div>
-        
-        <div id="ob-upload-status" style="display:none; background:var(--s2); border:1px solid var(--border); padding:16px; border-radius:16px; margin-bottom:20px; width:100%;">
-          <div style="font-size:0.85rem; color:var(--green); font-weight:600; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin-anim"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
-            Procesando PDFs seleccionados...
-          </div>
-          <div id="ob-upload-filename" style="font-size:0.9rem; color:#fff; word-break: break-all;"></div>
-          <button class="ob-btn-ghost" style="margin-top:16px; width:100%; padding:10px; font-size:0.8rem;" onclick="document.getElementById('ob-file-inp').click()">+ Añadir otro documento</button>
-        </div>
-
-        <input type="file" id="ob-file-inp" accept=".pdf" style="display:none" multiple onchange="onboardingFileLoad(event)"/>
-        
-        <div class="ob-nav">
-          <button class="ob-btn-ghost" onclick="obNext()">Saltar paso</button>
-          <button class="ob-btn-primary" id="ob-step6-upload" onclick="obNext()">Procesar →</button>
-        </div>
-      </div>
-
-      <!-- ── PASO 7: Cómo funciona (Tutorial) ──────────────────────────── -->
-      <div class="ob-slide" id="ob-step-7">
-        <div class="ob-slide-label">Mientras se genera...</div>
-        <h1 class="ob-slide-title">¿Cómo dominar tu carrera?</h1>
-        <div class="ob-feature-list">
-          <div class="ob-feature-item" style="padding:4px 0">
-            <div class="ob-feature-icon" style="background:var(--amber); color:white; border:none; width:28px; height:28px; font-weight:bold; font-size:12px; display:grid; place-items:center;">1</div>
-            <div class="ob-feature-text">
-              <span class="ob-feature-title">Elige temas a estudiar</span>
-              <span class="ob-feature-sub">Selecciona los conceptos que necesitas preparar.</span>
+        <!-- PASO 1: Cómo nos conociste -->
+        <div class="ob2-slide" id="ob-step-1">
+          <div class="ob2-body">
+            <h1 class="ob2-title">¿Cómo nos<br>conociste?</h1>
+            <p class="ob2-sub">Nos ayuda a llegar a más estudiantes como tú.</p>
+            <div class="ob2-options" id="ob-source-opts">
+              <button class="ob2-opt" onclick="obSelect('source','tiktok',this)">TikTok</button>
+              <button class="ob2-opt" onclick="obSelect('source','instagram',this)">Instagram</button>
+              <button class="ob2-opt" onclick="obSelect('source','amigo',this)">Un amigo o compañero</button>
+              <button class="ob2-opt" onclick="obSelect('source','google',this)">Google o buscador</button>
+              <button class="ob2-opt" onclick="obSelect('source','youtube',this)">YouTube</button>
+              <button class="ob2-opt" onclick="obSelect('source','otro',this)">Otro</button>
             </div>
           </div>
-          <div class="ob-feature-item" style="padding:4px 0">
-            <div class="ob-feature-icon" style="background:var(--amber); color:white; border:none; width:28px; height:28px; font-weight:bold; font-size:12px; display:grid; place-items:center;">2</div>
-            <div class="ob-feature-text">
-              <span class="ob-feature-title">Sesiones Flash y Orales</span>
-              <span class="ob-feature-sub">Ponte a prueba por voz real o test para repetir rápido.</span>
-            </div>
-          </div>
-          <div class="ob-feature-item" style="padding:4px 0">
-            <div class="ob-feature-icon" style="background:var(--amber); color:white; border:none; width:28px; height:28px; font-weight:bold; font-size:12px; display:grid; place-items:center;">3</div>
-            <div class="ob-feature-text">
-              <span class="ob-feature-title">Mejora y Progreso</span>
-              <span class="ob-feature-sub">La IA sabe dónde fallas y te hará repasar eso hasta que lo domines.</span>
-            </div>
+          <div class="ob2-footer">
+            <button class="ob2-continue-btn" onclick="obNext()">Continuar</button>
           </div>
         </div>
-        <div class="ob-nav ob-nav-single" style="margin-top:30px">
-          <button class="ob-btn-primary" onclick="obFinish()">¡Ir a la App!</button>
+
+        <!-- PASO 2: Nivel -->
+        <div class="ob2-slide" id="ob-step-2">
+          <div class="ob2-body">
+            <h1 class="ob2-title">¿Qué estás<br>estudiando?</h1>
+            <p class="ob2-sub">La IA adaptará la dificultad y el vocabulario a tu nivel.</p>
+            <div class="ob2-options" id="ob-nivel-opts">
+              <button class="ob2-opt" onclick="obSelect('nivel','eso',this)">ESO</button>
+              <button class="ob2-opt active" onclick="obSelect('nivel','bachillerato',this)">Bachillerato / Instituto</button>
+              <button class="ob2-opt" onclick="obSelect('nivel','universidad',this)">Universidad / Grado</button>
+              <button class="ob2-opt" onclick="obSelect('nivel','master',this)">Máster / Posgrado</button>
+              <button class="ob2-opt" onclick="obSelect('nivel','oposiciones',this)">Oposiciones</button>
+              <button class="ob2-opt" onclick="obSelect('nivel','libre',this)">Aprendizaje libre</button>
+            </div>
+          </div>
+          <div class="ob2-footer">
+            <button class="ob2-continue-btn" onclick="obNext()">Continuar</button>
+          </div>
         </div>
-      </div>
-      
-      <style>
-        .spin-anim { animation: spin 1s linear infinite; }
-        @keyframes spin { 100% { transform: rotate(360deg); } }
-      </style>
-      <script>
-        function obSaveNameAndNext() {
-          const name = document.getElementById('ob-nameInp').value.trim() || 'Estudiante';
-          const nameEls = document.querySelectorAll('#ob-welcome-name, #greet-name, #ajustes-name');
-          nameEls.forEach(el => { if(el) el.innerText = name; });
-          window.obNext ? obNext() : console.log('obNext not found');
-        }
-        function onboardingFileLoad(event) {
-          const files = event.target.files;
-          if(files && files.length > 0) {
+
+        <!-- PASO 3: Edad -->
+        <div class="ob2-slide" id="ob-step-3">
+          <div class="ob2-body">
+            <h1 class="ob2-title">¿Cuántos años<br>tienes?</h1>
+            <p class="ob2-sub">Te hablaré distinto si tienes 16 que si tienes 25.</p>
+            <input class="ob2-input" id="ob-ageInp" type="number" placeholder="Ej: 19" min="10" max="99"
+              onkeydown="if(event.key==='Enter')obNext()"/>
+          </div>
+          <div class="ob2-footer">
+            <button class="ob2-continue-btn" onclick="obNext()">Continuar</button>
+          </div>
+        </div>
+
+        <!-- PASO 4: Analogías -->
+        <div class="ob2-slide" id="ob-step-4">
+          <div class="ob2-body">
+            <h1 class="ob2-title">¿Qué te<br>apasiona?</h1>
+            <p class="ob2-sub">Usaré tus intereses para explicarte lo más difícil de forma que lo entiendas.</p>
+            <div class="ob2-options ob2-options-wrap" id="ob-analogy-grid">
+              <button class="ob2-opt active" onclick="obSelectAnalogy('deportes',this)">⚽ Deportes</button>
+              <button class="ob2-opt" onclick="obSelectAnalogy('videojuegos',this)">🎮 Videojuegos</button>
+              <button class="ob2-opt" onclick="obSelectAnalogy('música',this)">🎵 Música</button>
+              <button class="ob2-opt" onclick="obSelectAnalogy('series',this)">🎬 Series y Cine</button>
+              <button class="ob2-opt" onclick="obSelectAnalogy('tecnología',this)">💻 Tecnología</button>
+              <button class="ob2-opt" onclick="obSelectAnalogy('ciencia',this)">🔬 Ciencia</button>
+              <button class="ob2-opt" onclick="obSelectAnalogy('cocina',this)">🍳 Cocina</button>
+              <button class="ob2-opt" onclick="obSelectAnalogy('arte',this)">🎨 Arte</button>
+            </div>
+            <input class="ob2-input ob2-input-sm" id="ob-analogy-other" type="text"
+              placeholder="Otro (ej: coches, moda...)"
+              oninput="if(this.value.trim()){obSelectAnalogy(this.value.trim(),null);document.querySelectorAll('#ob-analogy-grid .ob2-opt').forEach(c=>c.classList.remove('active'));}"/>
+          </div>
+          <div class="ob2-footer">
+            <button class="ob2-continue-btn" onclick="obSaveAnalogyAndNext()">Continuar</button>
+          </div>
+        </div>
+
+        <!-- PASO 5: Primera asignatura -->
+        <div class="ob2-slide" id="ob-step-5">
+          <div class="ob2-body">
+            <div class="ob2-badge">Primera asignatura</div>
+            <h1 class="ob2-title">¿Qué quieres<br>dominar?</h1>
+            <p class="ob2-sub">Empieza con la materia en la que más necesitas avanzar.</p>
+            <input class="ob2-input" id="ob-subj-name" type="text"
+              placeholder="Ej: Historia Medieval, Cálculo II..." maxlength="40"
+              onkeydown="if(event.key==='Enter')obCreateSubject()"/>
+            <div class="ob2-color-label">Color del tema</div>
+            <div class="ob-color-row" id="ob-color-picker"></div>
+          </div>
+          <div class="ob2-footer">
+            <button class="ob2-continue-btn" id="ob-step6-next" onclick="obCreateSubject()">Crear asignatura →</button>
+          </div>
+        </div>
+
+        <!-- PASO 6: Subir apuntes -->
+        <div class="ob2-slide" id="ob-step-6">
+          <div class="ob2-body">
+            <div class="ob2-badge">Tus apuntes</div>
+            <h1 class="ob2-title">Alimenta<br>a la IA</h1>
+            <p class="ob2-sub">Sube tus PDFs y la IA generará preguntas y flashcards automáticamente.</p>
+            <div class="ob2-upload-zone" id="ob-upload-zone" onclick="document.getElementById('ob-file-inp').click()">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
+              <span id="ob-upload-label">Toca para seleccionar PDFs</span>
+              <span class="ob2-upload-hint">PDF · máx. 50 MB por archivo</span>
+            </div>
+            <div id="ob-upload-status" style="display:none" class="ob2-upload-list">
+              <div id="ob-upload-filename"></div>
+              <button class="ob2-add-more-btn" onclick="document.getElementById('ob-file-inp').click()">+ Añadir más</button>
+            </div>
+            <input type="file" id="ob-file-inp" accept=".pdf" style="display:none" multiple onchange="onboardingFileLoad(event)"/>
+          </div>
+          <div class="ob2-footer ob2-footer-dual">
+            <button class="ob2-skip-btn" onclick="obNext()">Saltar</button>
+            <button class="ob2-continue-btn ob2-continue-flex" id="ob-step6-upload" onclick="obNext()">Procesar →</button>
+          </div>
+        </div>
+
+        <!-- PASO 7: Tutorial -->
+        <div class="ob2-slide" id="ob-step-7">
+          <div class="ob2-body ob2-body-center">
+            <div class="ob2-tutorial-icon">🧠</div>
+            <h1 class="ob2-title">Así funciona<br>Active Recall</h1>
+            <p class="ob2-sub">El método más efectivo para recordar de verdad.</p>
+            <div class="ob2-how-list">
+              <div class="ob2-how-item">
+                <div class="ob2-how-num">1</div>
+                <div class="ob2-how-text">
+                  <strong>Elige qué estudiar</strong>
+                  <span>Selecciona los temas de tu asignatura.</span>
+                </div>
+              </div>
+              <div class="ob2-how-item">
+                <div class="ob2-how-num">2</div>
+                <div class="ob2-how-text">
+                  <strong>Responde en voz alta</strong>
+                  <span>La IA te pregunta y evalúa tu respuesta al instante.</span>
+                </div>
+              </div>
+              <div class="ob2-how-item">
+                <div class="ob2-how-num">3</div>
+                <div class="ob2-how-text">
+                  <strong>Domina lo que fallas</strong>
+                  <span>El sistema detecta tus puntos débiles y los repasa hasta que los dominas.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="ob2-footer">
+            <button class="ob2-continue-btn" onclick="obFinish()">¡Empezar a estudiar! 🚀</button>
+          </div>
+        </div>
+
+        <script>
+          function obSaveNameAndNext() {
+            const name = document.getElementById('ob-nameInp').value.trim() || 'Estudiante';
+            document.querySelectorAll('#ob-welcome-name, #greet-name, #ajustes-name').forEach(el => { if(el) el.innerText = name; });
+            window.obNext ? obNext() : null;
+          }
+          function onboardingFileLoad(event) {
+            const files = event.target.files;
+            if (!files || !files.length) return;
             document.getElementById('ob-upload-zone').style.display = 'none';
             document.getElementById('ob-upload-status').style.display = 'block';
-            let names = Array.from(files).map(f => f.name).join(', ');
-            document.getElementById('ob-upload-filename').innerText = names;
-            // Wire Procesar button to actually upload
+            document.getElementById('ob-upload-filename').innerHTML = Array.from(files).map(f =>
+              '<div class="ob2-file-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span class="ob2-file-name">' + f.name + '</span><span class="ob2-file-check">✓</span></div>'
+            ).join('');
             const procBtn = document.getElementById('ob-step6-upload');
             if (procBtn) procBtn.onclick = () => _obUploadAndFinish(files);
           }
-        }
-      </script>
+        </script>
 
-    </div><!-- /ob-slides -->
+      </div>
+    </div>
   </div>
 </div>
 

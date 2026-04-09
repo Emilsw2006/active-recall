@@ -3185,376 +3185,248 @@ button { touch-action: manipulation; }
 /* ─── end design upgrade v2 ─── */
 
 /* ══════════════════════════════════════════════════════
-   ONBOARDING V2 — Cal.ai-style full-screen flow
+   ONBOARDING v3 — Cal.ai card layout
    ══════════════════════════════════════════════════════ */
 
-/* Wrapper */
 #screen-onboarding {
   position: fixed; inset: 0; z-index: 900;
-  background: linear-gradient(145deg, #3a5fc0 0%, #5b8dee 50%, #7ba7e5 100%);
+  background: linear-gradient(145deg, #0d1b3e 0%, #1a2f6b 55%, #243980 100%);
   display: flex; align-items: stretch; justify-content: center;
   overflow: hidden;
 }
 
-.ob-wrap {
+.ob2-wrap {
   width: 100%; max-width: 480px;
   display: flex; flex-direction: column;
-  position: relative; overflow: hidden;
+  height: 100%;
 }
 
-/* Top bar with progress */
-.ob-topbar {
-  position: relative; z-index: 10;
-  padding: 20px 24px 0;
-  display: flex; align-items: center; gap: 12px;
-  flex-shrink: 0;
+/* ── Top bar ── */
+.ob2-topbar {
+  display: flex; align-items: center;
+  padding: max(env(safe-area-inset-top,14px),14px) 20px 0;
+  gap: 14px; flex-shrink: 0; height: 64px;
+  box-sizing: border-box;
 }
 
-.ob-progress-bar {
+.ob2-back-btn {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,0.08);
+  border: 1.5px solid rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.70);
+  display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0;
+  transition: all 0.16s;
+}
+.ob2-back-btn:hover { background: rgba(255,255,255,0.14); color: #fff; }
+.ob2-back-btn:disabled { visibility: hidden; pointer-events: none; }
+
+.ob2-progress-track {
   flex: 1; height: 3px;
-  background: rgba(255,255,255,0.20);
+  background: rgba(255,255,255,0.12);
   border-radius: 99px; overflow: hidden;
 }
-
-.ob-progress-fill {
+.ob2-progress-fill {
   height: 100%;
-  background: #fff;
+  background: linear-gradient(90deg, #4a70c4, #7ba7e5);
   border-radius: 99px;
-  transition: width 0.45s cubic-bezier(0.2,0.8,0.2,1);
+  transition: width 0.45s cubic-bezier(0.4,0,0.2,1);
   width: 0%;
 }
+.ob2-top-spacer { width: 40px; flex-shrink: 0; }
 
-.ob-skip-btn {
-  background: none; border: none;
-  color: rgba(255,255,255,0.70); font-size: 13px; font-weight: 500;
-  cursor: pointer; padding: 4px 0; flex-shrink: 0;
-  transition: color 0.16s;
-}
-.ob-skip-btn:hover { color: #fff; }
+/* ── Slides ── */
+.ob2-slides-outer { flex: 1; overflow: hidden; position: relative; }
 
-/* Slides strip */
-.ob-slides {
-  flex: 1; display: flex;
-  transition: transform 0.42s cubic-bezier(0.2,0.8,0.2,1);
-  will-change: transform;
+.ob2-slides-strip {
+  display: flex; flex-direction: row;
+  height: 100%;
+  transition: transform 0.42s cubic-bezier(0.4,0,0.2,1);
 }
 
-/* Individual slide */
-.ob-slide {
-  min-width: 100%; box-sizing: border-box;
-  padding: 28px 28px 32px;
+.ob2-slide {
+  width: 100vw; max-width: 480px;
+  flex-shrink: 0; height: 100%;
+  display: flex; flex-direction: column; overflow: hidden;
+}
+
+/* ── Body ── */
+.ob2-body {
+  flex: 1; overflow-y: auto;
+  padding: 32px 24px 20px;
   display: flex; flex-direction: column;
-  overflow-y: auto; overflow-x: hidden;
+  gap: 14px;
+}
+.ob2-body::-webkit-scrollbar { display: none; }
+.ob2-body-center { align-items: center; text-align: center; }
+
+.ob2-badge {
+  font-size: .70rem; font-weight: 700;
+  letter-spacing: .13em; text-transform: uppercase;
+  color: #7ba7e5; margin-bottom: 2px;
 }
 
-.ob-slide-center {
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  gap: 16px;
+.ob2-title {
+  font-size: 2.2rem; font-weight: 800;
+  color: #fff; line-height: 1.18;
+  letter-spacing: -0.04em; margin: 0;
 }
 
-/* Hero ring / orb for welcome */
-.ob-hero-ring {
-  width: 140px; height: 140px;
-  border-radius: 50%;
-  background: rgba(255,255,255,0.10);
-  border: 1.5px solid rgba(255,255,255,0.22);
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 60px rgba(91,141,238,0.35);
-  animation: obRingPulse 3s ease-in-out infinite;
-  margin-bottom: 8px;
-}
-.ob-hero-orb {
-  width: 88px; height: 88px; border-radius: 50%;
-  background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.55), rgba(255,255,255,0.18) 60%, transparent);
-  box-shadow: inset 0 2px 16px rgba(255,255,255,0.30), 0 4px 32px rgba(74,112,196,0.45);
-  border: 1px solid rgba(255,255,255,0.30);
+.ob2-sub {
+  font-size: .97rem; color: rgba(255,255,255,0.50);
+  line-height: 1.5; margin: 0 0 4px;
+  font-weight: 400;
 }
 
-@keyframes obRingPulse {
-  0%, 100% { box-shadow: 0 0 40px rgba(91,141,238,0.25); }
-  50%       { box-shadow: 0 0 80px rgba(91,141,238,0.50); }
-}
-
-/* Slide typography */
-.ob-slide-label {
-  font-size: 11px; font-weight: 600; letter-spacing: 0.08em;
-  text-transform: uppercase; color: rgba(255,255,255,0.55);
-  margin-bottom: 4px;
-}
-
-.ob-slide-title {
-  font-size: 26px; font-weight: 700; color: #fff;
-  line-height: 1.22; margin: 0 0 8px;
-}
-
-.ob-title-xl {
-  font-size: 32px; font-weight: 800;
-  line-height: 1.15; margin-bottom: 10px;
-}
-
-.ob-slide-sub {
-  font-size: 15px; color: rgba(255,255,255,0.72);
-  line-height: 1.55; margin: 0 0 20px;
-}
-
-/* Feature list (paso 1) */
-.ob-feature-list {
-  display: flex; flex-direction: column; gap: 0;
-  width: 100%; margin-bottom: 20px;
-}
-
-.ob-feature-item {
-  display: flex; align-items: flex-start; gap: 14px;
-  padding: 14px 0;
-  border-bottom: 1px solid rgba(255,255,255,0.10);
-}
-.ob-feature-item:last-child { border-bottom: none; }
-
-.ob-feature-icon {
-  width: 38px; height: 38px; border-radius: 10px;
-  background: rgba(255,255,255,0.14);
-  border: 1px solid rgba(255,255,255,0.18);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; color: #fff;
-}
-
-.ob-feature-text {
-  display: flex; flex-direction: column; gap: 2px; padding-top: 2px;
-}
-
-.ob-feature-title {
-  font-size: 14px; font-weight: 600; color: #fff;
-}
-
-.ob-feature-sub {
-  font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.45;
-}
-
-/* Option stack (rows) */
-.ob-option-stack {
+/* ── Option buttons: wide cards ── */
+.ob2-options {
   display: flex; flex-direction: column; gap: 10px;
-  width: 100%; margin-bottom: 24px;
+}
+.ob2-options-wrap {
+  flex-direction: row; flex-wrap: wrap; gap: 8px;
 }
 
-.ob-opt-row {
-  width: 100%; text-align: left;
-  background: rgba(255,255,255,0.10);
-  border: 1.5px solid rgba(255,255,255,0.16);
-  border-radius: 14px; padding: 14px 18px;
-  cursor: pointer; color: #fff;
-  display: flex; flex-direction: column; gap: 2px;
-  transition: all 0.18s cubic-bezier(0.2,0.8,0.2,1);
+.ob2-opt {
+  padding: 16px 20px; border-radius: 16px;
+  background: rgba(255,255,255,0.05);
+  border: 1.5px solid rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.80);
+  font-size: .97rem; font-weight: 500;
+  text-align: left; cursor: pointer;
+  transition: all 0.18s;
+  width: 100%;
 }
-.ob-opt-row:hover {
-  background: rgba(255,255,255,0.16);
-  border-color: rgba(255,255,255,0.28);
-  transform: translateY(-1px);
+.ob2-options-wrap .ob2-opt {
+  width: auto; padding: 11px 16px; font-size: .88rem;
 }
-.ob-opt-row.active {
-  background: rgba(255,255,255,0.22);
-  border-color: rgba(255,255,255,0.65);
-  box-shadow: 0 0 0 1px rgba(255,255,255,0.20);
-}
-
-.ob-opt-label {
-  font-size: 15px; font-weight: 600; color: #fff;
-}
-
-.ob-opt-hint {
-  font-size: 12px; color: rgba(255,255,255,0.60);
-}
-
-/* Analogy chip grid */
-.ob-analogy-grid {
-  display: flex; flex-wrap: wrap; gap: 9px;
-  width: 100%; margin-bottom: 14px;
-}
-
-.ob-analogy-chip {
-  padding: 9px 16px; border-radius: 99px;
-  background: rgba(255,255,255,0.11);
-  border: 1.5px solid rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.85); font-size: 13px; font-weight: 500;
-  cursor: pointer; transition: all 0.16s cubic-bezier(0.2,0.8,0.2,1);
-}
-.ob-analogy-chip:hover {
-  background: rgba(255,255,255,0.18);
-  border-color: rgba(255,255,255,0.30);
-}
-.ob-analogy-chip.active {
-  background: rgba(255,255,255,0.26);
-  border-color: rgba(255,255,255,0.72);
-  color: #fff; font-weight: 600;
-}
-
-.ob-analogy-other {
-  width: 100%; margin-bottom: 20px;
-}
-
-.ob-input-sm {
-  width: 100%; box-sizing: border-box;
-  background: rgba(255,255,255,0.10);
-  border: 1.5px solid rgba(255,255,255,0.18);
-  border-radius: 10px; padding: 10px 14px;
-  color: #fff; font-size: 13px;
-  outline: none; transition: border-color 0.18s;
-}
-.ob-input-sm::placeholder { color: rgba(255,255,255,0.45); }
-.ob-input-sm:focus { border-color: rgba(255,255,255,0.55); }
-
-/* Plan card (paso 5) */
-.ob-plan-card {
-  width: 100%; max-width: 340px;
-  background: rgba(255,255,255,0.14);
-  border: 1.5px solid rgba(255,255,255,0.22);
-  border-radius: 18px; padding: 20px;
-  backdrop-filter: blur(12px);
-  box-shadow: 0 8px 32px rgba(0,0,0,0.12);
-  animation: popIn 0.45s cubic-bezier(0.175,0.885,0.32,1.275);
-  margin: 0 auto 24px;
-}
-
-.ob-plan-row {
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 0;
-}
-
-.ob-plan-icon {
-  width: 32px; height: 32px; border-radius: 8px;
-  background: rgba(255,255,255,0.16);
-  display: flex; align-items: center; justify-content: center;
-  flex-shrink: 0; color: #fff;
-}
-
-.ob-plan-text {
-  font-size: 14px; color: rgba(255,255,255,0.85);
-}
-.ob-plan-text strong { color: #fff; font-weight: 700; }
-
-.ob-plan-divider {
-  height: 1px; background: rgba(255,255,255,0.14);
-  margin: 8px 0;
-}
-
-.ob-plan-note {
-  font-size: 12px; color: rgba(255,255,255,0.50);
-  text-align: center; padding-top: 4px;
-}
-
-/* Form inputs */
-.ob-form {
-  width: 100%; margin-bottom: 20px;
-}
-
-.ob-input {
-  width: 100%; box-sizing: border-box;
-  background: rgba(255,255,255,0.12);
-  border: 1.5px solid rgba(255,255,255,0.22);
-  border-radius: 12px; padding: 14px 16px;
-  color: #fff; font-size: 15px;
-  outline: none; transition: border-color 0.18s, background 0.18s;
-  margin-bottom: 16px;
-}
-.ob-input::placeholder { color: rgba(255,255,255,0.45); }
-.ob-input:focus {
-  border-color: rgba(255,255,255,0.60);
-  background: rgba(255,255,255,0.18);
-}
-
-.ob-color-label {
-  font-size: 12px; font-weight: 600; letter-spacing: 0.06em;
-  text-transform: uppercase; color: rgba(255,255,255,0.55);
-  margin-bottom: 10px;
-}
-
-.ob-color-row {
-  display: flex; gap: 10px; flex-wrap: wrap;
-}
-
-.ob-color-dot {
-  width: 28px; height: 28px; border-radius: 50%;
-  cursor: pointer; border: 2.5px solid transparent;
-  transition: all 0.18s cubic-bezier(0.175,0.885,0.32,1.275);
-}
-.ob-color-dot:hover { transform: scale(1.18); }
-.ob-color-dot.active {
-  border-color: #fff;
-  transform: scale(1.22);
-  box-shadow: 0 0 0 2px rgba(255,255,255,0.35);
-}
-
-/* Upload zone */
-.ob-upload-zone {
-  width: 100%; box-sizing: border-box;
-  border: 2px dashed rgba(255,255,255,0.28);
-  border-radius: 16px; padding: 32px 20px;
-  text-align: center; cursor: pointer;
-  color: rgba(255,255,255,0.70); font-size: 14px;
-  transition: all 0.2s cubic-bezier(0.2,0.8,0.2,1);
-  background: rgba(255,255,255,0.06);
-  margin-bottom: 20px;
-}
-.ob-upload-zone:hover {
-  border-color: rgba(255,255,255,0.50);
-  background: rgba(255,255,255,0.12);
-}
-.ob-upload-zone.ob-has-file {
-  border-color: rgba(255,255,255,0.60);
-  background: rgba(255,255,255,0.14);
+.ob2-opt:hover {
+  background: rgba(255,255,255,0.09);
+  border-color: rgba(255,255,255,0.20);
   color: #fff;
 }
-
-.ob-upload-icon {
-  color: rgba(255,255,255,0.65); margin-bottom: 10px;
-  transition: transform 0.22s cubic-bezier(0.2,0.8,0.2,1);
-}
-.ob-upload-zone:hover .ob-upload-icon { transform: translateY(-4px); }
-
-/* Navigation buttons */
-.ob-nav {
-  display: flex; gap: 10px; margin-top: auto;
-  padding-top: 8px;
+.ob2-opt.active {
+  background: rgba(74,112,196,0.22);
+  border-color: #7ba7e5;
+  color: #fff;
+  box-shadow: 0 0 0 1px rgba(123,167,229,0.25), inset 0 1px 0 rgba(255,255,255,0.10);
 }
 
-.ob-nav-single {
-  justify-content: center;
+/* ── Inputs ── */
+.ob2-input {
+  width: 100%; padding: 16px 20px;
+  background: rgba(255,255,255,0.06);
+  border: 1.5px solid rgba(255,255,255,0.12);
+  border-radius: 16px;
+  color: #fff; font-size: 1rem; font-weight: 500;
+  outline: none; transition: border-color 0.18s;
+  box-sizing: border-box;
+}
+.ob2-input::placeholder { color: rgba(255,255,255,0.28); }
+.ob2-input:focus { border-color: #7ba7e5; }
+.ob2-input-sm { font-size: .88rem; padding: 12px 16px; margin-top: 4px; }
+
+/* ── Color picker ── */
+.ob2-color-label {
+  font-size: .80rem; color: rgba(255,255,255,0.40);
+  font-weight: 500; margin-top: 2px;
 }
 
-.ob-btn-primary {
-  flex: 1; padding: 15px 20px;
-  background: #fff; color: #3a5fc0;
-  border: none; border-radius: 14px;
-  font-size: 15px; font-weight: 700;
-  cursor: pointer; letter-spacing: -0.01em;
-  transition: all 0.18s cubic-bezier(0.2,0.8,0.2,1);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.16);
+/* ── Upload zone ── */
+.ob2-upload-zone {
+  border: 2px dashed rgba(255,255,255,0.16);
+  border-radius: 20px; padding: 40px 20px;
+  display: flex; flex-direction: column;
+  align-items: center; gap: 10px;
+  cursor: pointer; transition: all 0.2s;
+  color: rgba(255,255,255,0.50); text-align: center;
 }
-.ob-btn-primary:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 8px 28px rgba(0,0,0,0.22);
+.ob2-upload-zone:hover {
+  border-color: rgba(123,167,229,0.55);
+  background: rgba(74,112,196,0.08);
+  color: rgba(255,255,255,0.80);
 }
-.ob-btn-primary:active { transform: scale(0.97); }
+.ob2-upload-zone svg { opacity: 0.45; }
+.ob2-upload-hint { font-size: .75rem; opacity: 0.40; }
 
-.ob-btn-full { width: 100%; max-width: 300px; }
-
-.ob-btn-ghost {
-  flex: 0 0 auto; padding: 15px 18px;
-  background: rgba(255,255,255,0.10);
-  border: 1.5px solid rgba(255,255,255,0.18);
-  color: rgba(255,255,255,0.80); border-radius: 14px;
-  font-size: 15px; font-weight: 600; cursor: pointer;
-  transition: all 0.18s cubic-bezier(0.2,0.8,0.2,1);
+.ob2-upload-list { display: flex; flex-direction: column; gap: 8px; }
+.ob2-file-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px 16px;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: 12px;
 }
-.ob-btn-ghost:hover {
-  background: rgba(255,255,255,0.16);
-  border-color: rgba(255,255,255,0.30);
+.ob2-file-name { flex: 1; font-size: .86rem; color: rgba(255,255,255,0.85); word-break: break-all; }
+.ob2-file-check { color: #34d399; font-weight: 700; font-size: .90rem; }
+
+.ob2-add-more-btn {
+  padding: 10px; background: transparent;
+  border: 1.5px dashed rgba(255,255,255,0.16);
+  border-radius: 12px;
+  color: rgba(255,255,255,0.45); font-size: .84rem;
+  cursor: pointer; transition: all 0.18s;
+  width: 100%;
+}
+.ob2-add-more-btn:hover { border-color: rgba(255,255,255,0.30); color: rgba(255,255,255,0.80); }
+
+/* ── Tutorial step ── */
+.ob2-tutorial-icon { font-size: 4rem; margin-bottom: 4px; }
+.ob2-how-list {
+  display: flex; flex-direction: column;
+  gap: 20px; margin-top: 16px;
+  text-align: left; width: 100%;
+}
+.ob2-how-item { display: flex; align-items: flex-start; gap: 16px; }
+.ob2-how-num {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: linear-gradient(135deg, #4a70c4, #7ba7e5);
+  color: #fff; font-weight: 800; font-size: .85rem;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.ob2-how-text { display: flex; flex-direction: column; gap: 2px; }
+.ob2-how-text strong { color: #fff; font-size: .95rem; font-weight: 700; }
+.ob2-how-text span { color: rgba(255,255,255,0.50); font-size: .86rem; line-height: 1.4; }
+
+/* ── Footer ── */
+.ob2-footer {
+  padding: 16px 24px calc(env(safe-area-inset-bottom,16px) + 16px);
+  flex-shrink: 0;
+}
+.ob2-footer-dual { display: flex; gap: 10px; align-items: stretch; }
+
+/* Continue button: large pill */
+.ob2-continue-btn {
+  width: 100%; padding: 18px;
+  border-radius: 99px;
+  background: linear-gradient(135deg, #4a70c4, #7ba7e5);
+  color: #fff; font-size: 1rem; font-weight: 700;
+  border: none; cursor: pointer;
+  transition: all 0.18s;
+  box-shadow: 0 8px 28px rgba(74,112,196,0.38);
+  letter-spacing: -0.01em;
+}
+.ob2-continue-btn:hover {
+  box-shadow: 0 12px 36px rgba(74,112,196,0.54);
   transform: translateY(-1px);
 }
-.ob-btn-ghost:active { transform: scale(0.96); }
+.ob2-continue-btn:active { transform: scale(0.98); }
+.ob2-continue-btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+.ob2-continue-flex { flex: 1; width: auto; }
 
-/* ─── end onboarding v2 ─── */
+.ob2-skip-btn {
+  padding: 18px 22px; border-radius: 99px;
+  background: rgba(255,255,255,0.07);
+  border: 1.5px solid rgba(255,255,255,0.14);
+  color: rgba(255,255,255,0.55); font-size: 1rem; font-weight: 600;
+  cursor: pointer; transition: all 0.18s; white-space: nowrap;
+}
+.ob2-skip-btn:hover { background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.85); }
+
+/* color dot stays from base CSS */
+
+/* ─── end onboarding v3 ─── */
+
 
 
 /* ══════════════════════════════════════════════════════
