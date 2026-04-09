@@ -368,6 +368,9 @@
             document.getElementById('ob-upload-status').style.display = 'block';
             let names = Array.from(files).map(f => f.name).join(', ');
             document.getElementById('ob-upload-filename').innerText = names;
+            // Wire Procesar button to actually upload
+            const procBtn = document.getElementById('ob-step6-upload');
+            if (procBtn) procBtn.onclick = () => _obUploadAndFinish(files);
           }
         }
       </script>

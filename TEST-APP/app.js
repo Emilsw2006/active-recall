@@ -893,7 +893,7 @@ async function obSaveAnalogyAndNext() {
 }
 
 function obSkipToSubject() {
-  _obGoTo(6);
+  _obGoTo(5);
 }
 
 function obSelectHabit(habit, btn) {
@@ -934,42 +934,28 @@ async function obCreateSubject() {
     _obSubjId = s.id;
     await loadSubjectsHome();
     goSubject(s.id, s.nombre, s.color);
-    _obGoTo(7);
+    _obGoTo(6);
   } catch(e) {
-    // fallback: go to step 7 anyway
-    _obGoTo(7);
+    // fallback: go to upload step anyway
+    _obGoTo(6);
   } finally {
     if (btn) { btn.disabled = false; btn.textContent = 'Continuar'; }
   }
 }
 
-function obFileSelected(event) {
-  const file = event.target.files[0];
-  if (!file) return;
-  const zone = document.querySelector('.ob-upload-zone');
-  const label = $('ob-upload-label');
-  if (label) label.textContent = file.name;
-  if (zone)  zone.classList.add('ob-has-file');
-  const nextBtn = $('ob-step7-upload');
-  if (nextBtn) {
-    nextBtn.disabled = false;
-    nextBtn.style.opacity = '';
-    nextBtn.style.pointerEvents = '';
-    nextBtn.onclick = () => _obUploadAndFinish(file);
-  }
-}
-
-async function _obUploadAndFinish(file) {
-  if (!_obSubjId) { obFinish(); return; }
-  const btn = $('ob-step7-upload');
+async function _obUploadAndFinish(files) {
+  if (!_obSubjId) { obNext(); return; }
+  const btn = $('ob-step6-upload');
   if (btn) { btn.disabled = true; btn.textContent = 'Subiendo...'; }
   try {
-    const fd = new FormData();
-    fd.append('file', file);
-    fd.append('asignatura_id', _obSubjId);
-    await api('/documentos/', { method: 'POST', body: fd, raw: true });
-  } catch(e) { /* ignore, finish anyway */ }
-  obFinish();
+    await Promise.all(Array.from(files).map(file => {
+      const fd = new FormData();
+      fd.append('file', file);
+      fd.append('asignatura_id', _obSubjId);
+      return api('/documentos/', { method: 'POST', body: fd, raw: true });
+    }));
+  } catch(e) { /* ignore, go to tutorial anyway */ }
+  obNext(); // show tutorial (step 7)
 }
 
 function obFinish() {
