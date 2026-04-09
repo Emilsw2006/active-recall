@@ -27,6 +27,9 @@ class LoginRequest(BaseModel):
 class TokenLoginRequest(BaseModel):
     access_token: str
 
+class CompleteOnboardingRequest(BaseModel):
+    usuario_id: str
+
 
 @router.post("/register")
 async def register(body: RegisterRequest):
@@ -68,6 +71,7 @@ async def register(body: RegisterRequest):
         "usuario_id": usuario_id,
         "nombre": body.nombre,
         "email": body.email,
+        "onboarding_completed": False,
     }
 
 
@@ -107,10 +111,12 @@ async def token_login(body: TokenLoginRequest):
                       email.split("@")[0]
 
         # Buscar o crear perfil en usuarios
-        perfil = db.table("usuarios").select("nombre, mundo_analogias").eq("id", usuario_id).execute()
+        perfil = db.table("usuarios").select("nombre, mundo_analogias, onboarding_completed").eq("id", usuario_id).execute()
+        is_new = not perfil.data
         if perfil.data:
             nombre = perfil.data[0]["nombre"] or nombre_meta
             mundo_analogias = perfil.data[0].get("mundo_analogias") or ""
+            onboarding_completed = perfil.data[0].get("onboarding_completed") or False
         else:
             # Primera vez con Google: crear perfil
             db.table("usuarios").insert({
@@ -120,6 +126,7 @@ async def token_login(body: TokenLoginRequest):
             }).execute()
             nombre = nombre_meta
             mundo_analogias = ""
+            onboarding_completed = False
 
         logger.info(f"Token-login exitoso: {usuario_id}")
         return {
@@ -128,13 +135,27 @@ async def token_login(body: TokenLoginRequest):
             "nombre": nombre,
             "email": email,
             "mundo_analogias": mundo_analogias,
-            "is_new": not perfil.data,
+            "onboarding_completed": onboarding_completed,
+            "is_new": is_new,
         }
     except HTTPException:
         raise
     except Exception as e:
         logger.error(f"Token-login error: {e}")
         raise HTTPException(status_code=401, detail="Token inválido o expirado")
+
+
+@router.post("/complete-onboarding")
+async def complete_onboarding(body: CompleteOnboardingRequest):
+    """Marca el onboarding como completado para el usuario."""
+    db = get_service_client()
+    try:
+        db.table("usuarios").update({"onboarding_completed": True}).eq("id", body.usuario_id).execute()
+        logger.info(f"Onboarding completado: {body.usuario_id}")
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"Error marcando onboarding: {e}")
+        raise HTTPException(status_code=500, detail="Error al marcar onboarding")
 
 
 @router.post("/login")
@@ -151,9 +172,10 @@ async def login(body: LoginRequest):
     usuario_id = res.user.id
 
     # Datos del perfil
-    perfil = get_service_client().table("usuarios").select("nombre, mundo_analogias").eq("id", usuario_id).execute()
+    perfil = get_service_client().table("usuarios").select("nombre, mundo_analogias, onboarding_completed").eq("id", usuario_id).execute()
     nombre = perfil.data[0]["nombre"] if perfil.data else res.user.email
     mundo_analogias = perfil.data[0].get("mundo_analogias") or "" if perfil.data else ""
+    onboarding_completed = perfil.data[0].get("onboarding_completed") or False if perfil.data else False
 
     logger.info(f"Login exitoso: {usuario_id}")
     return {
@@ -162,4 +184,5 @@ async def login(body: LoginRequest):
         "nombre": nombre,
         "email": body.email,
         "mundo_analogias": mundo_analogias,
+        "onboarding_completed": onboarding_completed,
     }

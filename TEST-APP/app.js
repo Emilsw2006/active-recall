@@ -759,7 +759,7 @@ async function _handleOAuthCallback() {
     });
     saveSession(d);
     enterApp();
-    if (d.is_new) setTimeout(() => openOnboarding(d.nombre), 400);
+    if (!d.onboarding_completed) setTimeout(() => openOnboarding(d.nombre), 400);
     return true;
   } catch(e) {
     showAuthErr('Error al iniciar sesión con Google. Inténtalo de nuevo.');
@@ -958,6 +958,15 @@ async function _obUploadAndFinish(files) {
 }
 
 function obFinish() {
+  // Mark onboarding completed in DB (fire-and-forget)
+  const uid = localStorage.getItem('ar_u');
+  if (uid) {
+    api('/auth/complete-onboarding', {
+      method: 'POST',
+      body: JSON.stringify({ usuario_id: uid })
+    }).catch(() => {});
+  }
+
   const ob = $('screen-onboarding');
   if (ob) {
     ob.style.transition = 'opacity .3s';
@@ -981,7 +990,9 @@ async function doLogin() {
   btn.disabled = true; btn.textContent = T('auth_btn_login_loading');
   try {
     const d = await api('/auth/login', { method:'POST', body: JSON.stringify({email, password:pass}) });
-    saveSession(d); enterApp();
+    saveSession(d);
+    enterApp();
+    if (!d.onboarding_completed) setTimeout(() => openOnboarding(d.nombre), 400);
   } catch(e) { showAuthErr(e.message); }
   finally { btn.disabled=false; btn.textContent=T('auth_btn_login'); }
 }
@@ -2388,20 +2399,18 @@ async function typewriterText(el, texto, durationMs) {
   if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
   if (!el || !texto) return;
 
-  const words = texto.split(/\s+/);
-  if (words.length === 0) return;
-
   el.textContent = '';
   el.classList.add('typewriting');
   el.classList.remove('expanded');
 
-  const msPerWord = Math.max(80, (durationMs || 2000) / words.length);
+  const chars = Array.from(texto); // proper unicode split
+  const msPerChar = Math.max(12, Math.min(55, (durationMs || 2000) / chars.length));
   let i = 0;
 
   return new Promise(resolve => {
     _typewriterTimer = setInterval(() => {
-      if (i < words.length) {
-        el.textContent += (i > 0 ? ' ' : '') + words[i];
+      if (i < chars.length) {
+        el.textContent += chars[i];
         i++;
       } else {
         clearInterval(_typewriterTimer);
@@ -2409,7 +2418,7 @@ async function typewriterText(el, texto, durationMs) {
         el.classList.remove('typewriting');
         resolve();
       }
-    }, msPerWord);
+    }, msPerChar);
   });
 }
 
