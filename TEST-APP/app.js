@@ -438,12 +438,7 @@ async function _buildSmartNotifs() {
       });
     }
 
-  } catch(e) {
-    try {
-      const old = await api(`/notificaciones/${uid}?lang=${currentLang}`);
-      return (old || []).slice(0, 3);
-    } catch(e2) { /* silent */ }
-  }
+  } catch(e) { /* silent */ }
   return notifs.slice(0, 3);
 }
 
@@ -477,9 +472,26 @@ function _relativeDate(dateStr) {
 function goNotif(i) {
   const track = $('notif-track');
   if (!track) return;
+  const n = track.querySelectorAll('.notif-item').length;
+  i = Math.max(0, Math.min(i, n - 1));
   _notifIdx = i;
   track.scrollTo({ left: track.offsetWidth * i, behavior: 'smooth' });
 }
+
+// Swipe support for notification carousel
+(function() {
+  document.addEventListener('DOMContentLoaded', () => {
+    const carousel = document.querySelector('.notif-carousel');
+    if (!carousel) return;
+    let startX = 0, dragging = false;
+    carousel.addEventListener('touchstart', e => { startX = e.touches[0].clientX; dragging = true; }, { passive: true });
+    carousel.addEventListener('touchend', e => {
+      if (!dragging) return; dragging = false;
+      const dx = e.changedTouches[0].clientX - startX;
+      if (Math.abs(dx) > 40) goNotif(_notifIdx + (dx < 0 ? 1 : -1));
+    });
+  });
+})();
 
 function _onNotifScroll(el) {
   if (!el) return;
