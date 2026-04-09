@@ -3556,273 +3556,40 @@ button { touch-action: manipulation; }
 
 /* ─── end onboarding v2 ─── */
 
+
 /* ══════════════════════════════════════════════════════
-   SESSION SCREEN — Liquid Glass Redesign
+   SESSION SCREEN v4 — Blue/Purple Aura Orb
    ══════════════════════════════════════════════════════ */
 
-/* Layout: truly centered, no flex-start */
+/* Full screen: column, topbar top, orb center, btns bottom */
 #v-duelo {
-  justify-content: center !important;
-  padding: 16px 24px calc(env(safe-area-inset-bottom,12px) + 108px) !important;
-  gap: 16px !important;
-  align-items: center !important;
+  justify-content: flex-start !important;
+  padding: 0 !important;
+  gap: 0 !important;
+  position: relative !important;
+  overflow: hidden !important;
 }
 
-/* Counter pill — refined */
+/* Topbar: fixed at very top */
+.duelo-topbar {
+  position: fixed !important;
+  top: 0 !important; left: 0 !important; right: 0 !important;
+  padding: max(env(safe-area-inset-top, 14px), 14px) 20px 12px !important;
+  margin-bottom: 0 !important;
+  background: transparent !important;
+  z-index: 200 !important;
+  box-sizing: border-box !important;
+  width: 100% !important;
+}
 .duelo-counter {
   font-size: .72rem !important;
   letter-spacing: .14em !important;
-  color: rgba(255,255,255,0.38) !important;
+  color: rgba(255,255,255,0.42) !important;
   font-weight: 700 !important;
-  background: rgba(255,255,255,0.07);
-  padding: 4px 12px; border-radius: 99px;
-  border: 1px solid rgba(255,255,255,0.10);
-}
-
-/* Question text — bigger, airier */
-.duelo-question {
-  font-size: 1.35rem !important;
-  line-height: 1.52 !important;
-  font-weight: 600 !important;
-  text-align: center !important;
-  color: rgba(255,255,255,0.96) !important;
-  padding: 0 8px !important;
-  letter-spacing: -0.025em !important;
-  min-height: unset !important;
-  max-height: 22vh !important;
-}
-
-/* Orb wrap: tighter vertical footprint */
-.duelo-blob-wrap {
-  flex: 0 0 auto !important;
-  min-height: unset !important;
-  max-height: unset !important;
-  height: min(240px, 56vw) !important;
-  width: min(240px, 56vw) !important;
-  position: relative !important;
-}
-
-/* Ambient glow — massive white halo behind orb */
-.duelo-blob-glow {
-  width: 600px !important; height: 600px !important;
-  background: radial-gradient(circle,
-    rgba(255,255,255,0.28) 0%,
-    rgba(255,255,255,0.10) 35%,
-    rgba(255,255,255,0.03) 60%,
-    transparent 75%) !important;
-  filter: blur(32px) !important;
-  animation: glow-pulse 5s ease-in-out infinite !important;
-}
-
-/* ── WHITE DIFFUSE ORB — fades to nothing at edges ── */
-.voice-orb {
-  width: 100% !important;
-  height: 100% !important;
-  border-radius: 50% !important;
-  margin: 0 !important;
-  border: none !important;
-
-  /* White core → fades to fully transparent at edges */
-  background:
-    radial-gradient(circle at 50% 50%,
-      rgba(255,255,255,1.00)  0%,
-      rgba(255,255,255,0.90) 18%,
-      rgba(255,255,255,0.60) 38%,
-      rgba(255,255,255,0.25) 58%,
-      rgba(255,255,255,0.06) 76%,
-      transparent            100%) !important;
-
-  /* No hard edge — pure light source feel */
-  box-shadow:
-    0 0  60px rgba(255,255,255,0.95),
-    0 0 120px rgba(255,255,255,0.60),
-    0 0 200px rgba(255,255,255,0.32),
-    0 0 340px rgba(255,255,255,0.14),
-    0 0 500px rgba(255,255,255,0.06) !important;
-
-  transition: box-shadow 0.38s cubic-bezier(0.2,0.8,0.2,1), border-radius 0.38s cubic-bezier(0.2,0.8,0.2,1) !important;
-
-  /* Icon: dark blue so readable against white center */
-  color: rgba(30,58,138,0.70) !important;
-  cursor: pointer;
-  pointer-events: auto !important;
-}
-
-/* Idle: slow organic breathing */
-@keyframes blob-idle {
-  0%   { transform: scale(1)     translateY(0);    border-radius: 50%; }
-  25%  {                                            border-radius: 52% 48% 51% 49% / 49% 51% 48% 52%; }
-  50%  { transform: scale(1.016) translateY(-6px); border-radius: 50%; }
-  75%  {                                            border-radius: 48% 52% 49% 51% / 51% 49% 52% 48%; }
-  100% { transform: scale(1)     translateY(0);    border-radius: 50%; }
-}
-
-/* No separate orb-float; blob-idle handles it */
-@keyframes orb-float {
-  0%,100% { transform: translateY(0); }
-  50%     { transform: translateY(-6px); }
-}
-
-/* Listening: orb breathes — white expands and glows more */
-.voice-orb.listening {
-  animation: orb-listen-white 3.2s ease-in-out infinite !important;
-}
-@keyframes orb-listen-white {
-  0%,100% {
-    transform: scale(1) translateY(0); border-radius: 50%;
-    box-shadow:
-      0 0  60px rgba(255,255,255,0.90),
-      0 0 120px rgba(255,255,255,0.55),
-      0 0 220px rgba(255,255,255,0.28),
-      0 0 360px rgba(255,255,255,0.10);
-  }
-  50% {
-    transform: scale(1.025) translateY(-5px);
-    border-radius: 52% 48% 50% 50% / 48% 52% 50% 50%;
-    box-shadow:
-      0 0  80px rgba(255,255,255,1.00),
-      0 0 160px rgba(255,255,255,0.72),
-      0 0 280px rgba(255,255,255,0.40),
-      0 0 480px rgba(255,255,255,0.16);
-  }
-}
-
-.voice-orb.listening.vad-active { animation: none !important; }
-
-/* AI speaking: liquid morph + white pulses */
-.voice-orb.speaking {
-  animation: orb-speak-white 1.8s ease-in-out infinite !important;
-}
-@keyframes orb-speak-white {
-  0%   { transform: scale(1.00) translateY(-2px); border-radius: 50%; }
-  20%  { border-radius: 52% 48% 50% 52% / 50% 52% 48% 50%;
-         box-shadow: 0 0 100px rgba(255,255,255,1), 0 0 200px rgba(255,255,255,0.60), 0 0 380px rgba(255,255,255,0.22); }
-  40%  { transform: scale(1.04) translateY(-6px); border-radius: 50%; }
-  60%  { border-radius: 48% 52% 52% 48% / 52% 48% 50% 52%;
-         box-shadow: 0 0 80px rgba(255,255,255,0.85), 0 0 180px rgba(255,255,255,0.45), 0 0 320px rgba(255,255,255,0.18); }
-  100% { transform: scale(1.00) translateY(-2px); border-radius: 50%; }
-}
-
-/* Processing: flickering white light */
-.voice-orb.processing {
-  animation: orb-process-white 1.6s ease-in-out infinite, blob-idle 7s ease-in-out infinite !important;
-}
-@keyframes orb-process-white {
-  0%,100% { filter: brightness(0.88); }
-  50%     { filter: brightness(1.18); }
-}
-
-/* Evaluated: tint the white with result color */
-.voice-orb.evaluated-verde {
-  background: radial-gradient(circle at 50% 50%,
-    rgba(255,255,255,1.00)  0%,
-    rgba(200,255,220,0.80) 30%,
-    rgba(52,211,153,0.40)  60%,
-    transparent 90%) !important;
-  box-shadow:
-    0 0  60px rgba(255,255,255,0.80),
-    0 0 130px rgba(52,211,153,0.55),
-    0 0 260px rgba(52,211,153,0.28) !important;
-  color: rgba(2,80,60,0.75) !important;
-  animation: blob-idle 5s ease-in-out infinite !important;
-}
-.voice-orb.evaluated-amarillo {
-  background: radial-gradient(circle at 50% 50%,
-    rgba(255,255,255,1.00)  0%,
-    rgba(255,245,180,0.85) 30%,
-    rgba(251,191,36,0.45)  60%,
-    transparent 90%) !important;
-  box-shadow:
-    0 0  60px rgba(255,255,255,0.80),
-    0 0 130px rgba(251,191,36,0.55),
-    0 0 260px rgba(251,191,36,0.28) !important;
-  color: rgba(120,53,15,0.75) !important;
-  animation: blob-idle 5s ease-in-out infinite !important;
-}
-.voice-orb.evaluated-rojo {
-  background: radial-gradient(circle at 50% 50%,
-    rgba(255,255,255,1.00)  0%,
-    rgba(255,200,200,0.85) 30%,
-    rgba(244,63,94,0.45)   60%,
-    transparent 90%) !important;
-  box-shadow:
-    0 0  60px rgba(255,255,255,0.80),
-    0 0 130px rgba(244,63,94,0.55),
-    0 0 260px rgba(244,63,94,0.28) !important;
-  color: rgba(100,10,40,0.75) !important;
-  animation: blob-idle 5s ease-in-out infinite !important;
-}
-
-/* Finishing: compress into a pill then bounce */
-@keyframes blob-finish {
-  0%,100% { border-radius: 50%; transform: scale(1) translateY(0); }
-  50%     { border-radius: 50% 50% 46% 46% / 50% 50% 44% 44%; transform: scale(1.04) translateY(-5px); }
-}
-
-/* Transcript: centered glass pill */
-.duelo-transcript {
-  font-size: .90rem !important;
-  color: rgba(255,255,255,0.90) !important;
-  text-align: center !important;
-  background: rgba(255,255,255,0.10) !important;
-  border: 1px solid rgba(255,255,255,0.18) !important;
-  border-radius: 20px !important;
-  padding: 9px 20px !important;
-  backdrop-filter: blur(10px) !important;
-  -webkit-backdrop-filter: blur(10px) !important;
-  border-left: none !important;
-  border-left-width: unset !important;
-  background-image: none !important;
-  margin: 0 !important;
-  max-width: 340px !important;
-  min-height: unset !important;
-  line-height: 1.48 !important;
-  font-weight: 500 !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14) !important;
-}
-
-/* Hint box — refined glass */
-.hint-box {
-  background: rgba(232,160,48,0.09) !important;
-  border: 1px solid rgba(232,160,48,0.22) !important;
-  border-radius: 14px !important;
-  backdrop-filter: blur(12px) !important;
-  -webkit-backdrop-filter: blur(12px) !important;
-  max-width: 360px !important;
-  margin: 0 auto !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.10) !important;
-}
-
-/* Action buttons — cleaner glass pills */
-.duelo-actions {
-  bottom: calc(env(safe-area-inset-bottom,12px) + 10vh) !important;
-  gap: 10px !important;
-}
-.duelo-btn {
-  height: 48px !important;
-  padding: 0 22px !important;
-  background: rgba(255,255,255,0.13) !important;
-  border: 1px solid rgba(255,255,255,0.22) !important;
-  border-radius: 14px !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18), 0 4px 16px rgba(0,0,0,0.10) !important;
-  font-size: .88rem !important;
-  font-weight: 600 !important;
-  letter-spacing: -0.01em !important;
-  transition: all 0.18s cubic-bezier(0.2,0.8,0.2,1) !important;
-}
-.duelo-btn:hover {
-  background: rgba(255,255,255,0.22) !important;
-  border-color: rgba(255,255,255,0.34) !important;
-  transform: translateY(-2px) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.22), 0 8px 24px rgba(0,0,0,0.14) !important;
-}
-.duelo-btn:active { transform: scale(0.96) !important; }
-
-/* Topbar refinement */
-.duelo-topbar {
-  flex-shrink: 0 !important;
-  margin-bottom: 4px !important;
-  width: 100% !important;
+  background: rgba(255,255,255,0.07) !important;
+  padding: 4px 12px !important; border-radius: 99px !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  text-transform: uppercase !important;
 }
 .duelo-topbar-pause,
 .duelo-topbar-hist {
@@ -3830,49 +3597,30 @@ button { touch-action: manipulation; }
   border: 1px solid rgba(255,255,255,0.16) !important;
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.14) !important;
   transition: all 0.16s !important;
+  color: rgba(255,255,255,0.72) !important;
 }
 .duelo-topbar-pause:hover,
 .duelo-topbar-hist:hover {
   background: rgba(255,255,255,0.18) !important;
+  color: #fff !important;
 }
 
-/* ─── end session liquid glass ─── */
-
-/* ══════════════════════════════════════════════════════
-   SESSION SCREEN v3 — fills screen, question top, orb center
-   ══════════════════════════════════════════════════════ */
-
-/* Full screen layout: question top → orb fills middle → buttons bottom */
-#v-duelo {
-  justify-content: flex-start !important;
-  padding: 0 !important;
-  gap: 0 !important;
-  position: relative;
-  overflow: hidden;
-}
-
-/* Topbar pinned at very top */
-.duelo-topbar {
-  padding: max(env(safe-area-inset-top), 14px) 20px 12px !important;
-  margin-bottom: 0 !important;
-  background: rgba(0,0,0,0) !important;
-  width: 100% !important; box-sizing: border-box;
-}
-
-/* Question — top, bigger, prominent */
+/* Question: sits below fixed topbar */
 .duelo-question {
-  font-size: 1.45rem !important;
+  margin-top: 72px !important;
+  font-size: 1.38rem !important;
   font-weight: 700 !important;
   line-height: 1.38 !important;
   text-align: center !important;
-  color: #fff !important;
-  padding: 8px 28px 0 !important;
+  color: rgba(255,255,255,0.96) !important;
+  padding: 12px 28px 0 !important;
   letter-spacing: -0.03em !important;
-  max-height: 28vh !important;
+  max-height: 26vh !important;
   flex-shrink: 0 !important;
+  min-height: unset !important;
 }
 
-/* Orb wrap fills remaining vertical space */
+/* Orb wrap: fills remaining vertical space */
 .duelo-blob-wrap {
   flex: 1 1 auto !important;
   width: 100% !important;
@@ -3883,104 +3631,272 @@ button { touch-action: manipulation; }
   align-items: center !important;
   justify-content: center !important;
   position: relative !important;
+  overflow: visible !important;
 }
 
-/* Orb — warm amber/coral instead of blue, with heavy diffused glow */
-.voice-orb {
-  width: min(220px, 58vw) !important;
-  height: min(220px, 58vw) !important;
-  background:
-    radial-gradient(circle at 30% 26%, rgba(255,255,255,0.78) 0%, rgba(255,255,255,0.06) 32%, transparent 52%),
-    radial-gradient(circle at 65% 72%, rgba(180,60,40,0.35) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 50%, rgba(255,160,80,0.95) 0%, rgba(220,90,40,0.92) 50%, rgba(160,40,20,0.97) 100%) !important;
-  box-shadow:
-    inset 0 -10px 28px rgba(80,10,0,0.40),
-    inset 0 5px 22px rgba(255,255,255,0.48),
-    inset 0 0 0 1.5px rgba(255,255,255,0.20),
-    0 0 120px rgba(255,120,50,0.55),
-    0 0 220px rgba(255,100,30,0.28),
-    0 20px 60px rgba(160,50,10,0.30) !important;
-  border: 1.5px solid rgba(255,200,150,0.22) !important;
-}
-
-/* Ambient glow — orange/warm */
+/* Hide legacy blob glow */
 .duelo-blob-glow {
-  width: 500px !important; height: 500px !important;
-  background: radial-gradient(circle, rgba(255,120,50,0.30) 0%, rgba(255,80,20,0.08) 55%, transparent 75%) !important;
-  filter: blur(50px) !important;
+  display: none !important;
 }
 
-/* Orb listen/speak states keep warm color */
-.voice-orb.listening {
-  animation: orb-listen-warm 3.2s ease-in-out infinite !important;
+/* THE ORB */
+.voice-orb {
+  width: min(230px, 60vw) !important;
+  height: min(230px, 60vw) !important;
+  border-radius: 50% !important;
+  border: none !important;
+  margin: 0 !important;
+  cursor: pointer !important;
+  pointer-events: auto !important;
+
+  background: radial-gradient(circle at 50% 50%,
+    rgba(92,  122, 230, 1.00)  0%,
+    rgba(92,  122, 230, 0.88) 18%,
+    rgba(104, 201, 254, 0.68) 40%,
+    rgba(200, 220, 255, 0.28) 62%,
+    rgba(255, 240, 252, 0.07) 80%,
+    transparent                100%
+  ) !important;
+
+  box-shadow:
+    0 0  55px rgba(92,  122, 230, 0.95),
+    0 0 110px rgba(92,  122, 230, 0.58),
+    0 0 200px rgba(104, 201, 254, 0.32),
+    0 0 340px rgba(104, 201, 254, 0.14),
+    0 0 500px rgba(180, 200, 255, 0.06) !important;
+
+  transition: background 0.55s cubic-bezier(0.2,0.8,0.2,1),
+              box-shadow  0.38s cubic-bezier(0.2,0.8,0.2,1) !important;
+  animation: orb-idle-blue 4s ease-in-out infinite !important;
 }
-@keyframes orb-listen-warm {
+
+/* No icon inside orb */
+.voice-orb svg { display: none !important; }
+
+/* Idle: slow organic breathing */
+@keyframes orb-idle-blue {
+  0%,100% {
+    transform: scale(1) translateY(0);
+    box-shadow:
+      0 0  55px rgba(92,  122, 230, 0.90),
+      0 0 110px rgba(92,  122, 230, 0.52),
+      0 0 200px rgba(104, 201, 254, 0.28),
+      0 0 340px rgba(104, 201, 254, 0.10);
+  }
+  50% {
+    transform: scale(1.045) translateY(-6px);
+    box-shadow:
+      0 0  72px rgba(92,  122, 230, 1.00),
+      0 0 140px rgba(92,  122, 230, 0.70),
+      0 0 260px rgba(104, 201, 254, 0.44),
+      0 0 440px rgba(104, 201, 254, 0.18);
+  }
+}
+
+/* Listening: waiting for user to speak */
+.voice-orb.listening {
+  background: radial-gradient(circle at 50% 50%,
+    rgba(80,  110, 220, 1.00)  0%,
+    rgba(80,  110, 220, 0.88) 20%,
+    rgba(104, 201, 254, 0.72) 42%,
+    rgba(180, 220, 255, 0.28) 64%,
+    transparent                100%
+  ) !important;
+  animation: orb-listen-blue 3.2s ease-in-out infinite !important;
+}
+@keyframes orb-listen-blue {
   0%,100% {
     transform: scale(1) translateY(0); border-radius: 50%;
     box-shadow:
-      inset 0 -10px 28px rgba(80,10,0,0.40),
-      inset 0 5px 22px rgba(255,255,255,0.48),
-      0 0 120px rgba(255,120,50,0.50),
-      0 0 200px rgba(255,100,30,0.22);
+      0 0  55px rgba(80, 110, 220, 0.90),
+      0 0 120px rgba(80, 110, 220, 0.52),
+      0 0 210px rgba(104,201,254, 0.30),
+      0 0 360px rgba(104,201,254, 0.12);
   }
   50% {
-    transform: scale(1.022) translateY(-5px); border-radius: 52% 48% 50% 50% / 48% 52% 50% 50%;
+    transform: scale(1.035) translateY(-5px);
+    border-radius: 52% 48% 50% 50% / 48% 52% 50% 50%;
     box-shadow:
-      inset 0 -10px 28px rgba(80,10,0,0.35),
-      inset 0 5px 28px rgba(255,255,255,0.62),
-      0 0 160px rgba(255,140,60,0.68),
-      0 0 280px rgba(255,110,40,0.32);
+      0 0  80px rgba(80, 110, 220, 1.00),
+      0 0 160px rgba(80, 110, 220, 0.68),
+      0 0 290px rgba(104,201,254, 0.46),
+      0 0 480px rgba(104,201,254, 0.18);
   }
 }
-.voice-orb.speaking {
-  animation: orb-speak-warm 1.8s ease-in-out infinite !important;
-}
-@keyframes orb-speak-warm {
-  0%   { transform: scale(1.00) translateY(-2px); border-radius: 50%; }
-  33%  { border-radius: 52% 48% 50% 52% / 50% 52% 48% 50%; transform: scale(1.03) translateY(-5px); }
-  66%  { border-radius: 48% 52% 52% 48% / 52% 48% 50% 52%; transform: scale(1.01) translateY(-3px); }
-  100% { transform: scale(1.00) translateY(-2px); border-radius: 50%; }
+
+/* VAD active: user is actually talking */
+.voice-orb.listening.vad-active {
+  animation: none !important;
+  transform: scale(1.14) translateY(-4px) !important;
+  background: radial-gradient(circle at 50% 50%,
+    rgba(100, 140, 255, 1.00)  0%,
+    rgba(100, 140, 255, 0.90) 20%,
+    rgba(120, 210, 255, 0.72) 44%,
+    rgba(200, 230, 255, 0.28) 66%,
+    transparent               100%
+  ) !important;
+  box-shadow:
+    0 0  90px rgba(80,  130, 255, 1.00),
+    0 0 180px rgba(80,  130, 255, 0.72),
+    0 0 320px rgba(104, 201, 254, 0.50),
+    0 0 520px rgba(104, 201, 254, 0.20) !important;
 }
 
-/* Transcript — centered glass pill */
+/* Speaking (AI): more purple, energetic morph */
+.voice-orb.speaking {
+  background: radial-gradient(circle at 50% 50%,
+    rgba(124,  92, 240, 1.00)  0%,
+    rgba(124,  92, 240, 0.86) 18%,
+    rgba(104, 201, 254, 0.65) 40%,
+    rgba(200, 180, 255, 0.28) 64%,
+    transparent                100%
+  ) !important;
+  animation: orb-speak-blue 1.9s ease-in-out infinite !important;
+}
+@keyframes orb-speak-blue {
+  0%   { transform: scale(1.02) translateY(-2px); border-radius: 50%;
+         box-shadow: 0 0 70px rgba(124,92,240,0.90), 0 0 150px rgba(124,92,240,0.52), 0 0 260px rgba(104,201,254,0.32); }
+  30%  { transform: scale(1.07) translateY(-6px); border-radius: 52% 48% 50% 52% / 50% 52% 48% 50%;
+         box-shadow: 0 0 100px rgba(124,92,240,1.00), 0 0 200px rgba(124,92,240,0.68), 0 0 360px rgba(104,201,254,0.44); }
+  60%  { transform: scale(1.04) translateY(-4px); border-radius: 48% 52% 52% 48% / 52% 48% 50% 52%; }
+  100% { transform: scale(1.02) translateY(-2px); border-radius: 50%; }
+}
+
+/* Processing: dim slow pulse */
+.voice-orb.processing {
+  background: radial-gradient(circle at 50% 50%,
+    rgba(74,  94, 190, 1.00)  0%,
+    rgba(74,  94, 190, 0.82) 20%,
+    rgba(90, 160, 220, 0.55) 44%,
+    transparent               100%
+  ) !important;
+  animation: orb-process-blue 1.5s ease-in-out infinite !important;
+}
+@keyframes orb-process-blue {
+  0%,100% {
+    transform: scale(1); opacity: 0.78;
+    box-shadow: 0 0 50px rgba(74,94,190,0.70), 0 0 120px rgba(74,94,190,0.36), 0 0 220px rgba(90,160,220,0.18);
+  }
+  50% {
+    transform: scale(1.05); opacity: 1.0;
+    box-shadow: 0 0 80px rgba(74,94,190,1.00), 0 0 170px rgba(74,94,190,0.58), 0 0 300px rgba(90,160,220,0.30);
+  }
+}
+
+/* Evaluated states */
+.voice-orb.evaluated-verde {
+  background: radial-gradient(circle at 50% 50%,
+    rgba(52,  211, 153, 1.00)  0%,
+    rgba(52,  211, 153, 0.85) 22%,
+    rgba(16,  185, 129, 0.55) 48%,
+    rgba(200, 255, 230, 0.18) 72%,
+    transparent                100%
+  ) !important;
+  box-shadow:
+    0 0  60px rgba(52, 211, 153, 0.95),
+    0 0 130px rgba(52, 211, 153, 0.58),
+    0 0 250px rgba(16, 185, 129, 0.28) !important;
+  animation: orb-idle-blue 5s ease-in-out infinite !important;
+}
+.voice-orb.evaluated-amarillo {
+  background: radial-gradient(circle at 50% 50%,
+    rgba(251, 191,  36, 1.00)  0%,
+    rgba(251, 191,  36, 0.85) 22%,
+    rgba(245, 158,  11, 0.55) 48%,
+    rgba(255, 240, 180, 0.18) 72%,
+    transparent                100%
+  ) !important;
+  box-shadow:
+    0 0  60px rgba(251, 191,  36, 0.95),
+    0 0 130px rgba(251, 191,  36, 0.58),
+    0 0 250px rgba(245, 158,  11, 0.28) !important;
+  animation: orb-idle-blue 5s ease-in-out infinite !important;
+}
+.voice-orb.evaluated-rojo {
+  background: radial-gradient(circle at 50% 50%,
+    rgba(244,  63,  94, 1.00)  0%,
+    rgba(244,  63,  94, 0.85) 22%,
+    rgba(239,  68,  68, 0.55) 48%,
+    rgba(255, 200, 210, 0.18) 72%,
+    transparent                100%
+  ) !important;
+  box-shadow:
+    0 0  60px rgba(244,  63,  94, 0.95),
+    0 0 130px rgba(244,  63,  94, 0.58),
+    0 0 250px rgba(239,  68,  68, 0.28) !important;
+  animation: orb-idle-blue 5s ease-in-out infinite !important;
+}
+
+/* Transcript: centered glass pill */
 .duelo-transcript {
+  font-size: .88rem !important;
+  color: rgba(255,255,255,0.90) !important;
   text-align: center !important;
-  border-left: none !important;
   background: rgba(255,255,255,0.09) !important;
   border: 1px solid rgba(255,255,255,0.16) !important;
+  border-left: 1px solid rgba(255,255,255,0.16) !important;
   border-radius: 20px !important;
-  margin: 0 28px !important;
-  padding: 8px 18px !important;
-  font-size: .88rem !important;
+  padding: 8px 20px !important;
   backdrop-filter: blur(10px) !important;
   -webkit-backdrop-filter: blur(10px) !important;
-  box-shadow: none !important;
+  margin: 0 28px !important;
+  max-width: 340px !important;
+  min-height: unset !important;
+  line-height: 1.48 !important;
+  font-weight: 500 !important;
+  flex-shrink: 0 !important;
   background-image: none !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.12) !important;
 }
 
-/* Action buttons — smaller, fixed bottom */
+/* Hint box */
+.hint-box {
+  background: rgba(232,160,48,0.09) !important;
+  border: 1px solid rgba(232,160,48,0.22) !important;
+  border-radius: 14px !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  max-width: 360px !important;
+  margin: 0 auto !important;
+  flex-shrink: 0 !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
+}
+
+/* Action buttons: fixed at very bottom */
 .duelo-actions {
   position: fixed !important;
-  bottom: calc(env(safe-area-inset-bottom,12px) + 20px) !important;
-  gap: 8px !important;
+  bottom: calc(env(safe-area-inset-bottom, 12px) + 28px) !important;
+  left: 0 !important; right: 0 !important;
+  display: flex !important;
+  justify-content: center !important;
+  align-items: center !important;
+  gap: 10px !important;
   padding: 0 20px !important;
+  z-index: 200 !important;
+  flex-wrap: wrap !important;
 }
 .duelo-btn {
-  height: 40px !important;
-  padding: 0 16px !important;
-  font-size: .80rem !important;
+  height: 42px !important;
+  padding: 0 20px !important;
+  font-size: .82rem !important;
   font-weight: 600 !important;
   border-radius: 12px !important;
   background: rgba(255,255,255,0.11) !important;
-  border: 1px solid rgba(255,255,255,0.18) !important;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.14) !important;
+  border: 1px solid rgba(255,255,255,0.20) !important;
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.15) !important;
+  color: rgba(255,255,255,0.92) !important;
+  letter-spacing: -0.01em !important;
+  transition: all 0.16s !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
 }
 .duelo-btn:hover {
   background: rgba(255,255,255,0.20) !important;
+  border-color: rgba(255,255,255,0.30) !important;
   transform: translateY(-1px) !important;
+  color: #fff !important;
 }
+.duelo-btn:active { transform: scale(0.96) !important; }
+.duelo-btn.danger { color: #fca5a5 !important; background: rgba(248,113,113,0.13) !important; }
 
-/* ─── end session v3 ─── */
-
-
-
+/* end session v4 */

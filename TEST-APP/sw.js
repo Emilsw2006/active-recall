@@ -1,4 +1,4 @@
-const CACHE_NAME = 'active-recall-v5';
+const CACHE_NAME = 'active-recall-v6';
 
 // Install — skip precaching to avoid path issues, cache on demand
 self.addEventListener('install', () => self.skipWaiting());
