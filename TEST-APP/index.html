@@ -21,66 +21,59 @@
 
 <!-- ════ AUTH ════ -->
 <div id="screen-auth">
-  <div class="auth-particles" id="auth-particles"></div>
-
-  <!-- Brand -->
-  <div class="auth-brand">
-    <div class="auth-wordmark">Active<em>Recall</em></div>
+  <div class="auth-glow-orb"></div>
+  
+  <div class="auth-top-bar" style="position:absolute; top:24px; right:24px; z-index:100;">
+    <button class="auth-top-toggle" id="auth-toggle-btn" onclick="toggleAuthMode()">Crear cuenta</button>
   </div>
 
-  <!-- Bottom area: methods or expanded form -->
-  <div class="auth-bottom">
-
-    <!-- Step 1: choose method -->
-    <div class="auth-methods" id="auth-methods">
-      <button class="auth-btn-google" onclick="authShowEmail('login')">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        Continuar con Google
-      </button>
-      <button class="auth-btn-email" onclick="authShowEmail('login')">
-        Iniciar sesión con email
-      </button>
-      <div class="auth-divider-text">¿Primera vez?</div>
-      <button class="auth-btn-outline" onclick="authShowEmail('register')">
-        Crear cuenta gratis
-      </button>
+  <div class="auth-content" style="z-index:10; display:flex; flex-direction:column; align-items:center; width: 100%; max-width: 320px; text-align: center;">
+    
+    <!-- Brand -->
+    <div class="auth-brand" style="margin-bottom: 50px;">
+      <div class="auth-wordmark">Active<em>Recall</em></div>
+      <div style="font-size: 0.85rem; color: rgba(255,255,255,0.6); margin-top: 8px;">Estudia menos, recuerda más.</div>
     </div>
-
-    <!-- Step 2: email form (login or register) -->
-    <div class="auth-email-wrap" id="auth-email-wrap" style="display:none">
+    
+    <div id="auth-forms-container" style="width: 100%;">
       <div class="auth-err" id="auth-err"></div>
-
-      <!-- Login form -->
-      <div id="form-login" class="auth-form">
-        <div class="auth-fld">
-          <input type="email" id="l-email" placeholder="Email" onkeydown="if(event.key==='Enter')doLogin()"/>
-        </div>
-        <div class="auth-fld">
-          <input type="password" id="l-pass" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()"/>
-        </div>
-        <button class="auth-cta" id="btn-login" onclick="doLogin()">Entrar</button>
-        <button class="auth-back" onclick="authShowMethods()">← Volver</button>
-        <div class="auth-switch-link">¿Sin cuenta? <button onclick="authShowEmail('register')">Regístrate</button></div>
+      
+      <!-- Login Form (default) -->
+      <div id="form-login" class="auth-form" style="display:flex; flex-direction:column; gap:12px;">
+        <input class="auth-input-glass" type="email" id="l-email" placeholder="Email" onkeydown="if(event.key==='Enter')document.getElementById('l-pass').focus()"/>
+        <input class="auth-input-glass" type="password" id="l-pass" placeholder="Contraseña" onkeydown="if(event.key==='Enter')doLogin()"/>
+        <button class="auth-cta-glass" id="btn-login" onclick="doLogin()" style="margin-top:24px;">Continuar</button>
       </div>
 
-      <!-- Register form -->
-      <div id="form-register" class="auth-form" style="display:none">
-        <div class="auth-fld">
-          <input type="text" id="r-name" placeholder="Tu nombre"/>
-        </div>
-        <div class="auth-fld">
-          <input type="email" id="r-email" placeholder="Email"/>
-        </div>
-        <div class="auth-fld">
-          <input type="password" id="r-pass" placeholder="Contraseña (mín. 6 caracteres)"/>
-        </div>
-        <button class="auth-cta" id="btn-register" onclick="doRegister()">Crear cuenta</button>
-        <button class="auth-back" onclick="authShowMethods()">← Volver</button>
-        <div class="auth-switch-link">¿Ya tienes cuenta? <button onclick="authShowEmail('login')">Entrar</button></div>
+      <!-- Register Form -->
+      <div id="form-register" class="auth-form" style="display:none; flex-direction:column; gap:12px;">
+        <input class="auth-input-glass" type="text" id="r-name" placeholder="Tu nombre"/>
+        <input class="auth-input-glass" type="email" id="r-email" placeholder="Email"/>
+        <input class="auth-input-glass" type="password" id="r-pass" placeholder="Contraseña (mín. 6)"/>
+        <button class="auth-cta-glass" id="btn-register" onclick="doRegister()" style="margin-top:24px;">Registrarse</button>
       </div>
+      
+      <!-- Social Buttons Divider -->
+      <div class="auth-divider-text" style="margin: 32px 0 20px;">o continuar con</div>
+      
+      <button class="auth-btn-google-glass" onclick="typeof authShowEmail==='function' ? authShowEmail('login') : console.log('oAuth')">
+         <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg> 
+         Google
+      </button>
     </div>
-
   </div>
+  
+  <script>
+    let _isLoginMode = true;
+    function toggleAuthMode() {
+      _isLoginMode = !_isLoginMode;
+      document.getElementById('form-login').style.display = _isLoginMode ? 'flex' : 'none';
+      document.getElementById('form-register').style.display = _isLoginMode ? 'none' : 'flex';
+      document.getElementById('auth-toggle-btn').innerText = _isLoginMode ? 'Crear cuenta' : 'Iniciar sesión';
+      const err = document.getElementById('auth-err');
+      if (err) err.style.display = 'none';
+    }
+  </script>
 </div>
 
 <!-- ════ ONBOARDING — 9 pasos estilo Cal.ai ════ -->
@@ -98,81 +91,31 @@
     <!-- Slides strip -->
     <div class="ob-slides" id="ob-slides">
 
-      <!-- ── PASO 0: Bienvenida ─────────────────────────────── -->
+      <!-- ── PASO 0: Nombre e Idioma ─────────────────────────────── -->
       <div class="ob-slide ob-slide-center" id="ob-step-0">
-        <div class="ob-hero-ring">
-          <div class="ob-hero-orb"></div>
+        <div class="ob-hero-ring"><div class="ob-hero-orb"></div></div>
+        <h1 class="ob-slide-title ob-title-xl" style="font-size:2.8rem">Un placer conocerte</h1>
+        <p class="ob-slide-sub">Vamos a personalizar tu experiencia de aprendizaje.</p>
+        <div class="ob-form" style="width: 100%;">
+          <div class="ob-slide-label" style="margin-bottom:12px">Tu nombre</div>
+          <input class="ob-input" id="ob-nameInp" type="text" placeholder="Ej: Álex..." onkeydown="if(event.key==='Enter')obSaveNameAndNext()"/>
+          <div class="ob-slide-label" style="margin-top:4px;margin-bottom:12px">Idioma de la IA</div>
+          <div class="ob-option-stack">
+            <button class="ob-opt-row active"><span class="ob-opt-label">Español</span></button>
+          </div>
         </div>
-        <h1 class="ob-slide-title ob-title-xl">Hola, <span id="ob-welcome-name">Estudiante</span></h1>
-        <p class="ob-slide-sub">Estudia menos. Recuerda más.<br>Con el método que usan los mejores.</p>
-        <button class="ob-btn-primary ob-btn-full" onclick="obNext()">Empezar</button>
+        <div class="ob-nav ob-nav-single" style="margin-top:20px;">
+          <button class="ob-btn-primary ob-btn-full" onclick="obSaveNameAndNext()">Continuar</button>
+        </div>
       </div>
 
-      <!-- ── PASO 1: Cómo funciona ──────────────────────────── -->
+      <!-- ── PASO 1: Edad ──────────────────────────────────── -->
       <div class="ob-slide" id="ob-step-1">
-        <div class="ob-slide-label">Así funciona</div>
-        <h1 class="ob-slide-title">Active Recall,<br>el método que funciona</h1>
-        <div class="ob-feature-list">
-          <div class="ob-feature-item">
-            <div class="ob-feature-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            </div>
-            <div class="ob-feature-text">
-              <span class="ob-feature-title">Sube tus apuntes</span>
-              <span class="ob-feature-sub">La IA genera preguntas y conceptos clave automáticamente</span>
-            </div>
-          </div>
-          <div class="ob-feature-item">
-            <div class="ob-feature-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
-            </div>
-            <div class="ob-feature-text">
-              <span class="ob-feature-title">Practica con voz o test</span>
-              <span class="ob-feature-sub">Responde en voz alta como en un examen real, o elige test escrito</span>
-            </div>
-          </div>
-          <div class="ob-feature-item">
-            <div class="ob-feature-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-            </div>
-            <div class="ob-feature-text">
-              <span class="ob-feature-title">La IA evalúa tu respuesta</span>
-              <span class="ob-feature-sub">No solo correcto/incorrecto — entiende si lo sabes de verdad</span>
-            </div>
-          </div>
-          <div class="ob-feature-item">
-            <div class="ob-feature-icon">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
-            </div>
-            <div class="ob-feature-text">
-              <span class="ob-feature-title">Ve tu progreso real</span>
-              <span class="ob-feature-sub">Racha, rendimiento por sesión y qué temas necesitas repasar</span>
-            </div>
-          </div>
-        </div>
-        <div class="ob-nav ob-nav-single">
-          <button class="ob-btn-primary" onclick="obNext()">Entendido, vamos</button>
-        </div>
-      </div>
-
-      <!-- ── PASO 2: Nivel ──────────────────────────────────── -->
-      <div class="ob-slide" id="ob-step-2">
-        <div class="ob-slide-label">Cuéntanos sobre ti · 1/3</div>
-        <h1 class="ob-slide-title">¿Dónde estudias ahora?</h1>
-        <p class="ob-slide-sub">Lo usaremos para adaptar el nivel de las preguntas.</p>
-        <div class="ob-option-stack" id="ob-nivel-opts">
-          <button class="ob-opt-row active" onclick="obSelect('nivel','bachillerato',this)">
-            <span class="ob-opt-label">Bachillerato o instituto</span>
-          </button>
-          <button class="ob-opt-row" onclick="obSelect('nivel','universidad',this)">
-            <span class="ob-opt-label">Universidad o carrera</span>
-          </button>
-          <button class="ob-opt-row" onclick="obSelect('nivel','oposiciones',this)">
-            <span class="ob-opt-label">Oposiciones</span>
-          </button>
-          <button class="ob-opt-row" onclick="obSelect('nivel','libre',this)">
-            <span class="ob-opt-label">Aprendizaje por mi cuenta</span>
-          </button>
+        <div class="ob-slide-label">Perfil · 1/4</div>
+        <h1 class="ob-slide-title">¿Qué edad tienes?</h1>
+        <p class="ob-slide-sub">La IA adaptará su forma de hablar y nivel de exigencia a ti.</p>
+        <div class="ob-form" style="width:100%;">
+          <input class="ob-input" type="number" id="ob-ageInp" placeholder="Ej: 19" onkeydown="if(event.key==='Enter')obNext()"/>
         </div>
         <div class="ob-nav">
           <button class="ob-btn-ghost" onclick="obBack()">Atrás</button>
@@ -180,24 +123,36 @@
         </div>
       </div>
 
-      <!-- ── PASO 3: Tiempo disponible ─────────────────────── -->
+      <!-- ── PASO 2: Estudios ──────────────────────────────────── -->
+      <div class="ob-slide" id="ob-step-2">
+        <div class="ob-slide-label">Perfil · 2/4</div>
+        <h1 class="ob-slide-title">¿Qué estás estudiando?</h1>
+        <p class="ob-slide-sub">Configura el nivel de profundidad de tus conceptos.</p>
+        <div class="ob-option-stack" id="ob-nivel-opts">
+          <button class="ob-opt-row" onclick="obSelect('nivel','eso',this)"><span class="ob-opt-label">ESO</span></button>
+          <button class="ob-opt-row active" onclick="obSelect('nivel','bachillerato',this)"><span class="ob-opt-label">Bachillerato o Instituto</span></button>
+          <button class="ob-opt-row" onclick="obSelect('nivel','universidad',this)"><span class="ob-opt-label">Universidad / Grado</span></button>
+          <button class="ob-opt-row" onclick="obSelect('nivel','master',this)"><span class="ob-opt-label">Máster / Posgrado</span></button>
+          <button class="ob-opt-row" onclick="obSelect('nivel','oposiciones',this)"><span class="ob-opt-label">Oposiciones</span></button>
+          <button class="ob-opt-row" onclick="obSelect('nivel','libre',this)"><span class="ob-opt-label">Aprendizaje Libre</span></button>
+        </div>
+        <div class="ob-nav">
+          <button class="ob-btn-ghost" onclick="obBack()">Atrás</button>
+          <button class="ob-btn-primary" onclick="obNext()">Continuar</button>
+        </div>
+      </div>
+
+      <!-- ── PASO 3: Adquisición ──────────────────────────────────── -->
       <div class="ob-slide" id="ob-step-3">
-        <div class="ob-slide-label">Cuéntanos sobre ti · 2/3</div>
-        <h1 class="ob-slide-title">¿Cuánto tiempo tienes al día?</h1>
-        <p class="ob-slide-sub">Adaptamos la duración de cada sesión a tu ritmo.</p>
-        <div class="ob-option-stack" id="ob-tiempo-opts">
-          <button class="ob-opt-row" onclick="obSelect('tiempo','5',this)">
-            <div class="ob-opt-label">5 – 10 minutos</div>
-            <div class="ob-opt-hint">Sesiones ultra cortas, pero efectivas</div>
-          </button>
-          <button class="ob-opt-row active" onclick="obSelect('tiempo','15',this)">
-            <div class="ob-opt-label">15 – 20 minutos</div>
-            <div class="ob-opt-hint">El punto óptimo para la mayoría</div>
-          </button>
-          <button class="ob-opt-row" onclick="obSelect('tiempo','30',this)">
-            <div class="ob-opt-label">30 minutos o más</div>
-            <div class="ob-opt-hint">Para momentos de estudio intensivo</div>
-          </button>
+        <div class="ob-slide-label">Perfil · 3/4</div>
+        <h1 class="ob-slide-title">¿Cómo nos conociste?</h1>
+        <p class="ob-slide-sub">Nos ayuda a mejorar y saber dónde enfocarnos.</p>
+        <div class="ob-option-stack" id="ob-source-opts">
+          <button class="ob-opt-row" onclick="obSelect('source','tiktok',this)"><span class="ob-opt-label">TikTok</span></button>
+          <button class="ob-opt-row" onclick="obSelect('source','instagram',this)"><span class="ob-opt-label">Instagram</span></button>
+          <button class="ob-opt-row" onclick="obSelect('source','amigo',this)"><span class="ob-opt-label">Un amigo o compañero</span></button>
+          <button class="ob-opt-row" onclick="obSelect('source','busqueda',this)"><span class="ob-opt-label">Buscador (Google, etc.)</span></button>
+          <button class="ob-opt-row" onclick="obSelect('source','otro',this)"><span class="ob-opt-label">Otro</span></button>
         </div>
         <div class="ob-nav">
           <button class="ob-btn-ghost" onclick="obBack()">Atrás</button>
@@ -207,22 +162,20 @@
 
       <!-- ── PASO 4: Analogías ──────────────────────────────── -->
       <div class="ob-slide" id="ob-step-4">
-        <div class="ob-slide-label">Cuéntanos sobre ti · 3/3</div>
-        <h1 class="ob-slide-title">¿Qué te gusta fuera de estudiar?</h1>
-        <p class="ob-slide-sub">La IA explica conceptos difíciles con ejemplos de lo que te apasiona. Mucho más fácil de recordar.</p>
+        <div class="ob-slide-label">Perfil · 4/4</div>
+        <h1 class="ob-slide-title">¿Qué te apasiona?</h1>
+        <p class="ob-slide-sub">La IA usará lo que te gusta para explicarte conceptos hiper-complejos como si fueran tu hobby.</p>
         <div class="ob-analogy-grid" id="ob-analogy-grid">
           <button class="ob-analogy-chip active" onclick="obSelectAnalogy('deportes',this)">Deportes</button>
           <button class="ob-analogy-chip" onclick="obSelectAnalogy('videojuegos',this)">Videojuegos</button>
           <button class="ob-analogy-chip" onclick="obSelectAnalogy('música',this)">Música</button>
-          <button class="ob-analogy-chip" onclick="obSelectAnalogy('series',this)">Series y cine</button>
+          <button class="ob-analogy-chip" onclick="obSelectAnalogy('series',this)">Series y Cine</button>
           <button class="ob-analogy-chip" onclick="obSelectAnalogy('tecnología',this)">Tecnología</button>
           <button class="ob-analogy-chip" onclick="obSelectAnalogy('cocina',this)">Cocina</button>
-          <button class="ob-analogy-chip" onclick="obSelectAnalogy('naturaleza',this)">Naturaleza</button>
-          <button class="ob-analogy-chip" onclick="obSelectAnalogy('negocios',this)">Negocios</button>
         </div>
         <div class="ob-analogy-other">
           <input class="ob-input ob-input-sm" id="ob-analogy-other" type="text"
-            placeholder="Otro: viajes, arte, animales..."
+            placeholder="Escribe otro (ej: Coches, Diseño...)"
             oninput="if(this.value.trim()) { obSelectAnalogy(this.value.trim(), null); document.querySelectorAll('.ob-analogy-chip').forEach(c=>c.classList.remove('active')); }"/>
         </div>
         <div class="ob-nav">
@@ -231,72 +184,107 @@
         </div>
       </div>
 
-      <!-- ── PASO 5: Tu plan generado ───────────────────────── -->
-      <div class="ob-slide ob-slide-center" id="ob-step-5">
-        <div class="ob-slide-label">Tu punto de partida</div>
-        <h1 class="ob-slide-title">Tu plan está listo</h1>
-        <div class="ob-plan-card" id="ob-plan-card">
-          <div class="ob-plan-row">
-            <span class="ob-plan-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            </span>
-            <span class="ob-plan-text"><strong id="ob-plan-duration">15 min</strong> por sesión</span>
-          </div>
-          <div class="ob-plan-row">
-            <span class="ob-plan-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
-            </span>
-            <span class="ob-plan-text">Nivel <strong id="ob-plan-nivel">universidad</strong></span>
-          </div>
-          <div class="ob-plan-row">
-            <span class="ob-plan-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-            </span>
-            <span class="ob-plan-text">Analogías de <strong id="ob-plan-mundo">deportes</strong></span>
-          </div>
-          <div class="ob-plan-divider"></div>
-          <div class="ob-plan-note">Ajústalo cuando quieras desde ajustes.</div>
-        </div>
-        <div class="ob-nav ob-nav-single">
-          <button class="ob-btn-primary" onclick="obNext()">Crear mi primera asignatura</button>
-        </div>
-      </div>
-
-      <!-- ── PASO 6: Primera asignatura ────────────────────── -->
-      <div class="ob-slide" id="ob-step-6">
-        <div class="ob-slide-label">Casi listo</div>
-        <h1 class="ob-slide-title">¿Qué vas a estudiar?</h1>
-        <p class="ob-slide-sub">Crea tu primera asignatura. Después puedes añadir todas las que quieras.</p>
-        <div class="ob-form">
+      <!-- ── PASO 5: Primera asignatura ────────────────────── -->
+      <div class="ob-slide" id="ob-step-5">
+        <div class="ob-slide-label">Aprender · 1/2</div>
+        <h1 class="ob-slide-title">Primera Asignatura</h1>
+        <p class="ob-slide-sub">Crea la materia en la que quieres enfocarte ahora mismo.</p>
+        <div class="ob-form" style="width:100%;">
           <input class="ob-input" id="ob-subj-name" type="text"
-            placeholder="Anatomía, Historia, Inglés..." maxlength="40"
+            placeholder="Ej: Historia Medieval, Cálculo II..." maxlength="40"
             onkeydown="if(event.key==='Enter')obCreateSubject()"/>
-          <div class="ob-color-label">Color</div>
+          <div class="ob-color-label">Color del tema</div>
           <div class="ob-color-row" id="ob-color-picker"></div>
         </div>
         <div class="ob-nav">
           <button class="ob-btn-ghost" onclick="obBack()">Atrás</button>
-          <button class="ob-btn-primary" id="ob-step6-next" onclick="obCreateSubject()">Continuar</button>
+          <button class="ob-btn-primary" id="ob-step6-next" onclick="obCreateSubject()">Materia creada →</button>
         </div>
       </div>
 
-      <!-- ── PASO 7: Subir apunte ───────────────────────────── -->
-      <div class="ob-slide" id="ob-step-7">
-        <div class="ob-slide-label">El último paso</div>
-        <h1 class="ob-slide-title">Sube tu primer apunte</h1>
-        <p class="ob-slide-sub">Sube un PDF y la IA genera preguntas en minutos. Puedes hacerlo ahora o más tarde.</p>
-        <div class="ob-upload-zone" id="ob-upload-zone" onclick="$('ob-file-inp').click()">
+      <!-- ── PASO 6: Subir apunte ───────────────────────────── -->
+      <div class="ob-slide" id="ob-step-6">
+        <div class="ob-slide-label">Aprender · 2/2</div>
+        <h1 class="ob-slide-title">Sube tus apuntes</h1>
+        <p class="ob-slide-sub">Añade PDFs. La IA destilará de ahí tus flashcards.</p>
+        
+        <div class="ob-upload-zone" id="ob-upload-zone" onclick="document.getElementById('ob-file-inp').click()">
           <div class="ob-upload-icon">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="12" x2="12" y2="18"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
           </div>
-          <span id="ob-upload-label">Toca para seleccionar un PDF</span>
+          <span id="ob-upload-label">Toca para seleccionar PDFs</span>
         </div>
-        <input type="file" id="ob-file-inp" accept=".pdf" style="display:none" onchange="obFileSelected(event)"/>
+        
+        <div id="ob-upload-status" style="display:none; background:var(--s2); border:1px solid var(--border); padding:16px; border-radius:16px; margin-bottom:20px; width:100%;">
+          <div style="font-size:0.85rem; color:var(--green); font-weight:600; margin-bottom:6px; display:flex; align-items:center; gap:6px;">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="spin-anim"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
+            Procesando PDFs seleccionados...
+          </div>
+          <div id="ob-upload-filename" style="font-size:0.9rem; color:#fff; word-break: break-all;"></div>
+          <button class="ob-btn-ghost" style="margin-top:16px; width:100%; padding:10px; font-size:0.8rem;" onclick="document.getElementById('ob-file-inp').click()">+ Añadir otro documento</button>
+        </div>
+
+        <input type="file" id="ob-file-inp" accept=".pdf" style="display:none" multiple onchange="onboardingFileLoad(event)"/>
+        
         <div class="ob-nav">
-          <button class="ob-btn-ghost" onclick="obFinish()">Ahora no</button>
-          <button class="ob-btn-primary" id="ob-step7-upload" onclick="obFinish()" style="opacity:.4;pointer-events:none">Terminar</button>
+          <button class="ob-btn-ghost" onclick="obNext()">Saltar paso</button>
+          <button class="ob-btn-primary" id="ob-step6-upload" onclick="obNext()">Procesar →</button>
         </div>
       </div>
+
+      <!-- ── PASO 7: Cómo funciona (Tutorial) ──────────────────────────── -->
+      <div class="ob-slide" id="ob-step-7">
+        <div class="ob-slide-label">Mientras se genera...</div>
+        <h1 class="ob-slide-title">¿Cómo dominar tu carrera?</h1>
+        <div class="ob-feature-list">
+          <div class="ob-feature-item" style="padding:4px 0">
+            <div class="ob-feature-icon" style="background:var(--amber); color:white; border:none; width:28px; height:28px; font-weight:bold; font-size:12px; display:grid; place-items:center;">1</div>
+            <div class="ob-feature-text">
+              <span class="ob-feature-title">Elige temas a estudiar</span>
+              <span class="ob-feature-sub">Selecciona los conceptos que necesitas preparar.</span>
+            </div>
+          </div>
+          <div class="ob-feature-item" style="padding:4px 0">
+            <div class="ob-feature-icon" style="background:var(--amber); color:white; border:none; width:28px; height:28px; font-weight:bold; font-size:12px; display:grid; place-items:center;">2</div>
+            <div class="ob-feature-text">
+              <span class="ob-feature-title">Sesiones Flash y Orales</span>
+              <span class="ob-feature-sub">Ponte a prueba por voz real o test para repetir rápido.</span>
+            </div>
+          </div>
+          <div class="ob-feature-item" style="padding:4px 0">
+            <div class="ob-feature-icon" style="background:var(--amber); color:white; border:none; width:28px; height:28px; font-weight:bold; font-size:12px; display:grid; place-items:center;">3</div>
+            <div class="ob-feature-text">
+              <span class="ob-feature-title">Mejora y Progreso</span>
+              <span class="ob-feature-sub">La IA sabe dónde fallas y te hará repasar eso hasta que lo domines.</span>
+            </div>
+          </div>
+        </div>
+        <div class="ob-nav ob-nav-single" style="margin-top:30px">
+          <button class="ob-btn-primary" onclick="obFinish()">¡Ir a la App!</button>
+        </div>
+      </div>
+      
+      <style>
+        .spin-anim { animation: spin 1s linear infinite; }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+      </style>
+      <script>
+        function obSaveNameAndNext() {
+          const name = document.getElementById('ob-nameInp').value.trim() || 'Estudiante';
+          const nameEls = document.querySelectorAll('#ob-welcome-name, #greet-name, #ajustes-name');
+          nameEls.forEach(el => { if(el) el.innerText = name; });
+          window.obNext ? obNext() : console.log('obNext not found');
+        }
+        function onboardingFileLoad(event) {
+          const files = event.target.files;
+          if(files && files.length > 0) {
+            document.getElementById('ob-upload-zone').style.display = 'none';
+            document.getElementById('ob-upload-status').style.display = 'block';
+            let names = Array.from(files).map(f => f.name).join(', ');
+            document.getElementById('ob-upload-filename').innerText = names;
+          }
+        }
+      </script>
 
     </div><!-- /ob-slides -->
   </div>
