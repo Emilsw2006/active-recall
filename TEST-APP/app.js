@@ -791,6 +791,8 @@ async function _handleOAuthCallback() {
       method: 'POST',
       body: JSON.stringify({ access_token: accessToken })
     });
+    // For new users, always clear stale onboarding flag before saveSession writes it
+    if (!d.onboarding_completed) localStorage.removeItem('ar_ob_done');
     saveSession(d);
     if (!d.onboarding_completed) {
       // New user: hide auth, go straight to onboarding (enterApp called by obFinish)
@@ -1050,6 +1052,8 @@ async function doRegister() {
   if (!email || !pass) return showAuthErr('Rellena email y contraseña');
   const btn = $('btn-register');
   btn.disabled=true; btn.textContent=T('auth_btn_register_loading');
+  // Clear any stale onboarding flag from a previous session
+  localStorage.removeItem('ar_ob_done');
   try {
     const d = await api('/auth/register', { method:'POST', body: JSON.stringify({nombre,email,password:pass,mundo_analogias:null}) });
     saveSession(d);

@@ -83,17 +83,36 @@ async def register(body: RegisterRequest):
 async def delete_account(usuario_id: str):
     """Elimina la cuenta del usuario y todos sus datos."""
     db = get_service_client()
+    errors = []
     try:
-        # Eliminar datos del usuario (cascade por FK en Supabase, o manual)
-        db.table("sesiones").delete().eq("usuario_id", usuario_id).execute()
-        db.table("asignaturas").delete().eq("usuario_id", usuario_id).execute()
-        db.table("usuarios").delete().eq("id", usuario_id).execute()
-        # Eliminar usuario de Supabase Auth
+        # Delete in dependency order (children before parents)
+        try: db.table("flashcards").delete().eq("usuario_id", usuario_id).execute()
+        except Exception as e: errors.append(f"flashcards: {e}")
+        try: db.table("sesiones").delete().eq("usuario_id", usuario_id).execute()
+        except Exception as e: errors.append(f"sesiones: {e}")
+        # Delete atomos via documentos
+        try:
+            docs = db.table("documentos").select("id").eq("usuario_id", usuario_id).execute()
+            if docs.data:
+                doc_ids = [d["id"] for d in docs.data]
+                for doc_id in doc_ids:
+                    db.table("atomos").delete().eq("documento_id", doc_id).execute()
+        except Exception as e: errors.append(f"atomos: {e}")
+        try: db.table("documentos").delete().eq("usuario_id", usuario_id).execute()
+        except Exception as e: errors.append(f"documentos: {e}")
+        try: db.table("asignaturas").delete().eq("usuario_id", usuario_id).execute()
+        except Exception as e: errors.append(f"asignaturas: {e}")
+        try: db.table("usuarios").delete().eq("id", usuario_id).execute()
+        except Exception as e: errors.append(f"usuarios: {e}")
+        # Eliminar usuario de Supabase Auth (always attempt even if DB cleanup had issues)
         db.auth.admin.delete_user(usuario_id)
-        logger.info(f"Cuenta eliminada: {usuario_id}")
+        if errors:
+            logger.warning(f"Cuenta eliminada con errores parciales {usuario_id}: {errors}")
+        else:
+            logger.info(f"Cuenta eliminada: {usuario_id}")
         return {"ok": True}
     except Exception as e:
-        logger.error(f"Error eliminando cuenta {usuario_id}: {e}")
+        logger.error(f"Error eliminando cuenta {usuario_id}: {e} | errores previos: {errors}")
         raise HTTPException(status_code=500, detail="Error al eliminar la cuenta")
 
 
