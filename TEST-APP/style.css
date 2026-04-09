@@ -1,28 +1,28 @@
 :root {
-  --bg-gradient: #0f1117;
-  --bg:          #0f1117;
-  --glass:       rgba(255,255,255,0.08);
-  --glass-border:rgba(255,255,255,0.15);
-  --glass-hover: rgba(255,255,255,0.12);
+  --bg-gradient: linear-gradient(180deg, #4a70c4 0%, #7ba7e5 100%);
+  --bg:          #4a70c4;
+  --glass:       rgba(255,255,255,0.15);
+  --glass-border:rgba(255,255,255,0.25);
+  --glass-hover: rgba(255,255,255,0.22);
   --txt:         #FFFFFF;
   --txt2:        rgba(255,255,255,0.70);
   --txt3:        rgba(255,255,255,0.45);
-  --s1:          rgba(255,255,255,0.05);
-  --s2:          rgba(255,255,255,0.10);
-  --s3:          rgba(255,255,255,0.20);
-  --border:      rgba(255,255,255,0.12);
-  --border2:     rgba(255,255,255,0.20);
-  --amber:       #5b8dee; /* Blue/amber accent */
+  --s1:          rgba(255,255,255,0.12);
+  --s2:          rgba(255,255,255,0.18);
+  --s3:          rgba(255,255,255,0.35);
+  --border:      rgba(255,255,255,0.20);
+  --border2:     rgba(255,255,255,0.30);
+  --amber:       #5b8dee;
   --amber2:      #3a6fd8;
   --green:       #34D399;
   --red:         #F87171;
   --yellow:      #FBBF24;
   --r:           16px;
   --r2:          12px;
-  /* updated orbs to match the blue/amber vibe */
-  --orb-bg:      rgba(91,141,238,0.25);
-  --orb-bg2:     rgba(91,141,238,0.10);
-  --header-bg:   rgba(15,17,23,0.8);
+  /* Soft vibrant orb */
+  --orb-bg:      rgba(255,255,255,0.25);
+  --orb-bg2:     rgba(255,255,255,0.06);
+  --header-bg:   rgba(255,255,255,0.15);
 }
 
 /* dark mode removed — single blue gradient theme */
@@ -437,14 +437,14 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   display: flex; gap: 12px; width: 100%; margin-top: auto; padding-top: 24px;
 }
 .ob-btn-primary {
-  flex: 1; padding: 16px; border: none; border-radius: 16px;
-  background: rgba(255,255,255,0.95); color: #1e3a6e;
-  font-family: 'Inter', sans-serif; font-size: .95rem; font-weight: 700;
+  flex: 1; padding: 16px; border: none; border-radius: 99px;
+  background: #fff; color: var(--amber2);
+  font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 700;
   cursor: pointer; letter-spacing: .01em;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.16);
+  box-shadow: 0 6px 16px rgba(0,0,0,0.10);
   transition: all .2s var(--ease-out);
 }
-.ob-btn-primary:hover  { background: #fff; transform: translateY(-2px); }
+.ob-btn-primary:hover  { background: rgba(255,255,255,0.9); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(0,0,0,0.15); }
 .ob-btn-primary:active { transform: scale(0.97); }
 .ob-btn-primary:disabled { opacity: .4; cursor: not-allowed; transform: none; }
 .ob-btn-ghost {
@@ -455,44 +455,49 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 }
 .ob-btn-ghost:hover { background: rgba(255,255,255,0.10); color: #fff; }
 
-/* Option cards (step 1) */
-.ob-option-grid {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
-  width: 100%; margin-bottom: 16px;
+/* Option stacks (step 1, step 3) */
+.ob-option-stack {
+  display: flex; flex-direction: column; gap: 10px; width: 100%; margin-bottom: 20px;
 }
-.ob-option-card {
-  display: flex; flex-direction: column; gap: 5px; text-align: left;
-  padding: 18px 16px; border-radius: 18px;
-  background: rgba(255,255,255,0.10);
-  border: 1.5px solid rgba(255,255,255,0.18);
-  cursor: pointer; transition: all .2s var(--ease-out);
+.ob-opt-row {
+  display: flex; flex-direction: column; gap: 4px; text-align: center;
+  padding: 16px 20px; border-radius: 99px; /* Pill shape */
+  background: rgba(255,255,255,0.12); border: none; /* No relief */
+  color: #fff; cursor: pointer; transition: all .2s;
+  font-family: 'Inter', sans-serif;
 }
-.ob-option-card:hover { background: rgba(255,255,255,0.16); transform: translateY(-2px); }
-.ob-option-card.active {
-  background: rgba(255,255,255,0.22);
-  border-color: rgba(255,255,255,0.55);
-  box-shadow: 0 6px 20px rgba(255,255,255,0.10);
+.ob-opt-row:hover { background: rgba(255,255,255,0.20); transform: scale(1.02); }
+.ob-opt-row.active { background: #fff; color: var(--amber2); font-weight: 700; box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+.ob-opt-label { font-size: 1.05rem; }
+.ob-opt-hint { font-size: .8rem; color: rgba(255,255,255,0.6); }
+
+/* Analogy grid (step 4) */
+.ob-analogy-grid {
+  display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
 }
-.ob-option-title {
-  display: block; font-size: .92rem; font-weight: 600; color: #fff;
+.ob-analogy-chip {
+  padding: 12px 20px; border-radius: 99px; border: none;
+  background: rgba(255,255,255,0.12); color: #fff;
+  font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 500;
+  cursor: pointer; transition: all .2s;
 }
-.ob-option-sub {
-  display: block; font-size: .78rem; color: rgba(255,255,255,0.52);
-}
+.ob-analogy-chip:hover { background: rgba(255,255,255,0.20); transform: scale(1.05); }
+.ob-analogy-chip.active { background: #fff; color: var(--amber2); font-weight: 700; box-shadow: 0 6px 16px rgba(0,0,0,0.1); }
+.ob-analogy-other { width: 100%; }
 
 /* Input & color picker (step 2) */
 .ob-form { width: 100%; margin-bottom: 16px; }
 .ob-input {
-  width: 100%; padding: 16px 18px; border-radius: 16px;
-  background: rgba(255,255,255,0.12);
-  border: 1.5px solid rgba(255,255,255,0.24); color: #fff;
-  font-family: 'Inter', sans-serif; font-size: 1rem;
-  outline: none; margin-bottom: 20px;
-  transition: border-color .18s, background .18s;
-  backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px);
+  width: 100%; padding: 12px 14px; border-radius: 0;
+  background: transparent;
+  border-bottom: 2px solid rgba(255,255,255,0.3); color: #fff;
+  border-top: none; border-left: none; border-right: none;
+  font-family: 'Inter', sans-serif; font-size: 1.05rem;
+  outline: none; margin-bottom: 20px; text-align: center;
+  transition: all .2s;
 }
-.ob-input::placeholder { color: rgba(255,255,255,0.35); }
-.ob-input:focus { border-color: rgba(255,255,255,0.55); background: rgba(255,255,255,0.18); }
+.ob-input::placeholder { color: rgba(255,255,255,0.5); font-weight: 400; }
+.ob-input:focus { border-bottom-color: #fff; line-height: 1.1; }
 .ob-color-row { display: flex; gap: 10px; flex-wrap: wrap; }
 .ob-color-dot {
   width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
