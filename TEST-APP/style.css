@@ -309,15 +309,15 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 
 /* ─ Auth Glow Orb ─ */
 .auth-glow-orb {
-  position: absolute; top: 40%; left: 50%; transform: translate(-50%, -50%);
-  width: 40vw; height: 40vw; min-width: 300px; min-height: 300px;
-  background: radial-gradient(circle, var(--amber) 0%, rgba(91,141,238,0.3) 40%, transparent 75%);
-  filter: blur(60px); opacity: 0.55; z-index: 0; pointer-events: none;
+  position: absolute; top: -10%; left: 50%; transform: translateX(-50%);
+  width: 90vw; height: 90vw; min-width: 500px; min-height: 500px;
+  background: radial-gradient(circle, rgba(255,255,255,0.4) 0%, rgba(123,167,229,0.25) 40%, transparent 70%);
+  filter: blur(80px); opacity: 0.8; z-index: 0; pointer-events: none;
   animation: authGlowBreathe 8s ease-in-out infinite alternate;
 }
 @keyframes authGlowBreathe {
-  0% { transform: translate(-50%, -50%) scale(0.9); opacity: 0.4; }
-  100% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.6; }
+  0% { transform: translateX(-50%) scale(0.95); opacity: 0.6; }
+  100% { transform: translateX(-50%) scale(1.05); opacity: 0.9; }
 }
 
 /* ─ Auth Brand ─ */
@@ -1431,26 +1431,30 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .duelo-counter { font-size: .75rem; color: rgba(255,255,255,0.45); letter-spacing: .12em; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
 .duelo-question {
-  width: 100%; font-size: 1.4rem; font-weight: 600; line-height: 1.45; text-align: center; color: var(--txt);
-  flex-shrink: 0; padding: 20px 12px 12px; min-height: 60px; max-height: 25vh;
-  overflow-y: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch;
+  width: 100%; font-size: 1.85rem; font-weight: 700; line-height: 1.35; text-align: center; color: var(--txt);
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  padding: 10px 24px; min-height: 25vh;
   transition: all .25s; font-family: 'Inter', sans-serif; letter-spacing: -0.02em;
 }
 .duelo-question::-webkit-scrollbar { display: none; }
 .duelo-blob-wrap {
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  position: relative; min-height: 140px; max-height: 38vmin;
+  margin: 0 auto; width: 200px; height: 200px; border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, rgba(255,255,255,0.7) 0%, #7ba7e5 25%, #4a70c4 60%, #1e3a6e 100%);
+  box-shadow: 0 24px 40px rgba(0,0,0,0.15), inset -10px -15px 24px rgba(0,0,0,0.2), inset 10px 15px 30px rgba(255,255,255,0.6);
+  display: flex; align-items: center; justify-content: center;
+  position: relative; z-index: 10; flex-shrink: 0; margin-bottom: 5vh;
 }
+.duelo-blob-wrap > svg { width: 44px; height: 44px; color: #fff; z-index: 15; filter: drop-shadow(0 2px 8px rgba(0,0,0,0.15)); }
 .duelo-blob-glow {
   position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-  width: 440px; height: 440px; pointer-events: none;
-  background: radial-gradient(circle, rgba(255,255,255,0.18) 0%, rgba(255,255,255,0.05) 50%, transparent 75%);
-  filter: blur(60px); border-radius: 50%;
-  animation: glow-pulse 6s ease-in-out infinite;
+  width: 300px; height: 300px; pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,0.1) 0%, transparent 60%);
+  filter: blur(40px); border-radius: 50%;
+  animation: glow-pulse 6s ease-in-out infinite; z-index: 0;
 }
 @keyframes glow-pulse {
-  0%,100% { opacity: 0.6; transform: translate(-50%,-50%) scale(1); }
-  50%     { opacity: 0.9; transform: translate(-50%,-50%) scale(1.05); }
+  0%,100% { opacity: 0.5; transform: translate(-50%,-50%) scale(1); }
+  50%     { opacity: 0.8; transform: translate(-50%,-50%) scale(1.1); }
 }
 .duelo-transcript {
   font-size: .95rem; color: #fff; text-align: left; min-height: 24px; flex-shrink: 0;
@@ -2132,7 +2136,7 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   font-size: 0;
 }
 .test-option.a-reveal .test-option-check,
-.test-option.a-neutral .test-option-check { /* keep letter, dim it */ }
+.test-option.a-neutral .test-option-check { opacity: 0.7; /* keep letter, dim it */ }
 .test-option.selected .test-option-check {
   background: var(--accent); border-color: var(--accent);
 }
