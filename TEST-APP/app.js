@@ -19,9 +19,13 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
   });
-  // When a new SW takes control, reload to get fresh JS
+  // Reload when new SW activates (gets fresh JS)
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     window.location.reload();
+  });
+  // Also reload on explicit message from new SW
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data && e.data.type === 'sw-updated') window.location.reload();
   });
 }
 

@@ -1,14 +1,16 @@
-const CACHE_NAME = 'active-recall-v17';
+const CACHE_NAME = 'active-recall-v18';
 
-// Install — skip precaching to avoid path issues, cache on demand
+// Install — activate immediately
 self.addEventListener('install', () => self.skipWaiting());
 
-// Activate — clean old caches
+// Activate — clear old caches, claim clients, tell them to reload
 self.addEventListener('activate', e => {
   e.waitUntil(
-    caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k)))
-    ).then(() => self.clients.claim())
+    caches.keys()
+      .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
+      .then(() => self.clients.claim())
+      .then(() => self.clients.matchAll({ type: 'window' }))
+      .then(clients => clients.forEach(client => client.postMessage({ type: 'sw-updated' })))
   );
 });
 
@@ -16,11 +18,13 @@ self.addEventListener('activate', e => {
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
 
-  // Skip non-GET, WebSocket, and API requests
   if (e.request.method !== 'GET') return;
   if (url.protocol === 'ws:' || url.protocol === 'wss:') return;
+  // Skip API calls
+  if (url.pathname.startsWith('/auth') || url.pathname.startsWith('/asignaturas') ||
+      url.pathname.startsWith('/documentos') || url.pathname.startsWith('/atomos') ||
+      url.pathname.startsWith('/sesiones') || url.pathname.startsWith('/flashcards')) return;
 
-  // Only cache static assets (css, js, images, fonts)
   const isStatic = /\.(css|js|png|svg|ico|woff2?|ttf|json)$/.test(url.pathname)
     || url.pathname.endsWith('/app') || url.pathname === '/';
 
