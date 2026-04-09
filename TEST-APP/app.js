@@ -770,8 +770,13 @@ async function _handleOAuthCallback() {
       body: JSON.stringify({ access_token: accessToken })
     });
     saveSession(d);
-    enterApp();
-    if (!d.onboarding_completed) setTimeout(() => openOnboarding(d.nombre), 400);
+    if (!d.onboarding_completed) {
+      // New user: hide auth, go straight to onboarding (enterApp called by obFinish)
+      $('screen-auth').classList.remove('active');
+      openOnboarding(d.nombre);
+    } else {
+      enterApp();
+    }
     return true;
   } catch(e) {
     showAuthErr('Error al iniciar sesión con Google. Inténtalo de nuevo.');
@@ -1004,8 +1009,12 @@ async function doLogin() {
   try {
     const d = await api('/auth/login', { method:'POST', body: JSON.stringify({email, password:pass}) });
     saveSession(d);
-    enterApp();
-    if (!d.onboarding_completed) setTimeout(() => openOnboarding(d.nombre), 400);
+    if (!d.onboarding_completed) {
+      $('screen-auth').classList.remove('active');
+      openOnboarding(d.nombre);
+    } else {
+      enterApp();
+    }
   } catch(e) { showAuthErr(e.message); }
   finally { btn.disabled=false; btn.textContent=T('auth_btn_login'); }
 }
