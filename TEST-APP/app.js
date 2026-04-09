@@ -19,6 +19,10 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
   });
+  // When a new SW takes control, reload to get fresh JS
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload();
+  });
 }
 
 // ─ PWA Install Prompt ─
@@ -852,6 +856,12 @@ let _obMundo  = 'deportes';
 const _OB_TOTAL = 7; // steps 0-7, progress shown from step 1
 
 function openOnboarding(name) {
+  // Hide auth & app screens so onboarding is the only thing visible
+  const authEl = $('screen-auth');
+  if (authEl) authEl.classList.remove('active');
+  const appEl = $('screen-app');
+  if (appEl) appEl.classList.remove('active');
+
   const nameEl = $('ob-welcome-name');
   if (nameEl) nameEl.textContent = name || 'Estudiante';
   _obStep = 0;
@@ -863,6 +873,7 @@ function openOnboarding(name) {
   _buildObColorPicker();
   _obGoTo(0, false);
   const ob = $('screen-onboarding');
+  if (!ob) return;
   ob.style.display = 'flex';
   ob.style.opacity = '0';
   requestAnimationFrame(() => {
@@ -1046,22 +1057,30 @@ async function doLogin() {
 }
 
 async function doRegister() {
-  const email  = $('r-email').value.trim();
-  const pass   = $('r-pass').value;
+  const email  = ($('r-email') ? $('r-email').value.trim() : '');
+  const pass   = ($('r-pass') ? $('r-pass').value : '');
   const nombre = ($('r-name') ? $('r-name').value.trim() : '') || email.split('@')[0] || 'Estudiante';
-  if (!email || !pass) return showAuthErr('Rellena email y contraseña');
+  if (!email || !pass) { showAuthErr('Rellena email y contraseña'); return; }
   const btn = $('btn-register');
-  btn.disabled=true; btn.textContent=T('auth_btn_register_loading');
-  // Clear any stale onboarding flag from a previous session
+  if (btn) { btn.disabled=true; btn.textContent='Creando cuenta...'; }
+  // Clear stale onboarding flag before registering
   localStorage.removeItem('ar_ob_done');
   try {
     const d = await api('/auth/register', { method:'POST', body: JSON.stringify({nombre,email,password:pass,mundo_analogias:null}) });
     saveSession(d);
-    // Hide auth, show onboarding — enterApp() is called by obFinish()
+    // Hide auth, show onboarding
     $('screen-auth').classList.remove('active');
     openOnboarding(d.nombre || nombre);
-  } catch(e) { showAuthErr(e.message); }
-  finally { btn.disabled=false; btn.textContent=T('auth_btn_register'); }
+  } catch(e) {
+    const msg = e.message || '';
+    if (msg.toLowerCase().includes('registrado') || msg.toLowerCase().includes('exists') || msg.toLowerCase().includes('already')) {
+      showAuthErr('Este email ya tiene cuenta. Usa "Iniciar sesión" en vez de registrarte.');
+    } else {
+      showAuthErr(msg || 'Error al crear la cuenta');
+    }
+    toast(msg || 'Error al crear la cuenta', 'err');
+  }
+  finally { if (btn) { btn.disabled=false; btn.textContent='Crear cuenta'; } }
 }
 
 function saveSession(d) {
