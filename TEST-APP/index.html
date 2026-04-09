@@ -29,44 +29,49 @@
     <div class="auth-tagline" data-i18n="app_tagline">Estudio activo con IA</div>
   </div>
 
-  <!-- Tab switcher — pill style -->
-  <div class="auth-pill-tabs">
-    <button class="auth-pill-tab active" id="tab-login" onclick="switchTab('login')" data-i18n="auth_login_tab">Entrar</button>
-    <button class="auth-pill-tab" id="tab-register" onclick="switchTab('register')" data-i18n="auth_register_tab">Crear cuenta</button>
-    <div class="auth-pill-track" id="auth-pill-track"></div>
-  </div>
+  <!-- Glass card: tabs + form -->
+  <div class="auth-card">
 
-  <!-- Forms — float on gradient -->
-  <div class="auth-forms-wrap">
-    <div class="auth-err" id="auth-err"></div>
-
-    <div id="form-login" class="auth-form">
-      <div class="auth-fld">
-        <label data-i18n="auth_email">Email</label>
-        <input type="email" id="l-email" placeholder="tu@email.com" data-i18n-ph="auth_email_ph" onkeydown="if(event.key==='Enter')doLogin()"/>
-      </div>
-      <div class="auth-fld">
-        <label data-i18n="auth_password">Contraseña</label>
-        <input type="password" id="l-pass" placeholder="••••••••" data-i18n-ph="auth_password_ph" onkeydown="if(event.key==='Enter')doLogin()"/>
-      </div>
-      <button class="auth-cta" id="btn-login" onclick="doLogin()" data-i18n="auth_btn_login">Entrar</button>
+    <!-- Tab switcher — pill style -->
+    <div class="auth-pill-tabs">
+      <button class="auth-pill-tab active" id="tab-login" onclick="switchTab('login')" data-i18n="auth_login_tab">Entrar</button>
+      <button class="auth-pill-tab" id="tab-register" onclick="switchTab('register')" data-i18n="auth_register_tab">Crear cuenta</button>
+      <div class="auth-pill-track" id="auth-pill-track"></div>
     </div>
 
-    <div id="form-register" class="auth-form" style="display:none">
-      <div class="auth-fld">
-        <label data-i18n="auth_name">Nombre</label>
-        <input type="text" id="r-name" placeholder="Tu nombre" data-i18n-ph="auth_name_ph"/>
+    <!-- Forms -->
+    <div class="auth-forms-wrap">
+      <div class="auth-err" id="auth-err"></div>
+
+      <div id="form-login" class="auth-form">
+        <div class="auth-fld">
+          <label data-i18n="auth_email">Email</label>
+          <input type="email" id="l-email" placeholder="tu@email.com" data-i18n-ph="auth_email_ph" onkeydown="if(event.key==='Enter')doLogin()"/>
+        </div>
+        <div class="auth-fld">
+          <label data-i18n="auth_password">Contraseña</label>
+          <input type="password" id="l-pass" placeholder="••••••••" data-i18n-ph="auth_password_ph" onkeydown="if(event.key==='Enter')doLogin()"/>
+        </div>
+        <button class="auth-cta" id="btn-login" onclick="doLogin()" data-i18n="auth_btn_login">Entrar</button>
       </div>
-      <div class="auth-fld">
-        <label data-i18n="auth_email">Email</label>
-        <input type="email" id="r-email" placeholder="tu@email.com" data-i18n-ph="auth_email_ph"/>
+
+      <div id="form-register" class="auth-form" style="display:none">
+        <div class="auth-fld">
+          <label data-i18n="auth_name">Nombre</label>
+          <input type="text" id="r-name" placeholder="Tu nombre" data-i18n-ph="auth_name_ph"/>
+        </div>
+        <div class="auth-fld">
+          <label data-i18n="auth_email">Email</label>
+          <input type="email" id="r-email" placeholder="tu@email.com" data-i18n-ph="auth_email_ph"/>
+        </div>
+        <div class="auth-fld">
+          <label data-i18n="auth_password">Contraseña</label>
+          <input type="password" id="r-pass" placeholder="mínimo 6 caracteres" data-i18n-ph="auth_password_ph2"/>
+        </div>
+        <button class="auth-cta" id="btn-register" onclick="doRegister()" data-i18n="auth_btn_register">Crear cuenta</button>
       </div>
-      <div class="auth-fld">
-        <label data-i18n="auth_password">Contraseña</label>
-        <input type="password" id="r-pass" placeholder="mínimo 6 caracteres" data-i18n-ph="auth_password_ph2"/>
-      </div>
-      <button class="auth-cta" id="btn-register" onclick="doRegister()" data-i18n="auth_btn_register">Crear cuenta</button>
     </div>
+
   </div>
 </div>
 
