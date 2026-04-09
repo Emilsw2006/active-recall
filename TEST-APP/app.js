@@ -822,7 +822,7 @@ function openOnboarding(name) {
   _buildObColorPicker();
   _obGoTo(0, false);
   const ob = $('screen-onboarding');
-  ob.style.display = '';
+  ob.style.display = 'flex';
   ob.style.opacity = '0';
   requestAnimationFrame(() => {
     ob.style.transition = 'opacity .3s';

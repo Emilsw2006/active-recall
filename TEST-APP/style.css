@@ -3189,8 +3189,9 @@ button { touch-action: manipulation; }
    ══════════════════════════════════════════════════════ */
 
 #screen-onboarding {
-  position: fixed; inset: 0; z-index: 900;
-  background: linear-gradient(145deg, #0d1b3e 0%, #1a2f6b 55%, #243980 100%);
+  position: fixed; inset: 0; z-index: 1000;
+  background: var(--bg-gradient);
+  background-attachment: fixed;
   display: flex; align-items: stretch; justify-content: center;
   overflow: hidden;
 }
@@ -3263,7 +3264,7 @@ button { touch-action: manipulation; }
 .ob2-badge {
   font-size: .70rem; font-weight: 700;
   letter-spacing: .13em; text-transform: uppercase;
-  color: #7ba7e5; margin-bottom: 2px;
+  color: rgba(255,255,255,0.55); margin-bottom: 2px;
 }
 
 .ob2-title {
@@ -3288,9 +3289,9 @@ button { touch-action: manipulation; }
 
 .ob2-opt {
   padding: 16px 20px; border-radius: 16px;
-  background: rgba(255,255,255,0.05);
-  border: 1.5px solid rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.80);
+  background: rgba(255,255,255,0.10);
+  border: 1.5px solid rgba(255,255,255,0.18);
+  color: rgba(255,255,255,0.88);
   font-size: .97rem; font-weight: 500;
   text-align: left; cursor: pointer;
   transition: all 0.18s;
@@ -3305,24 +3306,24 @@ button { touch-action: manipulation; }
   color: #fff;
 }
 .ob2-opt.active {
-  background: rgba(74,112,196,0.22);
-  border-color: #7ba7e5;
+  background: rgba(255,255,255,0.22);
+  border-color: rgba(255,255,255,0.70);
   color: #fff;
-  box-shadow: 0 0 0 1px rgba(123,167,229,0.25), inset 0 1px 0 rgba(255,255,255,0.10);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,0.18);
 }
 
 /* ── Inputs ── */
 .ob2-input {
   width: 100%; padding: 16px 20px;
-  background: rgba(255,255,255,0.06);
-  border: 1.5px solid rgba(255,255,255,0.12);
+  background: rgba(255,255,255,0.12);
+  border: 1.5px solid rgba(255,255,255,0.22);
   border-radius: 16px;
   color: #fff; font-size: 1rem; font-weight: 500;
   outline: none; transition: border-color 0.18s;
   box-sizing: border-box;
 }
-.ob2-input::placeholder { color: rgba(255,255,255,0.28); }
-.ob2-input:focus { border-color: #7ba7e5; }
+.ob2-input::placeholder { color: rgba(255,255,255,0.40); }
+.ob2-input:focus { border-color: rgba(255,255,255,0.70); background: rgba(255,255,255,0.16); }
 .ob2-input-sm { font-size: .88rem; padding: 12px 16px; margin-top: 4px; }
 
 /* ── Color picker ── */
@@ -3433,6 +3434,12 @@ button { touch-action: manipulation; }
    SESSION SCREEN v4 — Blue/Purple Aura Orb
    ══════════════════════════════════════════════════════ */
 
+/* Remove .content-slider padding in session so #v-duelo fills full screen */
+#screen-app.session-mode .content-slider {
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+}
+
 /* Full screen: column, topbar top, orb center, btns bottom */
 #v-duelo {
   justify-content: flex-start !important;
@@ -3477,22 +3484,22 @@ button { touch-action: manipulation; }
   color: #fff !important;
 }
 
-/* Question: sits below fixed topbar */
+/* Question: sits below fixed topbar with generous spacing */
 .duelo-question {
-  margin-top: 72px !important;
+  margin-top: calc(max(env(safe-area-inset-top,14px),14px) + 56px) !important;
   font-size: 1.38rem !important;
   font-weight: 700 !important;
   line-height: 1.38 !important;
   text-align: center !important;
   color: rgba(255,255,255,0.96) !important;
-  padding: 12px 28px 0 !important;
+  padding: 16px 28px 0 !important;
   letter-spacing: -0.03em !important;
   max-height: 26vh !important;
   flex-shrink: 0 !important;
   min-height: unset !important;
 }
 
-/* Orb wrap: fills remaining vertical space */
+/* Orb wrap: fills remaining vertical space — reset old sphere background */
 .duelo-blob-wrap {
   flex: 1 1 auto !important;
   width: 100% !important;
@@ -3504,6 +3511,11 @@ button { touch-action: manipulation; }
   justify-content: center !important;
   position: relative !important;
   overflow: visible !important;
+  /* Reset base CSS sphere styles */
+  background: transparent !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  margin: 0 !important;
 }
 
 /* Hide legacy blob glow */
