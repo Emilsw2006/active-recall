@@ -24,6 +24,9 @@ class LoginRequest(BaseModel):
     email: EmailStr
     password: str
 
+class TokenLoginRequest(BaseModel):
+    access_token: str
+
 
 @router.post("/register")
 async def register(body: RegisterRequest):
@@ -66,6 +69,54 @@ async def register(body: RegisterRequest):
         "nombre": body.nombre,
         "email": body.email,
     }
+
+
+@router.post("/token-login")
+async def token_login(body: TokenLoginRequest):
+    """Login con token OAuth de Supabase (Google, etc.)"""
+    try:
+        db = get_service_client()
+        # Obtener usuario desde Supabase con el token
+        user_res = get_client().auth.get_user(body.access_token)
+        if not user_res or not user_res.user:
+            raise HTTPException(status_code=401, detail="Token inválido")
+
+        user = user_res.user
+        usuario_id = user.id
+        email = user.email
+        nombre_meta = (user.user_metadata or {}).get("full_name") or \
+                      (user.user_metadata or {}).get("name") or \
+                      email.split("@")[0]
+
+        # Buscar o crear perfil en usuarios
+        perfil = db.table("usuarios").select("nombre, mundo_analogias").eq("id", usuario_id).execute()
+        if perfil.data:
+            nombre = perfil.data[0]["nombre"] or nombre_meta
+            mundo_analogias = perfil.data[0].get("mundo_analogias") or ""
+        else:
+            # Primera vez con Google: crear perfil
+            db.table("usuarios").insert({
+                "id": usuario_id,
+                "nombre": nombre_meta,
+                "email": email,
+            }).execute()
+            nombre = nombre_meta
+            mundo_analogias = ""
+
+        logger.info(f"Token-login exitoso: {usuario_id}")
+        return {
+            "token": body.access_token,
+            "usuario_id": usuario_id,
+            "nombre": nombre,
+            "email": email,
+            "mundo_analogias": mundo_analogias,
+            "is_new": not perfil.data,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Token-login error: {e}")
+        raise HTTPException(status_code=401, detail="Token inválido o expirado")
 
 
 @router.post("/login")

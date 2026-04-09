@@ -302,7 +302,7 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 .view.active { display: block; }
 #screen-auth {
   display: none; min-height: 100vh; position: relative; overflow: hidden;
-  background: #0f1117; /* Dark background */
+  background: transparent;
   flex-direction: column; align-items: center; justify-content: center;
   padding: max(env(safe-area-inset-top), 24px) 24px max(env(safe-area-inset-bottom), 24px);
 }

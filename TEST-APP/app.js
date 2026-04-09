@@ -337,83 +337,114 @@ async function refreshNotifications() {
 async function _buildSmartNotifs() {
   const notifs = [];
   try {
-    // Fetch sesiones recientes para streak y rendimiento
     const [sessions, docs] = await Promise.allSettled([
       api(`/sesiones/usuario/${uid}`),
       curSubjectId ? api(`/documentos/${curSubjectId}`) : Promise.resolve([])
     ]);
 
-    const sesData = sessions.status === 'fulfilled' ? (sessions.value || []) : [];
-    const docData = docs.status    === 'fulfilled' ? (docs.value    || []) : [];
+    const allSessions = sessions.status === 'fulfilled' ? (sessions.value || []) : [];
+    // Sessions filtered to current subject
+    const subjSessions = curSubjectId
+      ? allSessions.filter(s => s.asignatura_id === curSubjectId)
+      : allSessions;
+    const docData = docs.status === 'fulfilled' ? (docs.value || []) : [];
 
-    // ── Card 1: Racha de estudio ──────────────────────────────
-    const streak = _calcStreak(sesData);
+    const processing = docData.filter(d => ['procesando','pending','processing'].includes(d.status));
+    const ready      = docData.filter(d => ['listo','ready','done','completado'].includes(d.status));
+    const atomCount  = ready.reduce((s, d) => s + (d.atom_count || 0), 0);
+    const subjName   = curSubjectName || 'tu asignatura';
+
+    // ── Card 1: Documentos de esta asignatura ─────────────────
+    if (processing.length > 0) {
+      notifs.push({
+        color: 'blue',
+        titulo: processing.length === 1 ? 'Generando preguntas' : `Procesando ${processing.length} apuntes`,
+        mensaje: `La IA está analizando ${subjName}. Listo en breve.`,
+        accion: { tipo: 'ver_materiales' }
+      });
+    } else if (curSubjectId && docData.length === 0) {
+      notifs.push({
+        color: 'blue',
+        titulo: 'Sin apuntes todavía',
+        mensaje: `Sube un PDF a ${subjName} y la IA generará preguntas automáticamente.`,
+        accion: { tipo: 'ver_materiales' }
+      });
+    } else if (atomCount > 0) {
+      const hasStarted = subjSessions.length > 0;
+      notifs.push({
+        color: 'blue',
+        titulo: hasStarted ? `${ready.length} apunte${ready.length > 1 ? 's' : ''} en ${subjName}` : `${atomCount} conceptos listos en ${subjName}`,
+        mensaje: hasStarted
+          ? `${atomCount} átomos de conocimiento disponibles.`
+          : 'Tu material está listo. Empieza tu primera sesión.',
+        accion: { tipo: hasStarted ? 'ver_materiales' : 'iniciar_sesion' }
+      });
+    }
+
+    // ── Card 2: Última sesión de esta asignatura ──────────────
+    if (subjSessions.length > 0) {
+      const last  = subjSessions[0];
+      const total = (last.aciertos || 0) + (last.amarillos || 0) + (last.fallos || 0);
+      if (total > 0) {
+        const pct   = Math.round(((last.aciertos || 0) / total) * 100);
+        const color = pct >= 80 ? 'green' : pct >= 55 ? 'amber' : 'red';
+        const title = pct >= 80 ? `${pct}% en la última sesión` : pct >= 55 ? `${pct}% — casi perfecto` : `${pct}% — toca repasar`;
+        const msg   = pct >= 80
+          ? `Excelente en ${subjName}. Los errores quedan guardados.`
+          : pct >= 55
+          ? `${last.amarillos || 0} respuestas parciales. Repasa para consolidar.`
+          : `${last.fallos || 0} errores en ${subjName}. Vale la pena repasar.`;
+        notifs.push({ color, titulo: title, mensaje: msg, accion: { tipo: 'ver_errores', sesion_id: last.id } });
+      } else {
+        // Sesión sin datos aún — muestra algo útil
+        notifs.push({
+          color: 'amber',
+          titulo: `${subjSessions.length} sesión${subjSessions.length > 1 ? 'es' : ''} en ${subjName}`,
+          mensaje: 'Sigue practicando para ver tu rendimiento.',
+          accion: { tipo: 'iniciar_sesion' }
+        });
+      }
+    } else if (curSubjectId && atomCount > 0) {
+      notifs.push({
+        color: 'amber',
+        titulo: `Empieza en ${subjName}`,
+        mensaje: 'Aún no tienes sesiones en esta asignatura. Tu material te espera.',
+        accion: { tipo: 'iniciar_sesion' }
+      });
+    }
+
+    // ── Card 3: Racha general ─────────────────────────────────
+    const streak = _calcStreak(allSessions);
     if (streak >= 2) {
       notifs.push({
         color: 'green',
         titulo: streak >= 7 ? `${streak} días de racha` : `${streak} días seguidos`,
-        mensaje: streak >= 7
-          ? 'Una semana de constancia. Sigue así.'
-          : 'Mantienes el ritmo. No lo rompas.',
+        mensaje: streak >= 7 ? 'Una semana de constancia. Sigue así.' : 'Mantienes el ritmo. No lo pierdas.',
         accion: { tipo: 'ver_historial' }
       });
-    } else if (streak === 0 && sesData.length > 0) {
-      // Lleva un día sin estudiar
-      const lastSess = sesData[0];
+    } else if (allSessions.length > 0 && streak === 0) {
       notifs.push({
         color: 'amber',
-        titulo: 'Hoy no has estudiado',
-        mensaje: `La última sesión fue ${_relativeDate(lastSess.fecha_inicio || lastSess.created_at)}.`,
+        titulo: 'Hoy sin estudiar',
+        mensaje: `Última sesión ${_relativeDate(allSessions[0].fecha_inicio || allSessions[0].created_at)}. ¿Hoy?`,
         accion: { tipo: 'iniciar_sesion' }
       });
-    }
-
-    // ── Card 2: Rendimiento de la última sesión ────────────────
-    if (sesData.length > 0) {
-      const last = sesData[0];
-      const total = (last.aciertos || 0) + (last.amarillos || 0) + (last.fallos || 0);
-      if (total > 0) {
-        const pct = Math.round(((last.aciertos || 0) / total) * 100);
-        const subj = last.asignatura_nombre || curSubjectName || 'última sesión';
-        const color = pct >= 80 ? 'green' : pct >= 55 ? 'amber' : 'red';
-        const title = pct >= 80 ? `${pct}% en ${subj}` : pct >= 55 ? `${pct}% — casi` : `${pct}% — a repasar`;
-        const msg   = pct >= 80
-          ? 'Excelente resultado. Los fallos quedan guardados.'
-          : pct >= 55
-          ? 'Buen intento. Repasa los errores para consolidar.'
-          : `Repasa esta asignatura. Tienes ${last.fallos || 0} errores pendientes.`;
-        notifs.push({ color, titulo: title, mensaje: msg, accion: { tipo: 'ver_errores', sesion_id: last.id } });
-      }
-    }
-
-    // ── Card 3: Documentos procesando o pendientes ─────────────
-    const processing = docData.filter(d => d.status === 'procesando' || d.status === 'pending');
-    const ready      = docData.filter(d => d.status === 'listo' || d.status === 'ready');
-    const atomCount  = ready.reduce((s, d) => s + (d.atom_count || 0), 0);
-
-    if (processing.length > 0) {
+    } else if (allSessions.length === 0) {
       notifs.push({
         color: 'blue',
-        titulo: processing.length === 1 ? 'Procesando apunte' : `Procesando ${processing.length} apuntes`,
-        mensaje: 'La IA está generando preguntas. Listo en breve.',
+        titulo: '¡Bienvenido a Active Recall!',
+        mensaje: 'Sube tus apuntes y empieza tu primera sesión de estudio.',
         accion: { tipo: 'ver_materiales' }
       });
-    } else if (atomCount > 0 && sesData.length === 0) {
-      notifs.push({
-        color: 'blue',
-        titulo: `${atomCount} conceptos listos`,
-        mensaje: `${curSubjectName || 'Tu asignatura'} está lista para estudiar. Empieza cuando quieras.`,
-        accion: { tipo: 'iniciar_sesion' }
-      });
     }
+
   } catch(e) {
-    // Fallback: try old endpoint
     try {
       const old = await api(`/notificaciones/${uid}?lang=${currentLang}`);
       return (old || []).slice(0, 3);
     } catch(e2) { /* silent */ }
   }
-  return notifs;
+  return notifs.slice(0, 3);
 }
 
 function _calcStreak(sessions) {
@@ -706,9 +737,34 @@ function authShowMethods() {
   const err = $('auth-err'); if (err) err.style.display = 'none';
 }
 
+const SUPABASE_URL  = 'https://okjiptxufvhnunoankpg.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9ramlwdHh1ZnZobnVub2Fua3BnIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzI5NzM2NjYsImV4cCI6MjA4ODU0OTY2Nn0.Axzm9DuY8K1guHFG_62nLrXmQA2gKiNtKwxEYbhqPtQ';
+
 function authWithGoogle() {
-  // Google OAuth — placeholder, shows coming soon
-  toast('Google login próximamente', 'info');
+  const redirectTo = encodeURIComponent(window.location.origin + window.location.pathname);
+  window.location.href = `${SUPABASE_URL}/auth/v1/authorize?provider=google&redirect_to=${redirectTo}`;
+}
+
+// Handle OAuth callback (access_token in URL hash after Google redirect)
+async function _handleOAuthCallback() {
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  const accessToken = hash.get('access_token');
+  if (!accessToken) return false;
+  // Clean hash from URL
+  history.replaceState(null, '', window.location.pathname);
+  try {
+    const d = await api('/auth/token-login', {
+      method: 'POST',
+      body: JSON.stringify({ access_token: accessToken })
+    });
+    saveSession(d);
+    enterApp();
+    if (d.is_new) setTimeout(() => openOnboarding(d.nombre), 400);
+    return true;
+  } catch(e) {
+    showAuthErr('Error al iniciar sesión con Google. Inténtalo de nuevo.');
+    return false;
+  }
 }
 
 function showAuthErr(msg) {
@@ -944,12 +1000,11 @@ async function doRegister() {
   const nombre = $('r-name').value.trim();
   const email  = $('r-email').value.trim();
   const pass   = $('r-pass').value;
-  const mundo  = $('r-mundo').value.trim();
   if (!nombre || !email || !pass) return showAuthErr('Rellena nombre, email y contraseña');
   const btn = $('btn-register');
   btn.disabled=true; btn.textContent=T('auth_btn_register_loading');
   try {
-    const d = await api('/auth/register', { method:'POST', body: JSON.stringify({nombre,email,password:pass,mundo_analogias:mundo||null}) });
+    const d = await api('/auth/register', { method:'POST', body: JSON.stringify({nombre,email,password:pass,mundo_analogias:null}) });
     saveSession(d); enterApp();
     // New user: open Cal.ai-style onboarding
     setTimeout(() => openOnboarding(d.nombre || nombre), 500);
@@ -3869,6 +3924,11 @@ if (token && uid) {
       logout();
     });
 } else {
-  $('screen-auth').classList.add('active');
-  _initAuthParticles();
+  // Check for OAuth callback (Google redirect)
+  _handleOAuthCallback().then(handled => {
+    if (!handled) {
+      $('screen-auth').classList.add('active');
+      _initAuthParticles();
+    }
+  });
 }
