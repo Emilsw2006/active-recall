@@ -337,7 +337,9 @@ async def serve_app_slash():
 @app.get("/app/{filepath:path}")
 async def serve_app_files(filepath: str):
     """Serve any file under /app/ from TEST-APP directory."""
-    file_path = FRONTEND_DIR / filepath
+    # Strip query string from filepath (e.g. app.js?v=17 -> app.js)
+    clean_path = filepath.split("?")[0]
+    file_path = FRONTEND_DIR / clean_path
     if file_path.is_file():
         media_types = {
             ".js": "application/javascript",
@@ -351,8 +353,12 @@ async def serve_app_files(filepath: str):
         suffix = file_path.suffix.lower()
         media_type = media_types.get(suffix, "application/octet-stream")
         headers = {}
-        if filepath == "sw.js":
+        if clean_path == "sw.js":
             headers["Service-Worker-Allowed"] = "/app"
+        # JS/CSS: never cache so browsers always get fresh code
+        if suffix in (".js", ".css"):
+            headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
+            headers["Pragma"] = "no-cache"
         return FileResponse(file_path, media_type=media_type, headers=headers)
     return FileResponse(FRONTEND_DIR / "index.html")
 
@@ -372,17 +378,19 @@ async def serve_icon_root(filename: str):
     if f.is_file():
         return FileResponse(f, media_type="image/png")
 
+_NO_CACHE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}
+
 @app.get("/style.css", response_class=FileResponse)
 async def serve_style():
-    return FileResponse(FRONTEND_DIR / "style.css")
+    return FileResponse(FRONTEND_DIR / "style.css", headers=_NO_CACHE)
 
 @app.get("/app.js", response_class=FileResponse)
 async def serve_js():
-    return FileResponse(FRONTEND_DIR / "app.js")
+    return FileResponse(FRONTEND_DIR / "app.js", headers=_NO_CACHE)
 
 @app.get("/i18n.js", response_class=FileResponse)
 async def serve_i18n():
-    return FileResponse(FRONTEND_DIR / "i18n.js")
+    return FileResponse(FRONTEND_DIR / "i18n.js", headers=_NO_CACHE)
 
 @app.get("/")
 async def root():

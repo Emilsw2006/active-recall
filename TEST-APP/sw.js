@@ -1,33 +1,32 @@
-const CACHE_NAME = 'active-recall-v18';
+const CACHE_NAME = 'active-recall-v19';
+const JS_CSS = /\.(js|css)(\?.*)?$/;
 
-// Install — activate immediately
 self.addEventListener('install', () => self.skipWaiting());
 
-// Activate — clear old caches, claim clients, tell them to reload
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys()
       .then(keys => Promise.all(keys.filter(k => k !== CACHE_NAME).map(k => caches.delete(k))))
       .then(() => self.clients.claim())
       .then(() => self.clients.matchAll({ type: 'window' }))
-      .then(clients => clients.forEach(client => client.postMessage({ type: 'sw-updated' })))
+      .then(clients => clients.forEach(c => c.postMessage({ type: 'sw-updated' })))
   );
 });
 
-// Fetch — network first, fallback to cache
 self.addEventListener('fetch', e => {
   const url = new URL(e.request.url);
-
   if (e.request.method !== 'GET') return;
   if (url.protocol === 'ws:' || url.protocol === 'wss:') return;
-  // Skip API calls
-  if (url.pathname.startsWith('/auth') || url.pathname.startsWith('/asignaturas') ||
-      url.pathname.startsWith('/documentos') || url.pathname.startsWith('/atomos') ||
-      url.pathname.startsWith('/sesiones') || url.pathname.startsWith('/flashcards')) return;
 
-  const isStatic = /\.(css|js|png|svg|ico|woff2?|ttf|json)$/.test(url.pathname)
+  // JS and CSS: ALWAYS fetch from network, never cache
+  if (JS_CSS.test(url.pathname)) {
+    e.respondWith(fetch(e.request));
+    return;
+  }
+
+  // Images, fonts, icons: cache-first
+  const isStatic = /\.(png|svg|ico|woff2?|ttf|webmanifest)$/.test(url.pathname)
     || url.pathname.endsWith('/app') || url.pathname === '/';
-
   if (!isStatic) return;
 
   e.respondWith(

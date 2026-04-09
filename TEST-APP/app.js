@@ -671,6 +671,15 @@ async function saveEditName() {
 function closeAjustesModal() { $('modal-ajustes').classList.remove('open'); }
 function closeAjustesBg(e) { if(e.target === $('modal-ajustes')) closeAjustesModal(); }
 
+function resetAndOpenOnboarding() {
+  closeAjustesModal();
+  localStorage.removeItem('ar_ob_done');
+  setTimeout(() => {
+    $('screen-app').classList.remove('active');
+    openOnboarding(uname);
+  }, 200);
+}
+
 function switchHistTab(tab) {
   const sesEl = $('hist-panel-sesiones');
   const plEl  = $('hist-panel-planes');
