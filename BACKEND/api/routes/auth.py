@@ -29,6 +29,10 @@ class TokenLoginRequest(BaseModel):
 
 class CompleteOnboardingRequest(BaseModel):
     usuario_id: str
+    nivel: str | None = None
+    sesion_duracion: str | None = None
+    mundo_analogias: str | None = None
+    edad: int | None = None
 
 
 @router.post("/register")
@@ -111,7 +115,7 @@ async def token_login(body: TokenLoginRequest):
                       email.split("@")[0]
 
         # Buscar o crear perfil en usuarios
-        perfil = db.table("usuarios").select("nombre, mundo_analogias, onboarding_completed").eq("id", usuario_id).execute()
+        perfil = db.table("usuarios").select("nombre, mundo_analogias, onboarding_completed, nivel, sesion_duracion, edad").eq("id", usuario_id).execute()
         is_new = not perfil.data
         if perfil.data:
             nombre = perfil.data[0]["nombre"] or nombre_meta
@@ -147,15 +151,20 @@ async def token_login(body: TokenLoginRequest):
 
 @router.post("/complete-onboarding")
 async def complete_onboarding(body: CompleteOnboardingRequest):
-    """Marca el onboarding como completado para el usuario."""
+    """Guarda los datos del onboarding y lo marca como completado."""
     db = get_service_client()
     try:
-        db.table("usuarios").update({"onboarding_completed": True}).eq("id", body.usuario_id).execute()
-        logger.info(f"Onboarding completado: {body.usuario_id}")
+        update_data: dict = {"onboarding_completed": True}
+        if body.nivel:            update_data["nivel"]            = body.nivel
+        if body.sesion_duracion:  update_data["sesion_duracion"]  = body.sesion_duracion
+        if body.mundo_analogias:  update_data["mundo_analogias"]  = body.mundo_analogias
+        if body.edad is not None: update_data["edad"]             = body.edad
+        db.table("usuarios").update(update_data).eq("id", body.usuario_id).execute()
+        logger.info(f"Onboarding completado: {body.usuario_id} — {update_data}")
         return {"ok": True}
     except Exception as e:
         logger.error(f"Error marcando onboarding: {e}")
-        raise HTTPException(status_code=500, detail="Error al marcar onboarding")
+        raise HTTPException(status_code=500, detail="Error al guardar onboarding")
 
 
 @router.post("/login")
@@ -172,7 +181,7 @@ async def login(body: LoginRequest):
     usuario_id = res.user.id
 
     # Datos del perfil
-    perfil = get_service_client().table("usuarios").select("nombre, mundo_analogias, onboarding_completed").eq("id", usuario_id).execute()
+    perfil = get_service_client().table("usuarios").select("nombre, mundo_analogias, onboarding_completed, nivel, sesion_duracion, edad").eq("id", usuario_id).execute()
     nombre = perfil.data[0]["nombre"] if perfil.data else res.user.email
     mundo_analogias = perfil.data[0].get("mundo_analogias") or "" if perfil.data else ""
     onboarding_completed = perfil.data[0].get("onboarding_completed") or False if perfil.data else False

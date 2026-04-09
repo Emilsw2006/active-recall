@@ -884,14 +884,8 @@ function obSelectAnalogy(val, el) {
 }
 
 async function obSaveAnalogyAndNext() {
-  // Save mundo to backend
-  if (uid && _obMundo) {
-    try {
-      await api(`/auth/update-mundo-analogias?usuario_id=${uid}&mundo=${encodeURIComponent(_obMundo)}`, { method: 'POST' });
-      umundo = _obMundo;
-      localStorage.setItem('ar_mundo', _obMundo);
-    } catch(e) { /* non-fatal */ }
-  }
+  // Save to localStorage for use in obFinish
+  if (_obMundo) { umundo = _obMundo; localStorage.setItem('ar_mundo', _obMundo); }
   // Populate plan card
   const durMap = { '5': '5–10 min', '15': '15–20 min', '30': '30+ min' };
   const durEl = $('ob-plan-duration');
@@ -970,12 +964,19 @@ async function _obUploadAndFinish(files) {
 }
 
 function obFinish() {
-  // Mark onboarding completed in DB (fire-and-forget)
-  const uid = localStorage.getItem('ar_u');
-  if (uid) {
+  // Save all onboarding data to DB (fire-and-forget)
+  const _uid = localStorage.getItem('ar_u');
+  if (_uid) {
+    const edad = parseInt($('ob-ageInp')?.value) || null;
     api('/auth/complete-onboarding', {
       method: 'POST',
-      body: JSON.stringify({ usuario_id: uid })
+      body: JSON.stringify({
+        usuario_id: _uid,
+        nivel: _obNivel || null,
+        sesion_duracion: _obTiempo || null,
+        mundo_analogias: _obMundo || null,
+        edad: edad,
+      })
     }).catch(() => {});
   }
 
