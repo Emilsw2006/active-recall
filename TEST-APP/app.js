@@ -681,15 +681,34 @@ function openSettings() {
 
 // ─ Auth ─
 function switchTab(tab) {
-  ['tab-login','tab-register'].forEach(id => {
-    const el = $(id);
-    if (el) el.classList.toggle('active', id === `tab-${tab}`);
-  });
-  const track = $('auth-pill-track');
-  if (track) track.classList.toggle('right', tab === 'register');
   $('form-login').style.display    = tab === 'login'    ? 'flex' : 'none';
   $('form-register').style.display = tab === 'register' ? 'flex' : 'none';
-  $('auth-err').style.display = 'none';
+  const err = $('auth-err'); if (err) err.style.display = 'none';
+}
+
+function authShowEmail(mode) {
+  // Hide method buttons, show email form
+  const methods = $('auth-methods');
+  const wrap    = $('auth-email-wrap');
+  if (methods) methods.style.display = 'none';
+  if (wrap)    wrap.style.display    = 'flex';
+  switchTab(mode);
+  // Focus first input
+  const first = wrap && wrap.querySelector('input:not([style*="display:none"])');
+  if (first) setTimeout(() => first.focus(), 80);
+}
+
+function authShowMethods() {
+  const methods = $('auth-methods');
+  const wrap    = $('auth-email-wrap');
+  if (methods) methods.style.display = 'flex';
+  if (wrap)    wrap.style.display    = 'none';
+  const err = $('auth-err'); if (err) err.style.display = 'none';
+}
+
+function authWithGoogle() {
+  // Google OAuth — placeholder, shows coming soon
+  toast('Google login próximamente', 'info');
 }
 
 function showAuthErr(msg) {
