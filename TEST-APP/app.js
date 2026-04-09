@@ -547,8 +547,30 @@ function openAjustesModal() {
   $('modal-ajustes').classList.add('open');
 }
 
+// ── Header language flag pill ──
+const _LANG_FLAGS = { es: '🇪🇸', en: '🇬🇧', de: '🇩🇪' };
+function _syncHdrLangFlag() {
+  const flagEl = $('hdr-lang-flag');
+  if (flagEl) flagEl.textContent = _LANG_FLAGS[currentLang] || '🇪🇸';
+}
+function toggleHdrLang(e) {
+  e.stopPropagation();
+  const dd = $('hdr-lang-dropdown');
+  if (!dd) return;
+  const open = dd.classList.toggle('open');
+  if (open) {
+    const close = () => { dd.classList.remove('open'); document.removeEventListener('click', close); };
+    setTimeout(() => document.addEventListener('click', close), 0);
+  }
+}
+function setHdrLang(lang) {
+  $('hdr-lang-dropdown')?.classList.remove('open');
+  changeLang(lang);
+}
+
 function changeLang(lang) {
   applyLang(lang);
+  _syncHdrLangFlag();
   // Re-translate buttons that have text content set dynamically
   const mundoLbl = $('lbl-mundo-actual');
   if (mundoLbl && !umundo) mundoLbl.textContent = 'Sin definir';
@@ -1020,10 +1042,10 @@ async function doLogin() {
 }
 
 async function doRegister() {
-  const nombre = $('r-name').value.trim();
   const email  = $('r-email').value.trim();
   const pass   = $('r-pass').value;
-  if (!nombre || !email || !pass) return showAuthErr('Rellena nombre, email y contraseña');
+  const nombre = ($('r-name') ? $('r-name').value.trim() : '') || email.split('@')[0] || 'Estudiante';
+  if (!email || !pass) return showAuthErr('Rellena email y contraseña');
   const btn = $('btn-register');
   btn.disabled=true; btn.textContent=T('auth_btn_register_loading');
   try {

@@ -1021,4 +1021,7 @@ function applyLang(lang) {
 }
 
 // Apply on first load
-document.addEventListener('DOMContentLoaded', () => applyLang(currentLang));
+document.addEventListener('DOMContentLoaded', () => {
+  applyLang(currentLang);
+  if (typeof _syncHdrLangFlag === 'function') _syncHdrLangFlag();
+});

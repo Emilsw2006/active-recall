@@ -380,12 +380,25 @@
       <span id="bc-subject" style="font-weight:600">Active Recall</span>
       <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style="margin-left:4px; opacity:.5"><path d="M8 11.5l-5-5 1.4-1.4 3.6 3.6 3.6-3.6 1.4 1.4-5 5z"/></svg>
     </button>
-    <button class="btn-settings" onclick="openAjustesModal()" aria-label="Ajustes">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
-        <line x1="3" y1="7" x2="21" y2="7"/><circle cx="8" cy="7" r="2.2" fill="currentColor" stroke="none"/>
-        <line x1="3" y1="14" x2="21" y2="14"/><circle cx="16" cy="14" r="2.2" fill="currentColor" stroke="none"/>
-      </svg>
-    </button>
+    <div class="header-right-btns">
+      <!-- Language flag pill -->
+      <div class="hdr-lang-wrap" id="hdr-lang-wrap">
+        <button class="hdr-lang-btn" id="hdr-lang-btn" onclick="toggleHdrLang(event)" aria-label="Language">
+          <span id="hdr-lang-flag">🇪🇸</span>
+        </button>
+        <div class="hdr-lang-dropdown" id="hdr-lang-dropdown">
+          <button onclick="setHdrLang('es')">🇪🇸</button>
+          <button onclick="setHdrLang('en')">🇬🇧</button>
+          <button onclick="setHdrLang('de')">🇩🇪</button>
+        </div>
+      </div>
+      <button class="btn-settings" onclick="openAjustesModal()" aria-label="Ajustes">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
+          <line x1="3" y1="7" x2="21" y2="7"/><circle cx="8" cy="7" r="2.2" fill="currentColor" stroke="none"/>
+          <line x1="3" y1="14" x2="21" y2="14"/><circle cx="16" cy="14" r="2.2" fill="currentColor" stroke="none"/>
+        </svg>
+      </button>
+    </div>
   </div>
 
   <div class="content-slider">
