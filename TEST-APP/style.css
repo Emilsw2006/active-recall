@@ -3484,22 +3484,27 @@ button { touch-action: manipulation; }
   color: #fff !important;
 }
 
-/* Question: sits below fixed topbar with generous spacing */
+/* Question: 3-line clamp, below fixed topbar */
 .duelo-question {
   margin-top: calc(max(env(safe-area-inset-top,14px),14px) + 56px) !important;
-  font-size: 1.38rem !important;
+  font-size: 1.28rem !important;
   font-weight: 700 !important;
   line-height: 1.38 !important;
   text-align: center !important;
   color: rgba(255,255,255,0.96) !important;
-  padding: 16px 28px 0 !important;
-  letter-spacing: -0.03em !important;
-  max-height: 26vh !important;
+  padding: 14px 28px 0 !important;
+  letter-spacing: -0.025em !important;
   flex-shrink: 0 !important;
   min-height: unset !important;
+  max-height: unset !important;
+  /* Clamp to 3 lines */
+  display: -webkit-box !important;
+  -webkit-line-clamp: 3 !important;
+  -webkit-box-orient: vertical !important;
+  overflow: hidden !important;
 }
 
-/* Orb wrap: fills remaining vertical space — reset old sphere background */
+/* Orb wrap: fills remaining space, orb centered with padding for fixed buttons */
 .duelo-blob-wrap {
   flex: 1 1 auto !important;
   width: 100% !important;
@@ -3511,7 +3516,8 @@ button { touch-action: manipulation; }
   justify-content: center !important;
   position: relative !important;
   overflow: visible !important;
-  /* Reset base CSS sphere styles */
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 100px) !important;
+  /* Reset base CSS sphere styles — was causing 2nd orb */
   background: transparent !important;
   border-radius: 0 !important;
   box-shadow: none !important;
@@ -3554,8 +3560,8 @@ button { touch-action: manipulation; }
   animation: orb-idle-blue 4s ease-in-out infinite !important;
 }
 
-/* No icon inside orb */
-.voice-orb svg { display: none !important; }
+/* No icons or dots inside orb — state via color only */
+.voice-orb > * { display: none !important; }
 
 /* Idle: slow organic breathing */
 @keyframes orb-idle-blue {
@@ -3746,10 +3752,10 @@ button { touch-action: manipulation; }
   box-shadow: inset 0 1px 0 rgba(255,255,255,0.08) !important;
 }
 
-/* Action buttons: fixed at very bottom */
+/* Action buttons: fixed near bottom, not too far down */
 .duelo-actions {
   position: fixed !important;
-  bottom: calc(env(safe-area-inset-bottom, 12px) + 28px) !important;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 48px) !important;
   left: 0 !important; right: 0 !important;
   display: flex !important;
   justify-content: center !important;

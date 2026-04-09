@@ -964,8 +964,13 @@ function obFinish() {
     ob.style.opacity = '0';
     setTimeout(() => { ob.style.display = 'none'; ob.style.opacity = ''; }, 320);
   }
-  if (curSubjectId) loadDocs();
-  else loadSubjectsHome();
+  // If app screen isn't active yet (fresh registration flow), enter it now
+  if (!$('screen-app').classList.contains('active')) {
+    enterApp();
+  } else {
+    if (curSubjectId) loadDocs();
+    else loadSubjectsHome();
+  }
 }
 
 async function doLogin() {
@@ -990,9 +995,10 @@ async function doRegister() {
   btn.disabled=true; btn.textContent=T('auth_btn_register_loading');
   try {
     const d = await api('/auth/register', { method:'POST', body: JSON.stringify({nombre,email,password:pass,mundo_analogias:null}) });
-    saveSession(d); enterApp();
-    // New user: open Cal.ai-style onboarding
-    setTimeout(() => openOnboarding(d.nombre || nombre), 500);
+    saveSession(d);
+    // Hide auth, show onboarding — enterApp() is called by obFinish()
+    $('screen-auth').classList.remove('active');
+    openOnboarding(d.nombre || nombre);
   } catch(e) { showAuthErr(e.message); }
   finally { btn.disabled=false; btn.textContent=T('auth_btn_register'); }
 }
