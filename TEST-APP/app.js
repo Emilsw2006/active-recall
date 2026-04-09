@@ -991,6 +991,8 @@ async function _obUploadAndFinish(files) {
 }
 
 function obFinish() {
+  // Mark done locally immediately
+  localStorage.setItem('ar_ob_done', '1');
   // Save all onboarding data to DB (fire-and-forget)
   const _uid = localStorage.getItem('ar_u');
   if (_uid) {
@@ -1065,6 +1067,10 @@ function saveSession(d) {
   localStorage.setItem('ar_n', uname);
   if (d.email) localStorage.setItem('ar_email', d.email);
   if (d.mundo_analogias != null) { umundo = d.mundo_analogias; localStorage.setItem('ar_mundo', umundo); }
+  // Track onboarding state locally so init can check it without extra API call
+  if (d.onboarding_completed != null) {
+    localStorage.setItem('ar_ob_done', d.onboarding_completed ? '1' : '');
+  }
 }
 
 async function confirmDeleteAccount() {
@@ -1092,7 +1098,7 @@ function logout() {
 
   // Clear ALL localStorage keys that belong to a user session
   [
-    'ar_t','ar_u','ar_n','ar_email','ar_mundo',
+    'ar_t','ar_u','ar_n','ar_email','ar_mundo','ar_ob_done',
     'ar_subj_id','ar_subj_name','ar_subj_color','ar_subj_data'
   ].forEach(k => localStorage.removeItem(k));
 
@@ -3967,15 +3973,22 @@ if (curSubjectId && curSubjectName) {
 }
 
 if (token && uid) {
-  // Show app immediately with cached data, verify token in background
-  $('screen-app').classList.add('active');
-  goHome();
+  const _obDone = localStorage.getItem('ar_ob_done') === '1';
+  if (!_obDone) {
+    // Onboarding pending — show it first, enterApp called by obFinish
+    $('screen-auth').classList.remove('active');
+    openOnboarding(uname);
+  } else {
+    // Show app immediately with cached data, verify token in background
+    $('screen-app').classList.add('active');
+    goHome();
+  }
   // Background token check — logout if invalid
   api('/asignaturas/' + uid)
     .then(data => {
-      // Token valid — refresh subjects silently
       _subjData = data;
       localStorage.setItem('ar_subj_data', JSON.stringify(data));
+      if (!_obDone) return; // Don't navigate if onboarding is showing
       if (!curSubjectId && data.length > 0) {
         goSubject(data[0].id, data[0].nombre, data[0].color);
       }
