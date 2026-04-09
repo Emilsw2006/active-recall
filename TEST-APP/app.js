@@ -294,26 +294,29 @@ function switchView(viewName) {
 let _notifIdx = 0;
 let _notifInterval = null;
 
+// ─ Smart notification system — max 3 aggregated cards ─
 async function refreshNotifications() {
-  const uid = localStorage.getItem('ar_u');
   if (!uid) return;
   const track = $('notif-track');
-  const dots = $('notif-dots');
+  const dots  = $('notif-dots');
   if (!track) return;
 
-  let notifs = [];
-  try {
-    notifs = await api(`/notificaciones/${uid}?lang=${currentLang}`);
-  } catch(e) { /* silently fail */ }
+  // Build aggregated notifications from real data
+  const notifs = await _buildSmartNotifs();
 
   if (!notifs.length) {
-    track.innerHTML = `<div class="notif-item"><div class="notif-item-title">${T('hub_notif_title')}</div><div class="notif-item-sub">${T('hub_notif_sub')}</div></div>`;
-    dots.innerHTML = '';
-    if (_notifInterval) { clearInterval(_notifInterval); _notifInterval = null; }
+    track.innerHTML = `<div class="notif-item notif-blue">
+      <div class="notif-item-title">Todo al día</div>
+      <div class="notif-item-sub">No hay pendientes. Buen trabajo.</div>
+    </div>`;
+    if (dots) dots.innerHTML = '';
     return;
   }
 
-  track.innerHTML = notifs.map(n => {
+  // Cap at 3
+  const shown = notifs.slice(0, 3);
+
+  track.innerHTML = shown.map(n => {
     const ac = JSON.stringify(n.accion || {}).replace(/'/g, '&#39;');
     return `<div class="notif-item notif-${n.color}" data-action='${ac}' onclick="handleNotifClick(this)">
       <div class="notif-item-title">${n.titulo}</div>
@@ -321,14 +324,123 @@ async function refreshNotifications() {
     </div>`;
   }).join('');
 
-  dots.innerHTML = notifs.map((_, i) =>
-    `<span class="notif-dot${i === 0 ? ' active' : ''}" onclick="goNotif(${i})"></span>`
-  ).join('');
+  if (dots) {
+    dots.innerHTML = shown.length > 1
+      ? shown.map((_, i) => `<span class="notif-dot${i===0?' active':''}" onclick="goNotif(${i})"></span>`).join('')
+      : '';
+  }
 
   _notifIdx = 0;
   track.scrollLeft = 0;
+}
 
-  if (_notifInterval) { clearInterval(_notifInterval); _notifInterval = null; }
+async function _buildSmartNotifs() {
+  const notifs = [];
+  try {
+    // Fetch sesiones recientes para streak y rendimiento
+    const [sessions, docs] = await Promise.allSettled([
+      api(`/sesiones/usuario/${uid}`),
+      curSubjectId ? api(`/documentos/${curSubjectId}`) : Promise.resolve([])
+    ]);
+
+    const sesData = sessions.status === 'fulfilled' ? (sessions.value || []) : [];
+    const docData = docs.status    === 'fulfilled' ? (docs.value    || []) : [];
+
+    // ── Card 1: Racha de estudio ──────────────────────────────
+    const streak = _calcStreak(sesData);
+    if (streak >= 2) {
+      notifs.push({
+        color: 'green',
+        titulo: streak >= 7 ? `${streak} días de racha` : `${streak} días seguidos`,
+        mensaje: streak >= 7
+          ? 'Una semana de constancia. Sigue así.'
+          : 'Mantienes el ritmo. No lo rompas.',
+        accion: { tipo: 'ver_historial' }
+      });
+    } else if (streak === 0 && sesData.length > 0) {
+      // Lleva un día sin estudiar
+      const lastSess = sesData[0];
+      notifs.push({
+        color: 'amber',
+        titulo: 'Hoy no has estudiado',
+        mensaje: `La última sesión fue ${_relativeDate(lastSess.fecha_inicio || lastSess.created_at)}.`,
+        accion: { tipo: 'iniciar_sesion' }
+      });
+    }
+
+    // ── Card 2: Rendimiento de la última sesión ────────────────
+    if (sesData.length > 0) {
+      const last = sesData[0];
+      const total = (last.aciertos || 0) + (last.amarillos || 0) + (last.fallos || 0);
+      if (total > 0) {
+        const pct = Math.round(((last.aciertos || 0) / total) * 100);
+        const subj = last.asignatura_nombre || curSubjectName || 'última sesión';
+        const color = pct >= 80 ? 'green' : pct >= 55 ? 'amber' : 'red';
+        const title = pct >= 80 ? `${pct}% en ${subj}` : pct >= 55 ? `${pct}% — casi` : `${pct}% — a repasar`;
+        const msg   = pct >= 80
+          ? 'Excelente resultado. Los fallos quedan guardados.'
+          : pct >= 55
+          ? 'Buen intento. Repasa los errores para consolidar.'
+          : `Repasa esta asignatura. Tienes ${last.fallos || 0} errores pendientes.`;
+        notifs.push({ color, titulo: title, mensaje: msg, accion: { tipo: 'ver_errores', sesion_id: last.id } });
+      }
+    }
+
+    // ── Card 3: Documentos procesando o pendientes ─────────────
+    const processing = docData.filter(d => d.status === 'procesando' || d.status === 'pending');
+    const ready      = docData.filter(d => d.status === 'listo' || d.status === 'ready');
+    const atomCount  = ready.reduce((s, d) => s + (d.atom_count || 0), 0);
+
+    if (processing.length > 0) {
+      notifs.push({
+        color: 'blue',
+        titulo: processing.length === 1 ? 'Procesando apunte' : `Procesando ${processing.length} apuntes`,
+        mensaje: 'La IA está generando preguntas. Listo en breve.',
+        accion: { tipo: 'ver_materiales' }
+      });
+    } else if (atomCount > 0 && sesData.length === 0) {
+      notifs.push({
+        color: 'blue',
+        titulo: `${atomCount} conceptos listos`,
+        mensaje: `${curSubjectName || 'Tu asignatura'} está lista para estudiar. Empieza cuando quieras.`,
+        accion: { tipo: 'iniciar_sesion' }
+      });
+    }
+  } catch(e) {
+    // Fallback: try old endpoint
+    try {
+      const old = await api(`/notificaciones/${uid}?lang=${currentLang}`);
+      return (old || []).slice(0, 3);
+    } catch(e2) { /* silent */ }
+  }
+  return notifs;
+}
+
+function _calcStreak(sessions) {
+  if (!sessions || !sessions.length) return 0;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const days = new Set(sessions.map(s => {
+    const d = new Date(s.fecha_inicio || s.created_at);
+    d.setHours(0,0,0,0);
+    return d.getTime();
+  }));
+  let streak = 0;
+  let cursor = new Date(today);
+  while (days.has(cursor.getTime())) {
+    streak++;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function _relativeDate(dateStr) {
+  if (!dateStr) return 'hace un tiempo';
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diff = Math.floor((now - d) / 86400000);
+  if (diff === 0) return 'hoy';
+  if (diff === 1) return 'ayer';
+  return `hace ${diff} días`;
 }
 
 function goNotif(i) {
@@ -363,6 +475,12 @@ function handleNotifClick(el) {
       break;
     case 'iniciar_sesion':
       switchView('lobby');
+      break;
+    case 'ver_historial':
+      switchView('historial');
+      break;
+    case 'ver_materiales':
+      switchView('materiales');
       break;
   }
 }
@@ -563,17 +681,231 @@ function openSettings() {
 
 // ─ Auth ─
 function switchTab(tab) {
-  $('tab-login').classList.toggle('on', tab==='login');
-  $('tab-register').classList.toggle('on', tab==='register');
-  $('form-login').style.display    = tab==='login'    ? 'block' : 'none';
-  $('form-register').style.display = tab==='register' ? 'block' : 'none';
+  ['tab-login','tab-register'].forEach(id => {
+    const el = $(id);
+    if (el) el.classList.toggle('active', id === `tab-${tab}`);
+  });
+  const track = $('auth-pill-track');
+  if (track) track.classList.toggle('right', tab === 'register');
+  $('form-login').style.display    = tab === 'login'    ? 'flex' : 'none';
+  $('form-register').style.display = tab === 'register' ? 'flex' : 'none';
   $('auth-err').style.display = 'none';
 }
 
 function showAuthErr(msg) {
   const el = $('auth-err');
+  if (!el) return;
   el.textContent = msg;
   el.style.display = 'block';
+}
+
+// ─ Auth particle background ─
+function _initAuthParticles() {
+  const container = $('auth-particles');
+  if (!container || container.children.length) return;
+  for (let i = 0; i < 14; i++) {
+    const p = document.createElement('div');
+    p.className = 'auth-particle';
+    const size = 6 + Math.random() * 18;
+    const left = Math.random() * 100;
+    const delay = Math.random() * 8;
+    const dur   = 8 + Math.random() * 12;
+    const startY = 20 + Math.random() * 80;
+    p.style.cssText = `
+      width:${size}px; height:${size}px;
+      left:${left}vw; top:${startY}vh;
+      animation-duration:${dur}s;
+      animation-delay:-${delay}s;
+      opacity:${0.10 + Math.random() * 0.18};
+    `;
+    container.appendChild(p);
+  }
+}
+
+// ════════════════════════════════
+//   ONBOARDING — Cal.ai style
+// ════════════════════════════════
+let _obStep   = 0;
+let _obHabit  = 'short';
+let _obColor  = COLORS[0];
+let _obSubjId = null;
+let _obNivel  = 'bachillerato';
+let _obTiempo = '15';
+let _obMundo  = 'deportes';
+
+const _OB_TOTAL = 7; // steps 0-7, progress shown from step 1
+
+function openOnboarding(name) {
+  const nameEl = $('ob-welcome-name');
+  if (nameEl) nameEl.textContent = name || 'Estudiante';
+  _obStep = 0;
+  _obColor = COLORS[0];
+  _obSubjId = null;
+  _obNivel  = 'bachillerato';
+  _obTiempo = '15';
+  _obMundo  = 'deportes';
+  _buildObColorPicker();
+  _obGoTo(0, false);
+  const ob = $('screen-onboarding');
+  ob.style.display = '';
+  ob.style.opacity = '0';
+  requestAnimationFrame(() => {
+    ob.style.transition = 'opacity .3s';
+    ob.style.opacity = '1';
+  });
+}
+
+function _obGoTo(step, animate = true) {
+  _obStep = step;
+  const slides = $('ob-slides');
+  if (slides) {
+    if (!animate) slides.style.transition = 'none';
+    slides.style.transform = `translateX(${-step * 100}%)`;
+    if (!animate) requestAnimationFrame(() => { slides.style.transition = ''; });
+  }
+
+  // Progress bar: step 0 = 0%, step 7 = 100%
+  const fill = $('ob-progress-fill');
+  if (fill) fill.style.width = step === 0 ? '0%' : `${Math.round((step / _OB_TOTAL) * 100)}%`;
+
+  // Skip button: visible on steps 1-4
+  const skipBtn = $('ob-skip-btn');
+  if (skipBtn) skipBtn.style.display = (step >= 1 && step <= 4) ? '' : 'none';
+}
+
+function obNext() {
+  if (_obStep < _OB_TOTAL) _obGoTo(_obStep + 1);
+}
+
+function obBack() {
+  if (_obStep > 1) _obGoTo(_obStep - 1);
+}
+
+function obSelect(key, value, btn) {
+  if (key === 'nivel') _obNivel = value;
+  else if (key === 'tiempo') _obTiempo = value;
+  // Deactivate siblings in same stack
+  if (btn && btn.parentElement) {
+    btn.parentElement.querySelectorAll('.ob-opt-row').forEach(b => b.classList.remove('active'));
+  }
+  if (btn) btn.classList.add('active');
+}
+
+function obSelectAnalogy(val, el) {
+  _obMundo = val;
+  document.querySelectorAll('.ob-analogy-chip').forEach(c => c.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+async function obSaveAnalogyAndNext() {
+  // Save mundo to backend
+  if (uid && _obMundo) {
+    try {
+      await api(`/auth/update-mundo-analogias?usuario_id=${uid}&mundo=${encodeURIComponent(_obMundo)}`, { method: 'POST' });
+      umundo = _obMundo;
+      localStorage.setItem('ar_mundo', _obMundo);
+    } catch(e) { /* non-fatal */ }
+  }
+  // Populate plan card
+  const durMap = { '5': '5–10 min', '15': '15–20 min', '30': '30+ min' };
+  const durEl = $('ob-plan-duration');
+  if (durEl) durEl.textContent = durMap[_obTiempo] || (_obTiempo + ' min');
+  const nivelEl = $('ob-plan-nivel');
+  if (nivelEl) nivelEl.textContent = _obNivel;
+  const mundoEl = $('ob-plan-mundo');
+  if (mundoEl) mundoEl.textContent = _obMundo;
+  _obGoTo(5);
+}
+
+function obSkipToSubject() {
+  _obGoTo(6);
+}
+
+function obSelectHabit(habit, btn) {
+  _obHabit = habit;
+  document.querySelectorAll('.ob-option-card').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+}
+
+function _buildObColorPicker() {
+  const container = $('ob-color-picker');
+  if (!container) return;
+  container.innerHTML = COLORS.map(c => `
+    <div class="ob-color-dot ${c === _obColor ? 'active' : ''}"
+         style="background:${c}"
+         onclick="obSelectColor('${c}', this)"></div>
+  `).join('');
+}
+
+function obSelectColor(color, el) {
+  _obColor = color;
+  document.querySelectorAll('.ob-color-dot').forEach(d => d.classList.remove('active'));
+  if (el) el.classList.add('active');
+}
+
+async function obCreateSubject() {
+  const nameInput = $('ob-subj-name');
+  const name = nameInput ? nameInput.value.trim() : '';
+  if (!name) { nameInput && nameInput.focus(); return; }
+
+  const btn = $('ob-step6-next');
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando...'; }
+
+  try {
+    const s = await api('/asignaturas/', {
+      method: 'POST',
+      body: JSON.stringify({ nombre: name, color: _obColor })
+    });
+    _obSubjId = s.id;
+    await loadSubjectsHome();
+    goSubject(s.id, s.nombre, s.color);
+    _obGoTo(7);
+  } catch(e) {
+    // fallback: go to step 7 anyway
+    _obGoTo(7);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Continuar'; }
+  }
+}
+
+function obFileSelected(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const zone = document.querySelector('.ob-upload-zone');
+  const label = $('ob-upload-label');
+  if (label) label.textContent = file.name;
+  if (zone)  zone.classList.add('ob-has-file');
+  const nextBtn = $('ob-step7-upload');
+  if (nextBtn) {
+    nextBtn.disabled = false;
+    nextBtn.style.opacity = '';
+    nextBtn.style.pointerEvents = '';
+    nextBtn.onclick = () => _obUploadAndFinish(file);
+  }
+}
+
+async function _obUploadAndFinish(file) {
+  if (!_obSubjId) { obFinish(); return; }
+  const btn = $('ob-step7-upload');
+  if (btn) { btn.disabled = true; btn.textContent = 'Subiendo...'; }
+  try {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('asignatura_id', _obSubjId);
+    await api('/documentos/', { method: 'POST', body: fd, raw: true });
+  } catch(e) { /* ignore, finish anyway */ }
+  obFinish();
+}
+
+function obFinish() {
+  const ob = $('screen-onboarding');
+  if (ob) {
+    ob.style.transition = 'opacity .3s';
+    ob.style.opacity = '0';
+    setTimeout(() => { ob.style.display = 'none'; ob.style.opacity = ''; }, 320);
+  }
+  if (curSubjectId) loadDocs();
+  else loadSubjectsHome();
 }
 
 async function doLogin() {
@@ -600,8 +932,8 @@ async function doRegister() {
   try {
     const d = await api('/auth/register', { method:'POST', body: JSON.stringify({nombre,email,password:pass,mundo_analogias:mundo||null}) });
     saveSession(d); enterApp();
-    // New user: open subject creation wizard for onboarding
-    setTimeout(() => openSubjectWizard(), 600);
+    // New user: open Cal.ai-style onboarding
+    setTimeout(() => openOnboarding(d.nombre || nombre), 500);
   } catch(e) { showAuthErr(e.message); }
   finally { btn.disabled=false; btn.textContent=T('auth_btn_register'); }
 }
@@ -616,10 +948,29 @@ function saveSession(d) {
 }
 
 function logout() {
-  token=uid=uname='';
-  ['ar_t','ar_u','ar_n'].forEach(k => localStorage.removeItem(k));
+  // Clear ALL in-memory user state before showing auth screen
+  token = uid = uname = umundo = '';
+  curSubjectId = curSubjectName = curSubjectColor = '';
+  curDocId = '';
+  _subjData = [];
+  _notifIdx = 0;
+  if (_notifInterval) { clearInterval(_notifInterval); _notifInterval = null; }
+
+  // Clear ALL localStorage keys that belong to a user session
+  [
+    'ar_t','ar_u','ar_n','ar_email','ar_mundo',
+    'ar_subj_id','ar_subj_name','ar_subj_color','ar_subj_data'
+  ].forEach(k => localStorage.removeItem(k));
+
+  // Reset header UI
+  const bcs = $('bc-subject');
+  if (bcs) bcs.textContent = 'Active Recall';
+  const hdot = $('header-dot');
+  if (hdot) hdot.style.background = 'var(--amber)';
+
   $('screen-auth').classList.add('active');
   $('screen-app').classList.remove('active');
+  _initAuthParticles();
 }
 
 function enterApp() {
@@ -1825,11 +2176,24 @@ async function startMicrophone() {
           if (orb) orb.style.animationPlayState = 'paused';
         }
         vadHasSentAudio = true;
-        // Audio-reactive: scale + red glow based on voice amplitude
-        const scale = 1 + Math.min(rms * 5, 0.55);
-        const glowPx = Math.round(rms * 220);
-        orb.style.transform = `scale(${scale})`;
-        orb.style.boxShadow = `0 0 ${glowPx}px rgba(248,113,113,0.75), 0 0 ${glowPx*2}px rgba(248,113,113,0.28), inset 0 1px 0 rgba(255,255,255,0.40)`;
+        // Audio-reactive: liquid glass — scale + morphing border-radius + blue glow
+        const scale = 1 + Math.min(rms * 3.8, 0.38);
+        const glow  = Math.round(rms * 160);
+        // Organic liquid shape — each frame slightly different
+        const a = 48 + (rms * 80) % 6 | 0;
+        const b = 52 - (a - 48);
+        const c = 50 + (rms * 120) % 5 | 0;
+        const d = 52 - (c - 50);
+        orb.style.borderRadius = `${a}% ${b}% ${c}% ${d}% / ${d}% ${c}% ${b}% ${a}%`;
+        orb.style.transform = `scale(${scale.toFixed(3)}) translateY(-${(rms * 10).toFixed(1)}px)`;
+        orb.style.boxShadow = [
+          `inset 0 -10px 28px rgba(0,18,60,0.35)`,
+          `inset 0 5px ${20 + glow * 0.3}px rgba(255,255,255,${0.52 + rms * 0.8})`,
+          `inset 0 0 0 1.5px rgba(255,255,255,${0.22 + rms * 0.4})`,
+          `0 0 ${glow}px rgba(91,141,238,${0.50 + rms * 0.8})`,
+          `0 0 ${glow * 2}px rgba(255,255,255,${0.12 + rms * 0.25})`,
+          `0 16px 52px rgba(28,56,150,0.25)`,
+        ].join(', ');
         if (vadSilenceTimer) {
           clearTimeout(vadSilenceTimer);
           vadSilenceTimer = null;
@@ -1838,15 +2202,17 @@ async function startMicrophone() {
       } else {
         if (isSpeaking) {
           isSpeaking = false;
-          // Restore CSS animation
+          // Restore CSS animation — smooth back to glass sphere
           if (orb) orb.style.animationPlayState = '';
           orb.style.transform = '';
           orb.style.boxShadow = '';
+          orb.style.borderRadius = '';
           // No auto-timeout — el usuario pulsa Enviar cuando esté listo
         }
         if (!isSpeaking) {
           orb.style.transform = '';
           orb.style.boxShadow = '';
+          orb.style.borderRadius = '';
         }
         if (!vadHasSentAudio) orb.classList.remove('vad-active');
       }
@@ -3485,4 +3851,5 @@ if (token && uid) {
     });
 } else {
   $('screen-auth').classList.add('active');
+  _initAuthParticles();
 }
