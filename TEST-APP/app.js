@@ -1021,6 +1021,20 @@ function saveSession(d) {
   if (d.mundo_analogias != null) { umundo = d.mundo_analogias; localStorage.setItem('ar_mundo', umundo); }
 }
 
+async function confirmDeleteAccount() {
+  const confirmed = confirm('¿Eliminar tu cuenta? Se borrarán todos tus datos permanentemente. Esta acción no se puede deshacer.');
+  if (!confirmed) return;
+  const confirmed2 = confirm('Última confirmación: ¿seguro que quieres eliminar tu cuenta y todos tus datos?');
+  if (!confirmed2) return;
+  try {
+    await api(`/auth/delete-account/${uid}`, { method: 'DELETE' });
+    toast('Cuenta eliminada', 'ok');
+    logout();
+  } catch(e) {
+    toast('Error al eliminar la cuenta: ' + e.message, 'err');
+  }
+}
+
 function logout() {
   // Clear ALL in-memory user state before showing auth screen
   token = uid = uname = umundo = '';
@@ -1747,6 +1761,7 @@ let vadSilenceTimer = null;
 let vadNoAudioTimer = null;
 let vadHasSentAudio = false;
 let _wsReconnectAttempts = 0;
+let _wsPausing = false;
 
 const CHECK_SVG = `<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`;
 
@@ -2108,6 +2123,7 @@ function connectSessionWS(totalAtomos) {
   sessWs.onclose = () => {
     stopMicrophone();
     if (sessState === 'complete') return;
+    if (_wsPausing) { _wsPausing = false; return; } // pausa intencional, no error
     // Try reconnecting up to 2 times
     if (_wsReconnectAttempts < 2 && sessId) {
       _wsReconnectAttempts++;
@@ -2145,13 +2161,13 @@ function skipPregunta() {
 async function pausarSesion() {
   stopCurrentAudio();
   stopMicrophone();
+  _wsPausing = true; // flag: cierre intencionado, no mostrar error
   if (sessWs && sessWs.readyState === WebSocket.OPEN) {
     setSessControls(false);
     sessWs.send(JSON.stringify({ type: 'pausar' }));
-  } else {
-    // WS no disponible — volver a home (progreso ya guardado en servidor)
-    closeSession();
+    setTimeout(() => { sessWs && sessWs.close(); }, 300);
   }
+  closeSession();
 }
 
 function toggleModo() {

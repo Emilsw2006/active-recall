@@ -71,6 +71,24 @@ async def register(body: RegisterRequest):
     }
 
 
+@router.delete("/delete-account/{usuario_id}")
+async def delete_account(usuario_id: str):
+    """Elimina la cuenta del usuario y todos sus datos."""
+    db = get_service_client()
+    try:
+        # Eliminar datos del usuario (cascade por FK en Supabase, o manual)
+        db.table("sesiones").delete().eq("usuario_id", usuario_id).execute()
+        db.table("asignaturas").delete().eq("usuario_id", usuario_id).execute()
+        db.table("usuarios").delete().eq("id", usuario_id).execute()
+        # Eliminar usuario de Supabase Auth
+        db.auth.admin.delete_user(usuario_id)
+        logger.info(f"Cuenta eliminada: {usuario_id}")
+        return {"ok": True}
+    except Exception as e:
+        logger.error(f"Error eliminando cuenta {usuario_id}: {e}")
+        raise HTTPException(status_code=500, detail="Error al eliminar la cuenta")
+
+
 @router.post("/token-login")
 async def token_login(body: TokenLoginRequest):
     """Login con token OAuth de Supabase (Google, etc.)"""

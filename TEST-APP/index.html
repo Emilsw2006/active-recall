@@ -23,21 +23,21 @@
 <div id="screen-auth">
   <div class="auth-glow-orb"></div>
   
-  <!-- Brand at Top Left -->
-  <div class="auth-brand" style="position:absolute; top:40px; left:40px; z-index:100; margin:0;">
-    <div class="auth-wordmark" style="font-size:1.8rem; color:#fff;">Active<em style="color:#fff; opacity:0.8; font-style:normal; font-weight:400;">Recall</em></div>
+  <!-- Brand at Top Left (más esquinado) -->
+  <div class="auth-brand" style="position:absolute; top:24px; left:24px; z-index:100; margin:0;">
+    <div class="auth-wordmark" style="font-size:1.6rem; color:#fff;">Active<em style="color:#fff; opacity:0.8; font-style:normal; font-weight:400;">Recall</em></div>
   </div>
 
   <!-- Top Right controls -->
-  <div class="auth-top-bar" style="position:absolute; top:40px; right:30px; z-index:100; display:flex; flex-direction:column; align-items:flex-end; gap:16px;">
-    <!-- Language Box Selector -->
-    <div style="position:relative; width: 120px;">
-      <select onchange="console.log('Language changed:', this.value)" style="width:100%; background:rgba(255,255,255,0.15); color:#fff; border:1px solid rgba(255,255,255,0.2); padding:10px 16px; border-radius:99px; outline:none; font-family:'Inter', sans-serif; font-size:0.85rem; font-weight:600; cursor:pointer; appearance:none; padding-right:30px;">
-        <option value="es" style="color:#000">🇪🇸 Español</option>
-        <option value="en" style="color:#000">🇬🇧 English</option>
-        <option value="de" style="color:#000">🇩🇪 Deutsch</option>
+  <div class="auth-top-bar" style="position:absolute; top:24px; right:24px; z-index:100; display:flex; flex-direction:column; align-items:flex-end; gap:16px;">
+    <!-- Language Box Selector (Solo bandera) -->
+    <div style="position:relative;">
+      <select onchange="changeLang(this.value); setTimeout(updateAuthTexts, 50)" id="auth-lang-select" style="background:transparent; color:#fff; border:none; padding:4px 16px 4px 4px; border-radius:0; outline:none; font-size:1.6rem; cursor:pointer; appearance:none;">
+        <option value="es">🇪🇸</option>
+        <option value="en">🇬🇧</option>
+        <option value="de">🇩🇪</option>
       </select>
-      <div style="position:absolute; right:14px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:0.65rem; color:#fff;">▼</div>
+      <div style="position:absolute; right:2px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:0.6rem; color:rgba(255,255,255,0.7);">▼</div>
     </div>
   </div>
 
@@ -52,11 +52,11 @@
     <!-- Social / Initial Buttons (Pushed Down) -->
     <div id="auth-initial-btns" style="width:100%; display:flex; flex-direction:column; gap:14px; margin-bottom:10vh;">
       <button class="auth-btn-google-glass" onclick="authWithGoogle()">
-        <svg width="18" height="18" viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
-        Continuar con Google
+        <svg width="18" height="18" viewBox="0 0 24 24" style="flex-shrink:0"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        <span id="auth-btn-google-text">Regístrate con Google</span>
       </button>
       <button class="auth-btn-google-glass" onclick="showEmailForm()" style="background:rgba(255,255,255,0.15); border:none; margin-top:4px;">
-        ✉️ Continuar con Email
+        <span style="font-size:1rem; margin-right:4px;">✉️</span> <span id="auth-btn-email-text">Regístrate con Email</span>
       </button>
       <div id="auth-switch-text" style="font-size:0.85rem; color:rgba(255,255,255,0.7); margin-top:24px; cursor:pointer;" onclick="toggleAuthMode()">¿Ya tienes cuenta? <strong style="color:#fff;">Iniciar sesión</strong></div>
     </div>
@@ -83,6 +83,50 @@
   <script>
     let _isLoginMode = false;
     
+    function updateAuthTexts() {
+      const lang = localStorage.getItem('ar_lang') || 'es';
+      document.getElementById('auth-lang-select').value = lang;
+      const t = {
+        es: {
+          regTitle: 'Únete a Active Recall', logTitle: 'Bienvenido de nuevo',
+          googleReg: 'Regístrate con Google', googleLog: 'Iniciar sesión con Google',
+          emailReg: 'Regístrate con Email', emailLog: 'Iniciar sesión con Email',
+          haveAcc: '¿Ya tienes cuenta? ', noAcc: '¿No tienes cuenta? ',
+          doLog: 'Iniciar sesión', doReg: 'Regístrate'
+        },
+        en: {
+          regTitle: 'Join Active Recall', logTitle: 'Welcome back',
+          googleReg: 'Sign up with Google', googleLog: 'Sign in with Google',
+          emailReg: 'Sign up with Email', emailLog: 'Sign in with Email',
+          haveAcc: 'Already have an account? ', noAcc: 'Don\'t have an account? ',
+          doLog: 'Sign in', doReg: 'Sign up'
+        },
+        de: {
+          regTitle: 'Active Recall beitreten', logTitle: 'Willkommen zurück',
+          googleReg: 'Mit Google registrieren', googleLog: 'Mit Google anmelden',
+          emailReg: 'Mit Email registrieren', emailLog: 'Mit Email anmelden',
+          haveAcc: 'Hast du schon ein Konto? ', noAcc: 'Du hast noch kein Konto? ',
+          doLog: 'Anmelden', doReg: 'Registrieren'
+        }
+      };
+      const d = t[lang] || t['es'];
+      
+      if (_isLoginMode) {
+         document.getElementById('auth-main-title').innerText = d.logTitle;
+         document.getElementById('auth-btn-google-text').innerText = d.googleLog;
+         document.getElementById('auth-btn-email-text').innerText = d.emailLog;
+         document.getElementById('auth-switch-text').innerHTML = d.noAcc + '<strong style="color:#fff;">' + d.doReg + '</strong>';
+      } else {
+         document.getElementById('auth-main-title').innerText = d.regTitle;
+         document.getElementById('auth-btn-google-text').innerText = d.googleReg;
+         document.getElementById('auth-btn-email-text').innerText = d.emailReg;
+         document.getElementById('auth-switch-text').innerHTML = d.haveAcc + '<strong style="color:#fff;">' + d.doLog + '</strong>';
+      }
+    }
+    
+    // Initializer
+    document.addEventListener('DOMContentLoaded', updateAuthTexts);
+
     function showEmailForm() {
       document.getElementById('auth-initial-btns').style.display = 'none';
       document.getElementById('auth-forms-container').style.display = 'block';
@@ -95,15 +139,12 @@
 
     function toggleAuthMode() {
       _isLoginMode = !_isLoginMode;
+      updateAuthTexts();
       
       if (_isLoginMode) {
-         document.getElementById('auth-main-title').innerText = 'Bienvenido de nuevo';
-         document.getElementById('auth-switch-text').innerHTML = '¿No tienes cuenta? <strong style="color:#fff;">Regístrate</strong>';
          document.getElementById('form-login').style.display = 'flex';
          document.getElementById('form-register').style.display = 'none';
       } else {
-         document.getElementById('auth-main-title').innerText = 'Únete a Active Recall';
-         document.getElementById('auth-switch-text').innerHTML = '¿Ya tienes cuenta? <strong style="color:#fff;">Iniciar sesión</strong>';
          document.getElementById('form-login').style.display = 'none';
          document.getElementById('form-register').style.display = 'flex';
       }
@@ -112,22 +153,12 @@
       if (err) err.style.display = 'none';
     }
 
-    // Highlight active flag on load and after change
-    function _updateFlags() {
-      const lang = localStorage.getItem('ar_lang') || 'es';
-      ['es','en','de'].forEach(l => {
-        const btn = document.getElementById('flag-' + l);
-        if (btn) btn.style.opacity = l === lang ? '1' : '0.45';
-      });
-    }
-    // Wrap changeLang to also update flags
+    // Wrap changeLang to also update auth texts globally
     const _origChangeLang = window.changeLang;
     window.changeLang = function(lang) {
       if (typeof _origChangeLang === 'function') _origChangeLang(lang);
-      _updateFlags();
+      if (typeof updateAuthTexts === 'function') setTimeout(updateAuthTexts, 50);
     };
-    document.addEventListener('DOMContentLoaded', _updateFlags);
-    setTimeout(_updateFlags, 200);
   </script>
 </div>
 
@@ -899,6 +930,12 @@
     <button class="ajustes-logout" onclick="logout()">
       <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
       <span data-i18n="settings_logout">Cerrar sesión</span>
+    </button>
+
+    <!-- Delete account -->
+    <button class="ajustes-logout" onclick="confirmDeleteAccount()" style="color:#f87171; border-color:rgba(248,113,113,0.25); margin-top:4px;">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2"/></svg>
+      <span>Eliminar cuenta</span>
     </button>
   </div>
 </div>
