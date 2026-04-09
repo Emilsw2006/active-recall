@@ -798,13 +798,8 @@ async function _handleOAuthCallback() {
     // For new users, always clear stale onboarding flag before saveSession writes it
     if (!d.onboarding_completed) localStorage.removeItem('ar_ob_done');
     saveSession(d);
-    if (!d.onboarding_completed) {
-      // New user: hide auth, go straight to onboarding (enterApp called by obFinish)
-      $('screen-auth').classList.remove('active');
-      openOnboarding(d.nombre);
-    } else {
-      enterApp();
-    }
+    // Reload so init code handles onboarding/app state cleanly
+    window.location.reload();
     return true;
   } catch(e) {
     showAuthErr('Error al iniciar sesión con Google. Inténtalo de nuevo.');
@@ -856,11 +851,14 @@ let _obMundo  = 'deportes';
 const _OB_TOTAL = 7; // steps 0-7, progress shown from step 1
 
 function openOnboarding(name) {
-  // Hide auth & app screens so onboarding is the only thing visible
+  // Hide all other screens
   const authEl = $('screen-auth');
   if (authEl) authEl.classList.remove('active');
   const appEl = $('screen-app');
   if (appEl) appEl.classList.remove('active');
+
+  const ob = $('screen-onboarding');
+  if (!ob) return;
 
   const nameEl = $('ob-welcome-name');
   if (nameEl) nameEl.textContent = name || 'Estudiante';
@@ -872,9 +870,9 @@ function openOnboarding(name) {
   _obMundo  = 'deportes';
   _buildObColorPicker();
   _obGoTo(0, false);
-  const ob = $('screen-onboarding');
-  if (!ob) return;
-  ob.style.display = 'flex';
+
+  // Show via class (CSS controls display; class overrides default none)
+  ob.classList.add('active');
   ob.style.opacity = '0';
   requestAnimationFrame(() => {
     ob.style.transition = 'opacity .3s';
@@ -1026,7 +1024,7 @@ function obFinish() {
   if (ob) {
     ob.style.transition = 'opacity .3s';
     ob.style.opacity = '0';
-    setTimeout(() => { ob.style.display = 'none'; ob.style.opacity = ''; }, 320);
+    setTimeout(() => { ob.classList.remove('active'); ob.style.opacity = ''; }, 320);
   }
   // If app screen isn't active yet (fresh registration flow), enter it now
   if (!$('screen-app').classList.contains('active')) {
@@ -1046,12 +1044,9 @@ async function doLogin() {
   try {
     const d = await api('/auth/login', { method:'POST', body: JSON.stringify({email, password:pass}) });
     saveSession(d);
-    if (!d.onboarding_completed) {
-      $('screen-auth').classList.remove('active');
-      openOnboarding(d.nombre);
-    } else {
-      enterApp();
-    }
+    // Reload — init code will handle onboarding vs app based on ar_ob_done
+    window.location.reload();
+    return;
   } catch(e) { showAuthErr(e.message); }
   finally { btn.disabled=false; btn.textContent=T('auth_btn_login'); }
 }
@@ -1068,9 +1063,9 @@ async function doRegister() {
   try {
     const d = await api('/auth/register', { method:'POST', body: JSON.stringify({nombre,email,password:pass,mundo_analogias:null}) });
     saveSession(d);
-    // Hide auth, show onboarding
-    $('screen-auth').classList.remove('active');
-    openOnboarding(d.nombre || nombre);
+    // Reload so init code handles onboarding cleanly (no stale DOM state)
+    window.location.reload();
+    return;
   } catch(e) {
     const msg = e.message || '';
     if (msg.toLowerCase().includes('registrado') || msg.toLowerCase().includes('exists') || msg.toLowerCase().includes('already')) {
@@ -2341,24 +2336,9 @@ async function startMicrophone() {
           if (orb) orb.style.animationPlayState = 'paused';
         }
         vadHasSentAudio = true;
-        // Audio-reactive: liquid glass — scale + morphing border-radius + blue glow
-        const scale = 1 + Math.min(rms * 3.8, 0.38);
-        const glow  = Math.round(rms * 160);
-        // Organic liquid shape — each frame slightly different
-        const a = 48 + (rms * 80) % 6 | 0;
-        const b = 52 - (a - 48);
-        const c = 50 + (rms * 120) % 5 | 0;
-        const d = 52 - (c - 50);
-        orb.style.borderRadius = `${a}% ${b}% ${c}% ${d}% / ${d}% ${c}% ${b}% ${a}%`;
-        orb.style.transform = `scale(${scale.toFixed(3)}) translateY(-${(rms * 10).toFixed(1)}px)`;
-        orb.style.boxShadow = [
-          `inset 0 -10px 28px rgba(0,18,60,0.35)`,
-          `inset 0 5px ${20 + glow * 0.3}px rgba(255,255,255,${0.52 + rms * 0.8})`,
-          `inset 0 0 0 1.5px rgba(255,255,255,${0.22 + rms * 0.4})`,
-          `0 0 ${glow}px rgba(91,141,238,${0.50 + rms * 0.8})`,
-          `0 0 ${glow * 2}px rgba(255,255,255,${0.12 + rms * 0.25})`,
-          `0 16px 52px rgba(28,56,150,0.25)`,
-        ].join(', ');
+        // Audio-reactive: simple scale only
+        const scale = 1 + Math.min(rms * 2.5, 0.18);
+        orb.style.transform = `scale(${scale.toFixed(3)})`;
         if (vadSilenceTimer) {
           clearTimeout(vadSilenceTimer);
           vadSilenceTimer = null;
@@ -2367,18 +2347,10 @@ async function startMicrophone() {
       } else {
         if (isSpeaking) {
           isSpeaking = false;
-          // Restore CSS animation — smooth back to glass sphere
           if (orb) orb.style.animationPlayState = '';
           orb.style.transform = '';
-          orb.style.boxShadow = '';
-          orb.style.borderRadius = '';
-          // No auto-timeout — el usuario pulsa Enviar cuando esté listo
         }
-        if (!isSpeaking) {
-          orb.style.transform = '';
-          orb.style.boxShadow = '';
-          orb.style.borderRadius = '';
-        }
+        if (!isSpeaking) orb.style.transform = '';
         if (!vadHasSentAudio) orb.classList.remove('vad-active');
       }
       vadAnimId = requestAnimationFrame(vadLoop);
