@@ -379,7 +379,6 @@
   <!-- Header Flotante (Slim) -->
   <div class="floating-header">
     <div style="display:flex; align-items:center; gap:12px;">
-      <img src="logo.png" alt="Logo" style="width:32px; height:32px; border-radius:8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
       <button class="subject-selector" onclick="openModal()" id="subject-selector-btn">
         <span class="subject-dot" id="header-dot" style="background:var(--amber)"></span>
         <span id="bc-subject" style="font-weight:600">Active Recall</span>
@@ -387,17 +386,6 @@
       </button>
     </div>
     <div class="header-right-btns">
-      <!-- Language flag pill -->
-      <div class="hdr-lang-wrap" id="hdr-lang-wrap">
-        <button class="hdr-lang-btn" id="hdr-lang-btn" onclick="toggleHdrLang(event)" aria-label="Language">
-          <span id="hdr-lang-flag">🇪🇸</span>
-        </button>
-        <div class="hdr-lang-dropdown" id="hdr-lang-dropdown">
-          <button onclick="setHdrLang('es')">🇪🇸</button>
-          <button onclick="setHdrLang('en')">🇬🇧</button>
-          <button onclick="setHdrLang('de')">🇩🇪</button>
-        </div>
-      </div>
       <button class="btn-settings" onclick="openAjustesModal()" aria-label="Ajustes">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round">
           <line x1="3" y1="7" x2="21" y2="7"/><circle cx="8" cy="7" r="2.2" fill="currentColor" stroke="none"/>
