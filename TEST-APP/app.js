@@ -294,7 +294,7 @@ function switchView(viewName) {
   if (viewName === 'hub' || viewName === 'materiales') {
     if (curSubjectId) {
       loadDocs();
-      if (viewName === 'hub') _initReviewBlock(); // evalúa bloqueo en background
+      if (viewName === 'hub' && !_reviewEvaluated) _initReviewBlock(); // evalúa una sola vez por asignatura
     } else {
       loadSubjectsHome();
     }
