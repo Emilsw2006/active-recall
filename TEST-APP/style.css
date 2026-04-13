@@ -114,7 +114,7 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   position: fixed; top: 0; left: 0; right: 0; padding: 14px 18px 10px; z-index: 20;
   display: grid; grid-template-columns: 40px 1fr 40px; align-items: center; pointer-events: none;
 }
-.header-spacer { width: 40px; }
+.header-spacer, .hdr-spacer { width: 40px; }
 .subject-selector {
   pointer-events: auto; display: inline-flex; align-items: center; gap: 6px;
   background: rgba(255,255,255,0.22);
@@ -1311,6 +1311,11 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 .voice-orb-wrap { margin: 0 auto 12px; position:relative; width:110px; height:110px; }
 
 /* ─ Voice Indicator (Duelo) ─ */
+@keyframes morphSquare {
+  0%   { border-radius: 6px; transform: rotate(0deg) scale(1); }
+  50%  { border-radius: 50%; transform: rotate(180deg) scale(1.06); }
+  100% { border-radius: 6px; transform: rotate(360deg) scale(1); }
+}
 @keyframes smoothMorph {
   0% { transform: scale(1) rotate(0deg); border-radius: 50%; }
   20% { transform: scale(0.9) rotate(72deg); border-radius: 35%; }
@@ -1343,37 +1348,38 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   transform-origin: center; transform: scaleY(0.15); transition: transform 0.08s ease-out;
 }
 
-/* Processing / Waiting - use MorphingSpinner with our brand gradient */
-.voice-orb.processing, .voice-orb.finishing, .voice-orb.waiting {
+/* Loading — morphing square, no circular border */
+.voice-orb.loading {
   border: none;
-  background: var(--bg-gradient);
-  box-shadow: 0 0 24px rgba(74, 112, 196, 0.4);
-  animation: smoothMorph 3s ease-in-out infinite;
-  color: transparent;
+  background: linear-gradient(135deg, #4f7eff, #a78bfa);
+  box-shadow: 0 0 28px rgba(79,126,255,0.45);
+  animation: morphSquare 2s ease-in-out infinite;
+  border-radius: 6px; /* overridden by keyframe */
+  width: 72px; height: 72px;
 }
-.voice-orb.processing .orb-wave, .voice-orb.finishing .orb-wave, .voice-orb.waiting .orb-wave {
-  opacity: 0;
-}
+.voice-orb.loading .orb-wave { opacity: 0; }
 
-/* ─ AI is speaking — amber/orange ─ */
+/* ─ AI is speaking — amber bars ─ */
 .voice-orb.speaking {
   border-color: rgba(232,160,48,0.3);
   box-shadow: 0 0 32px rgba(232,160,48,0.25);
   background: linear-gradient(135deg, #f97316, #fbbf24);
-  border-radius: 50%; 
-  animation: orb-pulse-ai 1.2s ease-in-out infinite;
+  border-radius: 50%;
 }
-.voice-orb.speaking .orb-wave { opacity: 1; display: flex; align-items: center; justify-content: center; gap: 4px; }
-.voice-orb.speaking .orb-bar { animation: ai-wave 1s ease-in-out infinite alternate; }
-.voice-orb.speaking .orb-bar:nth-child(1) { animation-delay: 0.0s; }
-.voice-orb.speaking .orb-bar:nth-child(2) { animation-delay: 0.15s; }
-.voice-orb.speaking .orb-bar:nth-child(3) { animation-delay: 0.3s; }
-.voice-orb.speaking .orb-bar:nth-child(4) { animation-delay: 0.45s; }
-.voice-orb.speaking .orb-bar:nth-child(5) { animation-delay: 0.3s; }
-.voice-orb.speaking .orb-bar:nth-child(6) { animation-delay: 0.15s; }
-.voice-orb.speaking .orb-bar:nth-child(7) { animation-delay: 0.0s; }
-
-@keyframes ai-wave { 0% { transform: scaleY(0.2); } 100% { transform: scaleY(0.9); } }
+.voice-orb.speaking .orb-wave { opacity: 1; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.voice-orb.speaking .orb-bar {
+  width: 4px; height: 32px; border-radius: 2px; background: rgba(255,255,255,0.9);
+  animation: speak-bar 0.6s ease-in-out infinite alternate;
+  transform-origin: center;
+}
+.voice-orb.speaking .orb-bar:nth-child(1) { animation-duration: 0.55s; animation-delay: 0.00s; }
+.voice-orb.speaking .orb-bar:nth-child(2) { animation-duration: 0.70s; animation-delay: 0.08s; }
+.voice-orb.speaking .orb-bar:nth-child(3) { animation-duration: 0.50s; animation-delay: 0.16s; }
+.voice-orb.speaking .orb-bar:nth-child(4) { animation-duration: 0.80s; animation-delay: 0.04s; }
+.voice-orb.speaking .orb-bar:nth-child(5) { animation-duration: 0.60s; animation-delay: 0.20s; }
+.voice-orb.speaking .orb-bar:nth-child(6) { animation-duration: 0.65s; animation-delay: 0.12s; }
+.voice-orb.speaking .orb-bar:nth-child(7) { animation-duration: 0.45s; animation-delay: 0.06s; }
+@keyframes speak-bar { 0% { transform: scaleY(0.15); } 100% { transform: scaleY(0.95); } }
 
 @keyframes orb-pulse-ai {
   0%   { transform: scale(0.95); }
@@ -1381,7 +1387,7 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   100% { transform: scale(0.95); }
 }
 
-/* ─ User is speaking/listening — cool blue pulsing ─ */
+/* ─ User is speaking/listening — blue bars driven by VAD ─ */
 .voice-orb.listening {
   border-color: rgba(56,189,248,0.3);
   background: linear-gradient(135deg, #0ea5e9, #818cf8);
@@ -1391,9 +1397,19 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   transform: scale(calc(1 + var(--vad-level, 0) * 0.25));
   transition: transform 0.1s ease-out;
 }
-.voice-orb.listening .orb-wave { opacity: 1; display: flex; align-items: center; justify-content: center; gap: 4px; }
-/* VAD scales the bars via CSS variable injected by JS */
-.voice-orb.listening .orb-bar { transform: scaleY(calc(0.15 + var(--vad-level, 0) * 1.5)); }
+.voice-orb.listening .orb-wave { opacity: 1; display: flex; align-items: center; justify-content: center; gap: 5px; }
+.voice-orb.listening .orb-bar {
+  width: 4px; height: 32px; border-radius: 2px; background: rgba(255,255,255,0.9);
+  transform-origin: center; transition: transform 0.08s ease-out;
+}
+/* VAD cascading: centre bars move most */
+.voice-orb.listening .orb-bar:nth-child(1) { transform: scaleY(calc(0.12 + var(--vad-level,0) * 0.8)); }
+.voice-orb.listening .orb-bar:nth-child(2) { transform: scaleY(calc(0.12 + var(--vad-level,0) * 1.2)); }
+.voice-orb.listening .orb-bar:nth-child(3) { transform: scaleY(calc(0.12 + var(--vad-level,0) * 1.6)); }
+.voice-orb.listening .orb-bar:nth-child(4) { transform: scaleY(calc(0.12 + var(--vad-level,0) * 2.0)); }
+.voice-orb.listening .orb-bar:nth-child(5) { transform: scaleY(calc(0.12 + var(--vad-level,0) * 1.6)); }
+.voice-orb.listening .orb-bar:nth-child(6) { transform: scaleY(calc(0.12 + var(--vad-level,0) * 1.2)); }
+.voice-orb.listening .orb-bar:nth-child(7) { transform: scaleY(calc(0.12 + var(--vad-level,0) * 0.8)); }
 
 /* Evaluate states: hide waves */
 .voice-orb.evaluated-verde, .voice-orb.evaluated-amarillo, .voice-orb.evaluated-rojo {
@@ -1454,12 +1470,38 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .duelo-counter { font-size: .75rem; color: rgba(255,255,255,0.45); letter-spacing: .12em; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
 .duelo-question {
-  width: 100%; font-size: 1.5rem; font-weight: 700; line-height: 1.4; text-align: center; color: var(--txt);
-  flex: 1; display: flex; align-items: center; justify-content: center;
-  padding: 12px 20px; height: 6.5rem;
-  transition: all .25s; font-family: 'Inter', sans-serif; letter-spacing: -0.02em;
+  width: 100%;
+  font-size: 1.1rem; font-weight: 700; line-height: 1.45; text-align: center; color: var(--txt);
+  font-family: 'Inter', sans-serif; letter-spacing: -0.02em;
+  padding: 8px 24px 2px;
+  /* 2-line clamp */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: all .3s ease;
+  height: 3.6rem; /* fixed ~2 lines, prevents layout shift */
+}
+.duelo-question.expanded {
+  -webkit-line-clamp: unset;
+  height: auto;
+  max-height: 40vh;
+  overflow: visible;
 }
 .duelo-question::-webkit-scrollbar { display: none; }
+
+/* Expand button */
+.q-expand-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 28px; height: 18px;
+  background: rgba(255,255,255,0.1); border: none; border-radius: 99px;
+  color: rgba(255,255,255,0.5); cursor: pointer; align-self: center;
+  margin-bottom: 4px; flex-shrink: 0;
+  transition: background .15s, color .15s;
+}
+.q-expand-btn:active { background: rgba(255,255,255,0.2); color: #fff; }
 .duelo-blob-wrap {
   margin: 0 auto; width: 88px; height: 88px;
   display: flex; align-items: center; justify-content: center;
@@ -3491,23 +3533,37 @@ button { touch-action: manipulation; }
   color: #fff !important;
 }
 
-/* Question: 3-line clamp, below fixed topbar */
+/* Question: 2-line clamp, tap to expand */
 .duelo-question {
   margin-top: calc(max(env(safe-area-inset-top,14px),14px) + 56px) !important;
-  font-size: 1.28rem !important;
+  font-size: 1.18rem !important;
   font-weight: 700 !important;
-  line-height: 1.38 !important;
+  line-height: 1.4 !important;
   text-align: center !important;
   color: rgba(255,255,255,0.96) !important;
-  padding: 14px 28px 0 !important;
+  padding: 12px 28px 0 !important;
   letter-spacing: -0.025em !important;
   flex-shrink: 0 !important;
-  height: 6rem !important;
-  /* Clamp to 3 lines */
+  height: auto !important;
+  max-height: 3.3rem !important; /* ~2 lines */
   display: -webkit-box !important;
-  -webkit-line-clamp: 3 !important;
+  -webkit-line-clamp: 2 !important;
   -webkit-box-orient: vertical !important;
   overflow: hidden !important;
+  cursor: pointer !important;
+  transition: max-height .3s ease !important;
+}
+.duelo-question.expanded {
+  -webkit-line-clamp: unset !important;
+  max-height: 42vh !important;
+  overflow: visible !important;
+}
+/* Expand chevron button */
+.q-expand-btn {
+  align-self: center !important;
+  margin-top: 6px !important;
+  flex-shrink: 0 !important;
+  z-index: 10 !important;
 }
 
 /* Orb wrap: fills remaining space, orb centered with padding for fixed buttons */
@@ -3721,6 +3777,29 @@ button { touch-action: manipulation; }
     0 0 130px rgba(244,  63,  94, 0.58),
     0 0 250px rgba(239,  68,  68, 0.28) !important;
   animation: orb-idle-blue 5s ease-in-out infinite !important;
+}
+
+/* Loading (connecting / waiting / processing): morphing square */
+.voice-orb.loading {
+  width: 76px !important;
+  height: 76px !important;
+  border-radius: 14px !important;
+  border: none !important;
+  background: linear-gradient(135deg, #4f7eff 0%, #a78bfa 100%) !important;
+  box-shadow:
+    0 0 36px rgba(79,126,255,0.65),
+    0 0 80px rgba(167,139,250,0.35) !important;
+  animation: morphSquare 2s ease-in-out infinite !important;
+}
+
+/* Result panels: dark glass to match session screen */
+#screen-app.session-mode .error-panel,
+#screen-app.session-mode .answer-panel {
+  background: rgba(14, 17, 32, 0.97) !important;
+  backdrop-filter: blur(28px) !important;
+  -webkit-backdrop-filter: blur(28px) !important;
+  border-top: 1px solid rgba(255,255,255,0.10) !important;
+  box-shadow: 0 -20px 60px rgba(0,0,0,0.55) !important;
 }
 
 /* Transcript: centered glass pill */

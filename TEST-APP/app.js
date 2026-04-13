@@ -2294,34 +2294,37 @@ function setVoiceState(state) {
   const statusEl = $('duel-transcript');
   if (!orb) return;
   orb.className = 'voice-orb';
+  // Hide expand button on new question
+  if (state === 'waiting' || state === 'connecting' || state === 'processing') {
+    const btn = $('q-expand-btn');
+    if (btn) btn.style.display = 'none';
+    const qEl = $('duel-question');
+    if (qEl) qEl.classList.remove('expanded');
+  }
 
-  const MIC  = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>`;
-  const SPK  = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>`;
+  const BARS = `<div class="orb-wave"><div class="orb-bar"></div><div class="orb-bar"></div><div class="orb-bar"></div><div class="orb-bar"></div><div class="orb-bar"></div><div class="orb-bar"></div><div class="orb-bar"></div></div>`;
   const CHK  = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="20 6 9 17 4 12"/></svg>`;
   const HALF = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="10"/><path d="M12 2a10 10 0 0 1 0 20" fill="currentColor" opacity=".4"/></svg>`;
   const X    = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`;
-  const SPIN = `<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" style="animation:spin .9s linear infinite"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
-  const DOTS = `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><circle cx="4" cy="12" r="2.2"/><circle cx="12" cy="12" r="2.2"/><circle cx="20" cy="12" r="2.2"/></svg>`;
   const STAR = `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
-  const PULSE_DOTS = `<div class="typing-dots"><span></span><span></span><span></span></div>`;
 
   const states = {
-    connecting:         { svg: PULSE_DOTS, txt: '', cls: 'processing' },
-    waiting:            { svg: PULSE_DOTS, txt: '', cls: 'processing' },
-    speaking_ai:        { svg: SPK,  txt: '', cls: 'speaking' },
-    listening:          { svg: MIC,  txt: '', cls: 'listening' },
-    finishing:          { svg: PULSE_DOTS, txt: '', cls: 'finishing' },
-    processing:         { svg: PULSE_DOTS, txt: '', cls: 'processing' },
-    evaluated_verde:    { svg: CHK,  txt: T('feedback_correct'), cls: 'evaluated-verde' },
-    evaluated_amarillo: { svg: HALF, txt: T('feedback_almost'), cls: 'evaluated-amarillo' },
-    evaluated_rojo:     { svg: X,    txt: T('feedback_incorrect'), cls: 'evaluated-rojo' },
-    disconnected:       { svg: X,    txt: T('toast_connection_lost'), cls: '' },
-    complete:           { svg: STAR, txt: T('toast_plan_completed'), cls: '' },
+    connecting:         { svg: '',    txt: 'Conectando...', cls: 'loading' },
+    waiting:            { svg: '',    txt: '',               cls: 'loading' },
+    speaking_ai:        { svg: BARS,  txt: '',               cls: 'speaking' },
+    listening:          { svg: BARS,  txt: '',               cls: 'listening' },
+    finishing:          { svg: '',    txt: '',               cls: 'loading' },
+    processing:         { svg: '',    txt: '',               cls: 'loading' },
+    evaluated_verde:    { svg: CHK,   txt: T('feedback_correct'),   cls: 'evaluated-verde' },
+    evaluated_amarillo: { svg: HALF,  txt: T('feedback_almost'),    cls: 'evaluated-amarillo' },
+    evaluated_rojo:     { svg: X,     txt: T('feedback_incorrect'), cls: 'evaluated-rojo' },
+    disconnected:       { svg: X,     txt: T('toast_connection_lost'), cls: '' },
+    complete:           { svg: STAR,  txt: T('toast_plan_completed'),  cls: '' },
   };
   const s = states[state] || states.waiting;
   orb.innerHTML = s.svg;
   if (s.cls) orb.classList.add(s.cls);
-  if (statusEl) statusEl.textContent = s.txt;
+  if (statusEl && s.txt) statusEl.textContent = s.txt;
 }
 
 function orbClick() {
@@ -2504,6 +2507,7 @@ async function typewriterText(el, texto, durationMs) {
         clearInterval(_typewriterTimer);
         _typewriterTimer = null;
         el.classList.remove('typewriting');
+        _maybeShowExpandBtn(texto);
         resolve();
       }
     }, msPerChar);
@@ -3074,7 +3078,25 @@ function _onFcScroll(el) {
 }
 
 // ─ Expandir pregunta larga ─
-function expandQuestion(el) { if (el) el.classList.toggle('expanded'); }
+function expandQuestion(el) {
+  if (!el) return;
+  el.classList.toggle('expanded');
+  const btn = $('q-expand-btn');
+  if (btn) {
+    const expanded = el.classList.contains('expanded');
+    btn.innerHTML = expanded
+      ? `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="18 15 12 9 6 15"/></svg>`
+      : `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>`;
+  }
+}
+
+// Muestra el botón expand si el texto de la pregunta es largo
+function _maybeShowExpandBtn(text) {
+  const btn = $('q-expand-btn');
+  if (!btn) return;
+  // Approx: más de 80 chars suele desbordar 2 líneas
+  btn.style.display = (text && text.length > 80) ? 'flex' : 'none';
+}
 
 // ─ Reanudar escucha después de pista ─
 function reanudarEscucha() {
