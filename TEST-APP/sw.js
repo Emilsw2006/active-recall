@@ -1,4 +1,4 @@
-const CACHE_NAME = 'active-recall-v25';
+const CACHE_NAME = 'active-recall-v26';
 const JS_CSS = /\.(js|css)(\?.*)?$/;
 
 // One-shot flag: serve reset page on first navigation after activation
