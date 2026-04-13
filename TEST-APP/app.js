@@ -125,6 +125,11 @@ let pollingTimer    = null;
 let _pollingDocIds  = new Set(); // track which docs are being polled
 let pickedColor     = COLORS[0];
 
+// ─ Review Block State ─
+let _reviewBlocked      = false;
+let _reviewSessId       = null;   // ID of the ongoing review session
+// _reviewMode / _reviewErrors / _reviewShowOptional declared in Review Block System section below
+
 // ─ Helpers ─
 const $  = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
@@ -2049,11 +2054,22 @@ function connectSessionWS(totalAtomos) {
       _hideAllBtns();
       _showBtn('btn-saltar', true);
       const qEl = $('duel-question');
-      if (qEl) { qEl.innerHTML = `<em style="color:var(--yellow);font-size:.88em">${T('feedback_feynman')}</em><br>`; }
+      if (qEl) { 
+        qEl.style.position = 'relative';
+        qEl.innerHTML = `
+          <div style="visibility:hidden; width:100%; text-align:center;">
+             <em style="color:var(--yellow);font-size:.88em">${T('feedback_feynman')}</em><br>${esc(msg.texto)}
+          </div>
+          <div style="position:absolute; top:0; left:0; width:100%; height:100%; padding:inherit; display:flex; flex-direction:column; align-items:center; justify-content:center; box-sizing:border-box;">
+             <em style="color:var(--yellow);font-size:.88em;margin-bottom:4px">${T('feedback_feynman')}</em>
+             <div id="feynman-text" style="text-align:center"></div>
+          </div>
+        `;
+      }
       setVoiceState('speaking_ai');
       const duration = estimateAudioDuration(msg.audio_base64, msg.audio_format);
       // Append typewriter text after the Feynman label
-      const typeTarget = qEl;
+      const typeTarget = $('feynman-text');
       const typePromise = (async () => {
         if (!typeTarget) return;
         const words = msg.texto.split(/\s+/);
@@ -2350,8 +2366,9 @@ async function startMicrophone() {
         }
         vadHasSentAudio = true;
         // Audio-reactive: simple scale only
-        const scale = 1 + Math.min(rms * 2.5, 0.18);
+        const scale = 1 + Math.min(rms * 1.5, 0.08); // reduced orb scaling to emphasize bars
         orb.style.transform = `scale(${scale.toFixed(3)})`;
+        orb.style.setProperty('--vad-level', Math.min(rms * 8, 3.5).toFixed(3)); // map for CSS bars
         if (vadSilenceTimer) {
           clearTimeout(vadSilenceTimer);
           vadSilenceTimer = null;
@@ -2362,8 +2379,9 @@ async function startMicrophone() {
           isSpeaking = false;
           if (orb) orb.style.animationPlayState = '';
           orb.style.transform = '';
+          orb.style.setProperty('--vad-level', '0');
         }
-        if (!isSpeaking) orb.style.transform = '';
+        if (!isSpeaking) { orb.style.transform = ''; orb.style.setProperty('--vad-level', '0'); }
         if (!vadHasSentAudio) orb.classList.remove('vad-active');
       }
       vadAnimId = requestAnimationFrame(vadLoop);
@@ -2393,7 +2411,7 @@ function stopMicrophone() {
   if (vadNoAudioTimer) { clearTimeout(vadNoAudioTimer); vadNoAudioTimer = null; }
   if (vadAudioCtx) { vadAudioCtx.close().catch(()=>{}); vadAudioCtx = null; }
   const orb = $('orb-visual');
-  if (orb) { orb.style.transform = ''; orb.style.boxShadow = ''; orb.classList.remove('vad-active'); }
+  if (orb) { orb.style.transform = ''; orb.style.boxShadow = ''; orb.style.setProperty('--vad-level', '0'); orb.classList.remove('vad-active'); }
   // Si teníamos audio → mostrar "evaluando" inmediatamente (antes de recibir respuesta del backend)
   if (vadHasSentAudio && (sessState === 'listening' || sessState === 'finishing')) {
     setVoiceState('processing');
@@ -2457,7 +2475,13 @@ async function typewriterText(el, texto, durationMs) {
   if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
   if (!el || !texto) return;
 
-  el.textContent = '';
+  el.style.position = 'relative';
+  el.innerHTML = `
+    <span style="visibility:hidden; width:100%; display:inline-block; text-align:center;">${esc(texto)}</span>
+    <span class="typewriter-target" style="position:absolute; top:0; left:0; width:100%; height:100%; padding:inherit; display:flex; align-items:center; justify-content:center; box-sizing:border-box;"></span>
+  `;
+  const target = el.querySelector('.typewriter-target');
+
   el.classList.add('typewriting');
   el.classList.remove('expanded');
 
@@ -2468,7 +2492,7 @@ async function typewriterText(el, texto, durationMs) {
   return new Promise(resolve => {
     _typewriterTimer = setInterval(() => {
       if (i < chars.length) {
-        el.textContent += chars[i];
+        target.textContent += chars[i];
         i++;
       } else {
         clearInterval(_typewriterTimer);
@@ -2585,6 +2609,7 @@ async function showComplete() {
   }
 
   switchView('resumen');
+  _onReviewSessionComplete();
 }
 
 function siguientePregunta() {
@@ -3407,6 +3432,228 @@ async function startNextPlanSession(planId) {
 const _sessHistData = {};
 const _planCache = {};
 
+// ─ Review Block System ─
+// Parámetros:
+//   REVIEW_MIN_ERRORS   = 5   → >5 errores (rojo+amarillo) en últimos 3 días → bloqueo LIGHT
+//   REVIEW_HEAVY_ERRORS = 20  → ≥20 errores → bloqueo HEAVY (1 obligatoria + 1 opcional)
+//   REVIEW_WINDOW_DAYS  = 3   → ventana de búsqueda
+
+const REVIEW_MIN_ERRORS   = 5;
+const REVIEW_HEAVY_ERRORS = 20;
+const REVIEW_WINDOW_DAYS  = 3;
+
+// Estado del sistema de repaso (se recalcula en cada loadSessions)
+// _reviewBlocked  → bool
+// _reviewMode     → 'none' | 'light' | 'heavy'
+// _reviewErrors   → int total de errores en ventana
+// _reviewSessId   → ID de la sesión de repaso en curso (null si ninguna)
+// _reviewShowOptional → true tras completar heavy mandatory (hasta dismissal)
+
+let _reviewMode          = 'none';
+let _reviewErrors        = 0;
+let _reviewShowOptional  = false;
+
+function _reviewSkipIsUsed() {
+  return localStorage.getItem('ar_review_skip_date') === new Date().toISOString().slice(0, 10);
+}
+function _markReviewSkipUsed() {
+  localStorage.setItem('ar_review_skip_date', new Date().toISOString().slice(0, 10));
+}
+function _reviewOptionalDismissed() {
+  return localStorage.getItem('ar_review_opt_dismiss') === new Date().toISOString().slice(0, 10);
+}
+function _dismissReviewOptional() {
+  localStorage.setItem('ar_review_opt_dismiss', new Date().toISOString().slice(0, 10));
+  _reviewShowOptional = false;
+  const card = $('review-optional-card');
+  if (card) { card.style.opacity = '0'; setTimeout(() => card.remove(), 250); }
+}
+
+// Devuelve {blocked, mode, errors}
+function _evaluateReviewBlock(soloSessions) {
+  if (!soloSessions || !soloSessions.length) return { blocked: false, mode: 'none', errors: 0 };
+  const now = Date.now();
+  const windowMs = REVIEW_WINDOW_DAYS * 86400000;
+  let totalErrors = 0;
+  soloSessions.forEach(s => {
+    const d = s.fecha_inicio ? new Date(s.fecha_inicio).getTime() : 0;
+    if (now - d <= windowMs) {
+      const c = s.conteo || {};
+      totalErrors += (c.rojo || 0) + (c.amarillo || 0);
+    }
+  });
+  if (totalErrors <= REVIEW_MIN_ERRORS) return { blocked: false, mode: 'none', errors: totalErrors };
+  if (totalErrors >= REVIEW_HEAVY_ERRORS) return { blocked: true, mode: 'heavy', errors: totalErrors };
+  return { blocked: true, mode: 'light', errors: totalErrors };
+}
+
+function _findReviewSourceSession(soloSessions) {
+  const now = Date.now();
+  const windowMs = REVIEW_WINDOW_DAYS * 86400000;
+  // Prefer recent sessions with errors
+  const recent = soloSessions.filter(s => {
+    const d = s.fecha_inicio ? new Date(s.fecha_inicio).getTime() : 0;
+    return now - d <= windowMs;
+  });
+  const withErrors = (recent.length ? recent : soloSessions).filter(s => {
+    const c = s.conteo || {};
+    return (c.rojo || 0) > 0 || (c.amarillo || 0) > 0;
+  });
+  const pool = withErrors.length ? withErrors : (recent.length ? recent : soloSessions);
+  return pool.slice().sort((a, b) => new Date(b.fecha_inicio || 0) - new Date(a.fecha_inicio || 0))[0] || null;
+}
+
+function _reviewGateLobby() {
+  _reviewGate(() => switchView('lobby'));
+}
+
+function _reviewGate(actionFn) {
+  if (!_reviewBlocked) { actionFn(); return; }
+  _showReviewModal(actionFn);
+}
+
+function _showReviewModal(actionFn) {
+  const skipUsed = _reviewSkipIsUsed();
+  const existing = $('review-block-modal');
+  if (existing) existing.remove();
+
+  const isHeavy   = _reviewMode === 'heavy';
+  const subtitle  = isHeavy
+    ? `Tienes <strong>${_reviewErrors} errores</strong> esta semana. Completa 2 sesiones de repaso para limpiarlos.`
+    : `Tienes <strong>${_reviewErrors} errores</strong> esta semana. Resuélvelos antes de seguir estudiando.`;
+
+  const modal = document.createElement('div');
+  modal.id = 'review-block-modal';
+  modal.className = 'review-block-modal';
+  modal.innerHTML = `
+    <div class="review-block-card">
+      <div class="review-block-icon">${isHeavy ? '🔥' : '⚡'}</div>
+      <div class="review-block-title">Sesión de repaso pendiente</div>
+      <div class="review-block-sub">${subtitle}</div>
+      ${isHeavy ? `<div class="review-block-pills"><span class="review-pill obligatoria">1 obligatoria</span><span class="review-pill opcional">+ 1 opcional</span></div>` : ''}
+      <button class="review-block-cta" id="review-block-do-btn">Hacer repaso ahora</button>
+      ${!skipUsed ? `<button class="review-block-skip" id="review-block-skip-btn">Skip hoy (1 vez)</button>` : '<div class="review-block-skip-used">Skip ya utilizado hoy</div>'}
+    </div>
+  `;
+  document.body.appendChild(modal);
+  requestAnimationFrame(() => modal.classList.add('visible'));
+
+  modal.querySelector('#review-block-do-btn').onclick = () => {
+    _closeReviewModal();
+    startReviewSession();
+  };
+  const skipBtn = modal.querySelector('#review-block-skip-btn');
+  if (skipBtn) {
+    skipBtn.onclick = () => {
+      _markReviewSkipUsed();
+      _closeReviewModal();
+      actionFn();
+    };
+  }
+  modal.addEventListener('click', e => { if (e.target === modal) _closeReviewModal(); });
+}
+
+function _closeReviewModal() {
+  const modal = $('review-block-modal');
+  if (!modal) return;
+  modal.classList.remove('visible');
+  setTimeout(() => modal.remove(), 280);
+}
+
+async function startReviewSession() {
+  if (!curSubjectId) return;
+  try {
+    const sessions = await api(`/sesiones/usuario/${uid}`);
+    const soloSessions = sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id);
+    const src = _findReviewSourceSession(soloSessions);
+    if (!src || !src.temas_elegidos || !src.temas_elegidos.length) {
+      switchView('lobby'); return;
+    }
+    const res = await api('/sesion/crear', {
+      method: 'POST',
+      body: JSON.stringify({
+        usuario_id: uid,
+        asignatura_id: curSubjectId,
+        temas_elegidos: src.temas_elegidos,
+        duration_type: 'corta',
+        lang: currentLang,
+      }),
+    });
+    _reviewSessId   = res.sesion_id;
+    sessId          = res.sesion_id;
+    sessSubjectId   = curSubjectId;
+    sessSubjectName = curSubjectName;
+    sessGreenCount  = 0; sessYellowCount = 0; sessRedCount = 0;
+    sessModoVoz     = true;
+    sessLang        = currentLang;
+    sessPlanId      = '';
+    sessPartIds     = [res.sesion_id];
+    sessPartIndex   = 0;
+    switchView('duelo');
+    connectSessionWS(res.n_atomos);
+  } catch(e) {
+    toast(e.message, 'err');
+  }
+}
+
+function _onReviewSessionComplete() {
+  if (!_reviewSessId || sessId !== _reviewSessId) return;
+  const wasHeavy = _reviewMode === 'heavy';
+  _reviewBlocked  = false;
+  _reviewSessId   = null;
+  _reviewMode     = 'none';
+  if (wasHeavy && !_reviewOptionalDismissed()) {
+    _reviewShowOptional = true;
+    toast('¡Repaso obligatorio completado! Puedes hacer uno más para reforzar.', 'ok');
+  } else {
+    toast('¡Repaso completado! Acceso desbloqueado.', 'ok');
+  }
+}
+
+function _renderReviewCard() {
+  const list = $('sessions-list');
+  if (!list) return;
+
+  // Remove previous cards
+  [$('review-block-card'), $('review-optional-card')].forEach(el => el && el.remove());
+
+  // Optional card (heavy mode, post-mandatory)
+  if (_reviewShowOptional && !_reviewOptionalDismissed()) {
+    const optCard = document.createElement('div');
+    optCard.id = 'review-optional-card';
+    optCard.className = 'review-card-highlight review-card-optional';
+    optCard.innerHTML = `
+      <div class="review-card-left">
+        <div class="review-card-badge" style="color:#a78bfa">OPCIONAL</div>
+        <div class="review-card-title">¿Un repaso más?</div>
+        <div class="review-card-sub">Tenías ${_reviewErrors} errores — un segundo repaso los consolida</div>
+      </div>
+      <div style="display:flex;gap:7px;flex-shrink:0">
+        <button class="review-card-cta" style="background:#a78bfa" onclick="startReviewSession()">Hacer</button>
+        <button class="review-card-cta review-card-dismiss" onclick="_dismissReviewOptional()">Omitir</button>
+      </div>
+    `;
+    list.insertBefore(optCard, list.firstChild);
+    return;
+  }
+
+  // Mandatory block card
+  if (!_reviewBlocked) return;
+  const card = document.createElement('div');
+  card.id = 'review-block-card';
+  card.className = 'review-card-highlight';
+  const isHeavy = _reviewMode === 'heavy';
+  card.innerHTML = `
+    <div class="review-card-left">
+      <div class="review-card-badge">${isHeavy ? '🔥 REPASO ×2' : 'REPASO'}</div>
+      <div class="review-card-title">${_reviewErrors} errores pendientes</div>
+      <div class="review-card-sub">${isHeavy ? '2 sesiones recomendadas · empieza por la obligatoria' : 'Corrígelos antes de seguir estudiando'}</div>
+    </div>
+    <button class="review-card-cta" onclick="startReviewSession()">Hacer repaso</button>
+  `;
+  list.insertBefore(card, list.firstChild);
+}
+
 async function loadSessions() {
   if (!curSubjectId) return;
   const list = $('sessions-list');
@@ -3425,8 +3672,15 @@ async function loadSessions() {
     // Tests for this subject
     const filteredTests = tests.filter(t => t.asignatura_id === curSubjectId);
 
+    // Evaluate review block state
+    const _rev = _evaluateReviewBlock(filteredSess);
+    _reviewBlocked = _rev.blocked;
+    _reviewMode    = _rev.mode;
+    _reviewErrors  = _rev.errors;
+
     if (!filteredSess.length && !filteredTests.length) {
       list.innerHTML = `<div class="empty-state">${T('hist_empty_sessions')}</div>`;
+      _renderReviewCard();
       return;
     }
 
@@ -3518,6 +3772,7 @@ async function loadSessions() {
           </div>`;
       }
     }).join('');
+    _renderReviewCard();
   } catch(e) {
     list.innerHTML = `<div class="empty-state" style="color:var(--red)">${e.message}</div>`;
   }
@@ -3537,6 +3792,10 @@ async function openTestRevisionFromHistory(testId) {
 }
 
 async function resumeSessionFromHistory(sesionId, asignaturaId, asignaturaNombre, durationType, lang, nPreguntas) {
+  if (_reviewBlocked) {
+    _showReviewModal(() => resumeSessionFromHistory(sesionId, asignaturaId, asignaturaNombre, durationType, lang, nPreguntas));
+    return;
+  }
   sessSubjectId = asignaturaId;
   sessSubjectName = asignaturaNombre;
   sessId = sesionId;
@@ -3913,6 +4172,10 @@ async function startPlanSession(sesionId) {
 // ─ Repetir sesión completada ─
 
 async function repetirSesion(sesionId) {
+  if (_reviewBlocked) {
+    _showReviewModal(() => repetirSesion(sesionId));
+    return;
+  }
   const s = _sessHistData[sesionId];
   if (!s) return toast(T('toast_session_not_found'), 'err');
   if (!s.temas_elegidos || !s.temas_elegidos.length) return toast(T('toast_no_topics'), 'err');

@@ -8,14 +8,14 @@
 <meta name="theme-color" content="#0f1117" />
 <meta name="description" content="Estudio activo con IA — repasa con voz, flashcards y tests" />
 <link rel="manifest" href="manifest.json" />
-<link rel="icon" href="icons/icon-192.png" />
-<link rel="apple-touch-icon" href="icons/icon-192.png" />
+<link rel="icon" href="logo.png" />
+<link rel="apple-touch-icon" href="logo.png" />
 <title>Active Recall</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=17" />
-<script src="i18n.js?v=17"></script>
+<link rel="stylesheet" href="style.css?v=25" />
+<script src="i18n.js?v=22"></script>
 </head>
 <body>
 
@@ -25,7 +25,10 @@
   
   <!-- Brand at Top Left (más esquinado) -->
   <div class="auth-brand" style="position:absolute; top:24px; left:24px; z-index:100; margin:0;">
-    <div class="auth-wordmark" style="font-size:1.6rem; color:#fff;">Active<em style="color:#fff; opacity:0.8; font-style:normal; font-weight:400;">Recall</em></div>
+    <div class="auth-wordmark" style="font-size:1.6rem; color:#fff; display:flex; align-items:center; gap:8px;">
+      <img src="logo.png" alt="Logo" style="width:36px; height:36px; border-radius:10px; box-shadow: 0 4px 12px rgba(0,0,0,0.2);">
+      <span>Active<em style="color:#fff; opacity:0.8; font-style:normal; font-weight:400;">Recall</em></span>
+    </div>
   </div>
 
   <!-- Top Right controls -->
@@ -375,11 +378,14 @@
 
   <!-- Header Flotante (Slim) -->
   <div class="floating-header">
-    <button class="subject-selector" onclick="openModal()" id="subject-selector-btn">
-      <span class="subject-dot" id="header-dot" style="background:var(--amber)"></span>
-      <span id="bc-subject" style="font-weight:600">Active Recall</span>
-      <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style="margin-left:4px; opacity:.5"><path d="M8 11.5l-5-5 1.4-1.4 3.6 3.6 3.6-3.6 1.4 1.4-5 5z"/></svg>
-    </button>
+    <div style="display:flex; align-items:center; gap:12px;">
+      <img src="logo.png" alt="Logo" style="width:32px; height:32px; border-radius:8px; box-shadow: 0 2px 8px rgba(0,0,0,0.2);">
+      <button class="subject-selector" onclick="openModal()" id="subject-selector-btn">
+        <span class="subject-dot" id="header-dot" style="background:var(--amber)"></span>
+        <span id="bc-subject" style="font-weight:600">Active Recall</span>
+        <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style="margin-left:4px; opacity:.5"><path d="M8 11.5l-5-5 1.4-1.4 3.6 3.6 3.6-3.6 1.4 1.4-5 5z"/></svg>
+      </button>
+    </div>
     <div class="header-right-btns">
       <!-- Language flag pill -->
       <div class="hdr-lang-wrap" id="hdr-lang-wrap">
@@ -455,7 +461,7 @@
 
       <!-- Orbe CTA -->
       <div class="orb-start-wrap">
-        <button class="orb-start" onclick="switchView('lobby')">
+        <button class="orb-start" onclick="_reviewGateLobby()">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" style="opacity:.85;margin-bottom:2px"><path d="M8 5v14l11-7z"/></svg>
           <span style="display:block;font-size:.72rem;font-weight:700;letter-spacing:.14em" data-i18n="hub_start">INICIAR SESIÓN</span>
         </button>
@@ -572,7 +578,11 @@
       <!-- Blob orb -->
       <div class="duelo-blob-wrap">
         <div class="duelo-blob-glow"></div>
-        <div id="orb-visual" class="voice-orb" onclick="orbClick()"></div>
+        <div id="orb-visual" class="voice-orb" onclick="orbClick()">
+          <div class="orb-wave">
+            <div class="orb-bar"></div><div class="orb-bar"></div><div class="orb-bar"></div><div class="orb-bar"></div><div class="orb-bar"></div><div class="orb-bar"></div><div class="orb-bar"></div>
+          </div>
+        </div>
       </div>
 
       <!-- Transcript/status -->
@@ -632,10 +642,8 @@
 
       <!-- Loading screen -->
       <div id="test-loading" class="test-loading-screen">
-        <div class="test-loading-orb">
-          <div class="test-loading-ring"></div>
-          <div class="test-loading-ring test-loading-ring-2"></div>
-        </div>
+        <div class="test-loading-orb"></div>
+
         <div class="test-loading-title" data-i18n="test_generating">Generando test</div>
         <div class="test-loading-sub" data-i18n="test_generating_sub">Preparando preguntas personalizadas...</div>
       </div>
@@ -1110,7 +1118,7 @@
 
 </div>
 
-<script src="app.js?v=17"></script>
+<script src="app.js?v=24"></script>
 <script>
 // goNotif, _notifIdx, _onNotifScroll are defined in app.js (scroll-snap based)
 // Auto-advance every 5s
