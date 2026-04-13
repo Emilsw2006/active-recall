@@ -128,6 +128,7 @@ let pickedColor     = COLORS[0];
 // ─ Review Block State ─
 let _reviewBlocked      = false;
 let _reviewSessId       = null;   // ID of the ongoing review session
+let _reviewEvaluated    = false;  // true once fetched for current subject
 // _reviewMode / _reviewErrors / _reviewShowOptional declared in Review Block System section below
 
 // ─ Helpers ─
@@ -291,8 +292,12 @@ function switchView(viewName) {
 
   // Load data
   if (viewName === 'hub' || viewName === 'materiales') {
-    if (curSubjectId) loadDocs();
-    else loadSubjectsHome();
+    if (curSubjectId) {
+      loadDocs();
+      if (viewName === 'hub') _initReviewBlock(); // evalúa bloqueo en background
+    } else {
+      loadSubjectsHome();
+    }
     if (viewName === 'hub') refreshNotifications();
   } else if (viewName === 'historial') {
     loadSessions();
@@ -1250,7 +1255,8 @@ async function goSubject(id, name, color=null) {
   curSubjectName = name;
   clearInterval(pollingTimer);
   resetProgress();
-  
+  _reviewEvaluated = false; // reset so hub re-evalúa para nueva asignatura
+
   // Persist to localStorage so header survives page reload
   localStorage.setItem('ar_subj_id',    id);
   localStorage.setItem('ar_subj_name',  name);
@@ -3453,6 +3459,21 @@ let _reviewMode          = 'none';
 let _reviewErrors        = 0;
 let _reviewShowOptional  = false;
 
+// Fetch y evalúa el bloqueo para la asignatura actual.
+// Se llama desde switchView('hub') y desde _reviewGateLobby como safety net.
+async function _initReviewBlock() {
+  if (!curSubjectId || !uid) return;
+  try {
+    const sessions = await api(`/sesiones/usuario/${uid}`);
+    const soloSessions = sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id);
+    const rev = _evaluateReviewBlock(soloSessions);
+    _reviewBlocked   = rev.blocked;
+    _reviewMode      = rev.mode;
+    _reviewErrors    = rev.errors;
+    _reviewEvaluated = true;
+  } catch(e) { /* silencioso — por defecto no bloquea */ }
+}
+
 function _reviewSkipIsUsed() {
   return localStorage.getItem('ar_review_skip_date') === new Date().toISOString().slice(0, 10);
 }
@@ -3503,7 +3524,8 @@ function _findReviewSourceSession(soloSessions) {
   return pool.slice().sort((a, b) => new Date(b.fecha_inicio || 0) - new Date(a.fecha_inicio || 0))[0] || null;
 }
 
-function _reviewGateLobby() {
+async function _reviewGateLobby() {
+  if (!_reviewEvaluated && curSubjectId) await _initReviewBlock();
   _reviewGate(() => switchView('lobby'));
 }
 
