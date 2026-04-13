@@ -380,6 +380,10 @@ async def serve_icon_root(filename: str):
 
 _NO_CACHE = {"Cache-Control": "no-store, no-cache, must-revalidate", "Pragma": "no-cache"}
 
+@app.get("/logo.png")
+async def serve_logo_root():
+    return FileResponse(FRONTEND_DIR / "logo.png", media_type="image/png")
+
 @app.get("/style.css", response_class=FileResponse)
 async def serve_style():
     return FileResponse(FRONTEND_DIR / "style.css", headers=_NO_CACHE)
