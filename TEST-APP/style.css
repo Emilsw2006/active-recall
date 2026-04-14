@@ -933,6 +933,37 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   font-weight: 600; padding: 6px 0;
 }
 
+/* Plan card — review flag */
+.plan-card-review-flag {
+  font-size: .68rem; font-weight: 700; letter-spacing: .07em; text-transform: uppercase;
+  color: #fca5a5; background: rgba(248,113,113,0.18); border: 1px solid rgba(248,113,113,0.28);
+  border-radius: 8px; padding: 5px 10px; margin-bottom: 10px; display: inline-block;
+}
+
+/* Plan card — action buttons row */
+.plan-card-actions {
+  display: flex; gap: 8px; margin-top: 4px;
+}
+.plan-card-btn {
+  flex: 1; padding: 10px 8px; border-radius: 12px; border: none;
+  font-size: .82rem; font-weight: 600; cursor: pointer; transition: all .18s;
+  white-space: nowrap;
+}
+.plan-card-btn-primary {
+  background: rgba(255,255,255,0.22); color: #fff;
+}
+.plan-card-btn-primary:hover { background: rgba(255,255,255,0.32); }
+.plan-card-btn-review {
+  background: rgba(248,113,113,0.28); color: #fca5a5;
+  border: 1px solid rgba(248,113,113,0.35);
+}
+.plan-card-btn-review:hover { background: rgba(248,113,113,0.40); }
+.plan-card-btn-ghost {
+  background: rgba(255,255,255,0.08); color: rgba(255,255,255,0.60);
+  border: 1px solid rgba(255,255,255,0.15); flex: 0 0 auto;
+}
+.plan-card-btn-ghost:hover { background: rgba(255,255,255,0.14); color: #fff; }
+
 /* ─ Plan Wizard Overlay ─ */
 .plan-wizard-overlay {
   position: fixed; inset: 0; z-index: 100;
@@ -1873,6 +1904,42 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   color: #fca5a5; background: rgba(248,113,113,0.20); border: 1px solid rgba(248,113,113,0.30);
   border-radius: 6px; padding: 2px 7px; margin-top: 4px; display: inline-block;
 }
+
+/* Plan detail — section titles */
+.plan-detail-section-title {
+  font-size: .65rem; font-weight: 700; letter-spacing: .10em; text-transform: uppercase;
+  color: rgba(255,255,255,0.38); padding: 14px 4px 6px;
+}
+.plan-detail-section-title:first-child { padding-top: 4px; }
+.plan-detail-section-review { color: #fca5a5; }
+.plan-detail-section-toggle { cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none; }
+.plan-detail-section-toggle:hover { color: rgba(255,255,255,0.60); }
+.plan-detail-toggle-arrow { font-size: .75rem; }
+
+/* Plan detail — highlighted "next" session */
+.plan-detail-sess.next {
+  background: rgba(255,255,255,0.14);
+  border: 1px solid rgba(255,255,255,0.22);
+}
+
+/* Plan detail — ghost button for non-next sessions */
+.plan-detail-sess-btn-ghost {
+  background: rgba(255,255,255,0.08) !important;
+  color: rgba(255,255,255,0.55) !important;
+  border: 1px solid rgba(255,255,255,0.14) !important;
+}
+.plan-detail-sess-btn-ghost:hover { background: rgba(255,255,255,0.16) !important; color: #fff !important; }
+
+/* Plan detail — review action button */
+.plan-detail-sess-btn-review {
+  background: rgba(248,113,113,0.28) !important;
+  color: #fca5a5 !important;
+  border: 1px solid rgba(248,113,113,0.35) !important;
+}
+.plan-detail-sess-btn-review:hover { background: rgba(248,113,113,0.42) !important; }
+
+/* Plan detail — collapsed done list */
+.plan-detail-done-list.hidden { display: none; }
 
 /* ─ Voice picker ─ (styles moved to ajustes-sheet section above) ─ */
 

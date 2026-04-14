@@ -183,10 +183,15 @@ async def listar_planes_usuario(
 
     # Enriquecer con progreso real desde sesiones
     for p in planes:
-        ses_res = db.table("sesiones").select("id, status").eq("plan_id", p["id"]).execute()
+        ses_res = db.table("sesiones").select("id, status, is_review_session").eq("plan_id", p["id"]).order("id", desc=False).execute()
         ses = ses_res.data or []
         p["sesiones_completadas"] = sum(1 for s in ses if s["status"] == "completada")
         p["sesiones_totales"]     = len(ses)
+        pending = [s for s in ses if s["status"] in ("por_empezar", "empezada")]
+        p["has_review_pending"]   = any(s.get("is_review_session") for s in pending)
+        # proxima: review session first (if any), else first pending
+        review_first = next((s["id"] for s in pending if s.get("is_review_session")), None)
+        p["proxima_sesion_id"]    = review_first or (pending[0]["id"] if pending else None)
 
     return planes
 

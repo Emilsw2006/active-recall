@@ -3459,10 +3459,12 @@ async function loadPlanes() {
     }
     listEl.innerHTML = planes.map(p => {
       _planCache[p.id] = p;
-      const completed = p.sesiones_completadas || 0;
-      const total     = p.sesiones_totales || p.total_sesiones || 0;
-      const pct       = total > 0 ? Math.round((completed / total) * 100) : 0;
-      const pending   = total - completed;
+      const completed  = p.sesiones_completadas || 0;
+      const total      = p.sesiones_totales || p.total_sesiones || 0;
+      const pct        = total > 0 ? Math.round((completed / total) * 100) : 0;
+      const allDone    = total > 0 && completed >= total;
+      const hasReview  = p.has_review_pending;
+      const proximaId  = p.proxima_sesion_id;
       const fechaExamen = p.fecha_examen
         ? new Date(p.fecha_examen + 'T12:00:00').toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
         : '—';
@@ -3472,16 +3474,30 @@ async function loadPlanes() {
       const daysLabel = daysLeft !== null
         ? (daysLeft > 0 ? TF('plan_days_left', {n: daysLeft}) : daysLeft === 0 ? T('plan_today') : T('plan_exam_passed'))
         : '';
-      const urgent = daysLeft !== null && daysLeft <= 7 && daysLeft >= 0;
+      const urgent = daysLeft !== null && daysLeft <= 3 && daysLeft >= 0;
+
+      let footer = '';
+      if (allDone) {
+        footer = `<div class="plan-done-badge">${T('plan_completed')}</div>`;
+      } else {
+        const primaryBtn = hasReview
+          ? `<button class="plan-card-btn plan-card-btn-review" onclick="startPlanSession('${proximaId}','${p.id}')">Hacer repaso</button>`
+          : (proximaId ? `<button class="plan-card-btn plan-card-btn-primary" onclick="startPlanSession('${proximaId}','${p.id}')">Siguiente</button>` : '');
+        footer = `<div class="plan-card-actions">
+          ${primaryBtn}
+          <button class="plan-card-btn plan-card-btn-ghost" onclick="openPlanDetail('${p.id}')">Ver plan</button>
+        </div>`;
+      }
 
       return `
-        <div class="plan-card" id="plan-card-${p.id}" onclick="openPlanDetail('${p.id}')">
+        <div class="plan-card" id="plan-card-${p.id}">
           <div class="plan-card-header">
             <div class="plan-card-name">${esc(p.nombre)}</div>
-            <button class="plan-card-del" onclick="event.stopPropagation();deletePlan('${p.id}')" title="${T('hist_delete')}">
+            <button class="plan-card-del" onclick="deletePlan('${p.id}')" title="${T('hist_delete')}">
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
+          ${hasReview ? `<div class="plan-card-review-flag">Repaso pendiente</div>` : ''}
           <div class="plan-card-meta">
             <span>${T('plan_exam')} ${fechaExamen}</span>
             ${daysLabel ? `<span class="plan-days${urgent ? ' urgent' : ''}">${daysLabel}</span>` : ''}
@@ -3490,10 +3506,7 @@ async function loadPlanes() {
             <div class="plan-progress-bar"><div class="plan-progress-fill" style="width:${pct}%"></div></div>
             <span class="plan-progress-label">${completed}/${total} ${T('plan_sessions')}</span>
           </div>
-          ${pending > 0
-            ? `<div class="plan-done-badge" style="color:rgba(255,255,255,0.45)">${T('plan_tap_detail')}</div>`
-            : `<div class="plan-done-badge">${T('plan_completed')}</div>`
-          }
+          ${footer}
         </div>`;
     }).join('');
   } catch(e) {
@@ -4213,7 +4226,6 @@ async function openPlanDetail(planId) {
   if (!overlay) return;
 
   const p = _planCache[planId] || {};
-  const planName   = p.nombre || '';
   const fechaExamen = p.fecha_examen || '';
   const completadas = p.sesiones_completadas || 0;
   const totales     = p.sesiones_totales || p.total_sesiones || 0;
@@ -4221,12 +4233,16 @@ async function openPlanDetail(planId) {
   const titleEl = $('plan-detail-title');
   const metaEl  = $('plan-detail-meta');
   const bodyEl  = $('plan-detail-body');
-  if (titleEl) titleEl.textContent = planName;
+  if (titleEl) titleEl.textContent = p.nombre || '';
   if (metaEl) {
     const fechaFmt = fechaExamen
       ? new Date(fechaExamen + 'T12:00:00').toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })
       : '—';
-    metaEl.textContent = `${T('plan_exam')} ${fechaFmt} · ${completadas}/${totales} ${T('plan_sessions')}`;
+    const daysLeft = fechaExamen
+      ? Math.ceil((new Date(fechaExamen + 'T12:00:00') - new Date()) / 86400000)
+      : null;
+    const daysStr = daysLeft !== null && daysLeft > 0 ? ` · ${TF('plan_days_left', {n: daysLeft})}` : '';
+    metaEl.textContent = `${T('plan_exam')} ${fechaFmt} · ${completadas}/${totales}${daysStr}`;
   }
   if (bodyEl) bodyEl.innerHTML = `<div style="color:rgba(255,255,255,0.45);font-size:.82rem;padding:12px 0">${T('rev_loading')}</div>`;
   overlay.classList.add('open');
@@ -4237,43 +4253,81 @@ async function openPlanDetail(planId) {
       bodyEl.innerHTML = `<div style="color:rgba(255,255,255,0.45);font-size:.83rem;text-align:center;padding:24px">${T('hist_empty_sessions')}</div>`;
       return;
     }
-    const atomosPorSesion = p.atomos_por_sesion || 10;
-    // Sort: pending review sessions first, then by numero
-    const sorted = [...sessions].sort((a, b) => {
-      const aReviewPending = a.is_review_session && a.status !== 'completada';
-      const bReviewPending = b.is_review_session && b.status !== 'completada';
-      if (aReviewPending && !bReviewPending) return -1;
-      if (!aReviewPending && bReviewPending) return 1;
-      return a.numero - b.numero;
-    });
-    bodyEl.innerHTML = sorted.map(s => {
-      const isDone      = s.status === 'completada';
-      const isActive    = s.status === 'empezada';
-      const isReview    = s.is_review_session && !isDone;
-      const nQ          = s.n_preguntas || atomosPorSesion;
-      const prog        = s.current_question_index || 0;
-      const label       = isDone
-        ? TF('plan_n_questions', {n: `${nQ}/${nQ}`})
-        : isActive
-          ? TF('plan_n_questions', {n: `${prog}/${nQ}`})
-          : TF('plan_n_questions', {n: `0/${nQ}`});
-      const reviewBadge = isReview
-        ? `<span class="plan-detail-sess-review-badge">REPASO</span>`
-        : '';
-      return `
-        <div class="plan-detail-sess${isDone ? ' done' : ''}${isReview ? ' review' : ''}">
-          <div class="plan-detail-sess-num">${isDone ? '✓' : s.numero}</div>
-          <div class="plan-detail-sess-info">
-            <div class="plan-detail-sess-label">${TF('plan_session_n', {n: s.numero})}</div>
-            ${reviewBadge}
-            <div class="plan-detail-sess-status">${label}</div>
-          </div>
-          ${!isDone ? `<button class="plan-detail-sess-btn" onclick="startPlanSession('${s.id}')">${T('plan_start_session')}</button>` : ''}
-        </div>`;
-    }).join('');
+    const nDefault = p.atomos_por_sesion || 10;
+
+    const pending = sessions.filter(s => s.status !== 'completada');
+    const done    = sessions.filter(s => s.status === 'completada');
+    const review  = pending.filter(s => s.is_review_session);
+    const normal  = pending.filter(s => !s.is_review_session);
+    const [next, ...rest] = normal;
+
+    const _sessLabel = s => {
+      const nQ   = s.n_preguntas || nDefault;
+      const prog = s.current_question_index || 0;
+      if (s.status === 'completada') return TF('plan_n_questions', {n: `${nQ}/${nQ}`});
+      if (s.status === 'empezada')   return TF('plan_n_questions', {n: `${prog}/${nQ}`});
+      return TF('plan_n_questions', {n: `0/${nQ}`});
+    };
+
+    const renderNormal = (s, highlight) => `
+      <div class="plan-detail-sess${s.status === 'completada' ? ' done' : ''}${highlight ? ' next' : ''}">
+        <div class="plan-detail-sess-num">${s.status === 'completada' ? '✓' : s.numero}</div>
+        <div class="plan-detail-sess-info">
+          <div class="plan-detail-sess-label">${TF('plan_session_n', {n: s.numero})}</div>
+          <div class="plan-detail-sess-status">${_sessLabel(s)}</div>
+        </div>
+        ${s.status !== 'completada' ? `<button class="plan-detail-sess-btn${highlight ? '' : ' plan-detail-sess-btn-ghost'}" onclick="startPlanSession('${s.id}')">${T('plan_start_session')}</button>` : ''}
+      </div>`;
+
+    const renderReview = s => `
+      <div class="plan-detail-sess review">
+        <div class="plan-detail-sess-num" style="font-size:.85rem">↺</div>
+        <div class="plan-detail-sess-info">
+          <div class="plan-detail-sess-label">Sesión de repaso</div>
+          <div class="plan-detail-sess-status">${_sessLabel(s)}</div>
+        </div>
+        <button class="plan-detail-sess-btn plan-detail-sess-btn-review" onclick="startPlanSession('${s.id}')">Hacer</button>
+      </div>`;
+
+    let html = '';
+
+    if (review.length) {
+      html += `<div class="plan-detail-section-title plan-detail-section-review">REPASO</div>`;
+      html += review.map(renderReview).join('');
+    }
+
+    if (next) {
+      html += `<div class="plan-detail-section-title">SIGUIENTE</div>`;
+      html += renderNormal(next, true);
+    }
+
+    if (rest.length) {
+      html += `<div class="plan-detail-section-title">PRÓXIMAS</div>`;
+      html += rest.map(s => renderNormal(s, false)).join('');
+    }
+
+    if (done.length) {
+      const toggleId = `plan-done-${planId}`;
+      html += `<div class="plan-detail-section-title plan-detail-section-toggle" onclick="togglePlanDone('${toggleId}',this)">
+        COMPLETADAS (${done.length}) <span class="plan-detail-toggle-arrow">▾</span>
+      </div>
+      <div id="${toggleId}" class="plan-detail-done-list">
+        ${done.map(s => renderNormal(s, false)).join('')}
+      </div>`;
+    }
+
+    bodyEl.innerHTML = html;
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = `<div style="color:var(--red);font-size:.82rem;padding:8px">${e.message}</div>`;
   }
+}
+
+function togglePlanDone(id, titleEl) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('hidden');
+  const arrow = titleEl.querySelector('.plan-detail-toggle-arrow');
+  if (arrow) arrow.textContent = el.classList.contains('hidden') ? '▸' : '▾';
 }
 
 function closePlanDetail() {
