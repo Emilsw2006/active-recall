@@ -2474,6 +2474,8 @@ function stopMicrophone() {
 let _audioCtx = null;
 let _currentAudio = null;   // Track active Audio element to stop on overlap
 let _currentAudioSrc = null; // Track active AudioBufferSourceNode
+let _aiVadAnimId = null;    // RAF id for AI speaking RMS loop
+let _aiMediaSources = new WeakMap(); // prevent double-connecting same Audio element
 
 function _ensureAudioCtx() {
   if (!_audioCtx) {
@@ -2551,7 +2553,41 @@ function estimateAudioDuration(base64, fmt) {
   return Math.max(1000, (bytes / bytesPerSec) * 1000);
 }
 
+function _stopAiVad() {
+  if (_aiVadAnimId) { cancelAnimationFrame(_aiVadAnimId); _aiVadAnimId = null; }
+  const orb = $('orb-visual');
+  if (orb) { orb.style.setProperty('--ai-level', '0'); orb.classList.remove('ai-active'); }
+}
+
+function _startAiVad(audio) {
+  _stopAiVad();
+  if (!_audioCtx || _aiMediaSources.has(audio)) return;
+  try {
+    const source = _audioCtx.createMediaElementSource(audio);
+    _aiMediaSources.set(audio, source);
+    const analyser = _audioCtx.createAnalyser();
+    analyser.fftSize = 256;
+    analyser.smoothingTimeConstant = 0.80;
+    source.connect(analyser);
+    analyser.connect(_audioCtx.destination);
+    const buf = new Uint8Array(analyser.frequencyBinCount);
+    const orb = $('orb-visual');
+    if (orb) orb.classList.add('ai-active');
+    function loop() {
+      if (!_currentAudio || _currentAudio !== audio) { _stopAiVad(); return; }
+      analyser.getByteTimeDomainData(buf);
+      let sum = 0;
+      for (let i = 0; i < buf.length; i++) { const v = (buf[i] - 128) / 128; sum += v * v; }
+      const rms = Math.sqrt(sum / buf.length);
+      if (orb) orb.style.setProperty('--ai-level', Math.min(rms * 14, 1.0).toFixed(3));
+      _aiVadAnimId = requestAnimationFrame(loop);
+    }
+    _aiVadAnimId = requestAnimationFrame(loop);
+  } catch(e) { /* AudioContext not available or already connected */ }
+}
+
 function stopCurrentAudio() {
+  _stopAiVad();
   if (_currentAudio) {
     try { _currentAudio.pause(); _currentAudio.src = ''; } catch(e) {}
     _currentAudio = null;
@@ -2570,9 +2606,10 @@ async function playAudio(base64, _fallbackText, fmt) {
   return new Promise((resolve) => {
     const audio = new Audio(`data:${mime};base64,${base64}`);
     _currentAudio = audio;
-    audio.onended = () => { _currentAudio = null; resolve(); };
-    audio.onerror = () => { _currentAudio = null; resolve(); };
+    audio.onended = () => { _currentAudio = null; _stopAiVad(); resolve(); };
+    audio.onerror = () => { _currentAudio = null; _stopAiVad(); resolve(); };
     const p = audio.play();
+    if (p) p.then(() => _startAiVad(audio)).catch(() => {});
     if (p && typeof p.catch === 'function') {
       p.catch(() => {
         // Mobile blocked — decode via AudioContext
