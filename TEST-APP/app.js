@@ -403,6 +403,27 @@ async function _buildSmartNotifs() {
       });
     }
 
+    // ── Card 1b: Sesión de repaso pendiente en plan activo ────
+    if (curSubjectId && uid) {
+      try {
+        const planes = await api(`/planes/usuario/${uid}?asignatura_id=${curSubjectId}`);
+        const activePlanes = (planes || []).filter(pl => pl.status === 'activo' && pl.sesiones_totales > pl.sesiones_completadas);
+        for (const plan of activePlanes.slice(0, 2)) {
+          const planSessions = await api(`/plan/${plan.id}/sesiones`);
+          const pendingReview = (planSessions || []).find(s => s.is_review_session && (s.status === 'por_empezar' || s.status === 'empezada'));
+          if (pendingReview) {
+            notifs.unshift({
+              color: 'red',
+              titulo: 'Sesión de repaso en tu plan',
+              mensaje: `Tu plan "${plan.nombre || 'activo'}" tiene una sesión de repaso prioritaria pendiente.`,
+              accion: { tipo: 'ver_plan_review', plan_id: plan.id, sesion_id: pendingReview.id }
+            });
+            break;
+          }
+        }
+      } catch(e) { /* silent */ }
+    }
+
     // ── Card 2: Última sesión de esta asignatura ──────────────
     if (subjSessions.length > 0) {
       const last  = subjSessions[0];
@@ -534,6 +555,14 @@ function handleNotifClick(el) {
       break;
     case 'continuar_plan':
       switchView('historial');
+      break;
+    case 'ver_plan_review':
+      if (action.sesion_id) {
+        startPlanSession(action.sesion_id, action.plan_id);
+      } else if (action.plan_id) {
+        switchView('historial');
+        setTimeout(() => openPlanDetail(action.plan_id), 350);
+      }
       break;
     case 'ver_errores':
       switchView('historial');
@@ -4176,20 +4205,34 @@ async function openPlanDetail(planId) {
       return;
     }
     const atomosPorSesion = p.atomos_por_sesion || 10;
-    bodyEl.innerHTML = sessions.map(s => {
-      const isDone   = s.status === 'completada';
-      const isActive = s.status === 'empezada';
-      const prog     = s.current_question_index || 0;
-      const label    = isDone
-        ? TF('plan_n_questions', {n: `${atomosPorSesion}/${atomosPorSesion}`})
+    // Sort: pending review sessions first, then by numero
+    const sorted = [...sessions].sort((a, b) => {
+      const aReviewPending = a.is_review_session && a.status !== 'completada';
+      const bReviewPending = b.is_review_session && b.status !== 'completada';
+      if (aReviewPending && !bReviewPending) return -1;
+      if (!aReviewPending && bReviewPending) return 1;
+      return a.numero - b.numero;
+    });
+    bodyEl.innerHTML = sorted.map(s => {
+      const isDone      = s.status === 'completada';
+      const isActive    = s.status === 'empezada';
+      const isReview    = s.is_review_session && !isDone;
+      const nQ          = s.n_preguntas || atomosPorSesion;
+      const prog        = s.current_question_index || 0;
+      const label       = isDone
+        ? TF('plan_n_questions', {n: `${nQ}/${nQ}`})
         : isActive
-          ? TF('plan_n_questions', {n: `${prog}/${atomosPorSesion}`})
-          : TF('plan_n_questions', {n: `0/${atomosPorSesion}`});
+          ? TF('plan_n_questions', {n: `${prog}/${nQ}`})
+          : TF('plan_n_questions', {n: `0/${nQ}`});
+      const reviewBadge = isReview
+        ? `<span class="plan-detail-sess-review-badge">REPASO</span>`
+        : '';
       return `
-        <div class="plan-detail-sess${isDone ? ' done' : ''}">
+        <div class="plan-detail-sess${isDone ? ' done' : ''}${isReview ? ' review' : ''}">
           <div class="plan-detail-sess-num">${isDone ? '✓' : s.numero}</div>
           <div class="plan-detail-sess-info">
             <div class="plan-detail-sess-label">${TF('plan_session_n', {n: s.numero})}</div>
+            ${reviewBadge}
             <div class="plan-detail-sess-status">${label}</div>
           </div>
           ${!isDone ? `<button class="plan-detail-sess-btn" onclick="startPlanSession('${s.id}')">${T('plan_start_session')}</button>` : ''}
@@ -4205,11 +4248,11 @@ function closePlanDetail() {
   if (overlay) overlay.classList.remove('open');
 }
 
-async function startPlanSession(sesionId) {
-  const planId = _currentPlanDetailId;
+async function startPlanSession(sesionId, planIdOverride) {
+  const planId = planIdOverride || _currentPlanDetailId;
   closePlanDetail();
   try {
-    sessPlanId = planId; // remember which plan this session belongs to
+    sessPlanId = planId;
     sessDurationType = 'plan';
     await resumeSessionFromHistory(sesionId, curSubjectId, curSubjectName, 'plan');
   } catch(e) {

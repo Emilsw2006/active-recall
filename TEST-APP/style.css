@@ -289,14 +289,18 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 /* ─ Materials FAB — sits right of the floating nav ─ */
 .mat-fab {
   position: fixed; bottom: 24px; z-index: 21;
-  width: 48px; height: 48px; border-radius: 99px; border: none;
-  background: rgba(255,255,255,0.90); color: #4a70c4;
+  width: 48px; height: 48px; border-radius: 99px;
+  background: rgba(255,255,255,0.18);
+  backdrop-filter: blur(16px) saturate(180%);
+  -webkit-backdrop-filter: blur(16px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.32);
+  color: #fff;
   display: none; align-items: center; justify-content: center;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.18); cursor: pointer;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.20), inset 0 1px 0 rgba(255,255,255,.22);
+  cursor: pointer;
   transition: all .25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  /* Positioned dynamically via JS right of the nav bar */
 }
-.mat-fab:hover { transform: scale(1.10); background: #fff; }
+.mat-fab:hover { transform: scale(1.10); background: rgba(255,255,255,0.26); }
 
 .view.active { display: block; }
 #screen-auth {
@@ -1045,30 +1049,36 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 /* Ajustes/Voice overlays use blue tint so backdrop-filter sees the app's gradient */
 #modal-ajustes, #voice-picker-modal { background: rgba(18,40,110,0.55); backdrop-filter: blur(6px); }
 .modal {
-  background: rgba(255,255,255,0.96); color: #0F172A; border: 1px solid rgba(255,255,255,0.6); border-radius: 28px; padding: 32px 28px; width: 420px;
-  box-shadow: 0 40px 100px rgba(0,0,0,.2); transform: translateY(60px); opacity: 0;
+  background: linear-gradient(150deg, rgba(255,255,255,0.17) 0%, rgba(255,255,255,0.10) 60%, rgba(91,141,238,0.12) 100%);
+  backdrop-filter: blur(40px) saturate(180%);
+  -webkit-backdrop-filter: blur(40px) saturate(180%);
+  border: 1px solid rgba(255,255,255,0.24); border-radius: 28px; padding: 32px 28px; width: 420px;
+  box-shadow: 0 40px 100px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.20);
+  color: var(--txt); transform: translateY(60px); opacity: 0;
   transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.3s ease;
-  padding-bottom:env(safe-area-inset-bottom, 28px);
+  padding-bottom: env(safe-area-inset-bottom, 28px);
 }
-.modal h2 { color: #0F172A; }
-.modal .toggle-switch { background: #F1F5F9; }
-.modal .toggle-op { color: #64748B; }
-.modal .toggle-op.on { background: #FFFFFF; color: #0F172A; }
-.modal .fld h4 { color: #64748B; }
-.modal .btn-a.sec { background: #F1F5F9; color: #0F172A; border-color: #E2E8F0; }
-.modal .btn-a { background: #1e3a6e; color: #fff; }
+.modal h2 { color: var(--txt); }
+.modal .toggle-switch { background: rgba(255,255,255,0.10); }
+.modal .toggle-op { color: var(--txt3); }
+.modal .toggle-op.on { background: rgba(255,255,255,0.20); color: var(--txt); }
+.modal .fld h4 { color: var(--txt3); }
+.modal .btn-a.sec { background: var(--glass); color: var(--txt); border-color: var(--glass-border); }
+.modal .btn-a { background: rgba(255,255,255,0.90); color: #1e3a6e; }
+.modal .btn-a:hover { background: #fff; }
 .modal .sheet-list { max-height: 300px; }
-.modal .sheet-item { border-bottom: 1px solid #E2E8F0; }
-.modal .sheet-item:hover { background: #F8F9FA; }
-.modal .sheet-item-name { color: #0F172A; }
-.modal .fld input { background: #F8F9FA; border-color: #CBD5E1; color: #0F172A; }
-.modal .fld input:focus { border-color: #4a70c4; }
-.modal .btn-g { background: #F1F5F9; color: #64748B; border-color: #E2E8F0; }
-.modal .btn-g:hover { background: #E2E8F0; }
-.modal .btn-icon { color: #4a70c4; background: #F1F5F9; border-color: #E2E8F0; }
-.modal .btn-icon:hover { background: #E2E8F0; color: #1e3a6e; }
-.modal .btn-icon-primary { background: #1e3a6e; color: #fff; border-color: transparent; }
-.modal .btn-icon-primary:hover { background: #2d52a0; }
+.modal .sheet-item { border-bottom: 1px solid rgba(255,255,255,0.12); }
+.modal .sheet-item:hover { background: var(--glass); }
+.modal .sheet-item-name { color: var(--txt); }
+.modal .fld input { background: rgba(255,255,255,0.10); border-color: rgba(255,255,255,0.22); color: var(--txt); }
+.modal .fld input::placeholder { color: var(--txt3); }
+.modal .fld input:focus { border-color: rgba(255,255,255,0.55); }
+.modal .btn-g { background: var(--glass); color: var(--txt3); border-color: var(--glass-border); }
+.modal .btn-g:hover { background: var(--glass-hover); color: var(--txt); }
+.modal .btn-icon { color: var(--txt2); background: var(--glass); border-color: var(--glass-border); }
+.modal .btn-icon:hover { background: var(--glass-hover); color: var(--txt); }
+.modal .btn-icon-primary { background: rgba(255,255,255,0.22); color: #fff; border-color: rgba(255,255,255,0.30); }
+.modal .btn-icon-primary:hover { background: rgba(255,255,255,0.32); }
 .modal-bg.open .modal { transform: translateY(0); opacity: 1; }
 
 /* ─ Ajustes Sheet (frosted glass, on-theme) ─ */
@@ -1851,6 +1861,18 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   font-size: .78rem; font-weight: 600; cursor: pointer; transition: all .2s;
 }
 .plan-detail-sess-btn:hover { background: rgba(255,255,255,0.30); }
+.plan-detail-sess.review {
+  background: rgba(248,113,113,0.14);
+  border: 1px solid rgba(248,113,113,0.30);
+}
+.plan-detail-sess.review .plan-detail-sess-num {
+  background: rgba(248,113,113,0.22); color: #fca5a5;
+}
+.plan-detail-sess-review-badge {
+  font-size: .62rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: #fca5a5; background: rgba(248,113,113,0.20); border: 1px solid rgba(248,113,113,0.30);
+  border-radius: 6px; padding: 2px 7px; margin-top: 4px; display: inline-block;
+}
 
 /* ─ Voice picker ─ (styles moved to ajustes-sheet section above) ─ */
 

@@ -8,14 +8,14 @@ Endpoints de planes de estudio:
 
 from math import ceil
 from datetime import date
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import List
 
 from utils.logger import get_logger
 from utils.supabase_client import get_service_client
+from core.plan_generator import generar_plan_de_estudio
 
 logger = get_logger(__name__)
 router = APIRouter(tags=["planes"])
@@ -28,6 +28,7 @@ class CrearPlanRequest(BaseModel):
     fecha_examen: str          # ISO date "2026-06-15"
     atomos_por_sesion: int = 10
     lang: str = "es"
+    intensity: str = "equilibrado"
 
 
 @router.post("/plan/crear")
@@ -39,18 +40,40 @@ async def crear_plan(body: CrearPlanRequest):
 
     atomos_por_sesion = max(5, min(body.atomos_por_sesion, 20))
 
-    # Contar átomos totales de los temas elegidos
+    # Recolectar átomos
     total_atomos = 0
+    atomos_detalles = []
     for tema_id in body.temas_elegidos:
         st_res = db.table("subtemas").select("id").eq("tema_id", tema_id).execute()
         for st in (st_res.data or []):
-            a_res = db.table("atomos").select("id", count="exact").eq("subtema_id", st["id"]).execute()
-            total_atomos += a_res.count or 0
+            a_res = db.table("atomos").select("id, titulo_corto").eq("subtema_id", st["id"]).execute()
+            if a_res.data:
+                atomos_detalles.extend(a_res.data)
+                total_atomos += len(a_res.data)
 
     if total_atomos == 0:
         raise HTTPException(status_code=400, detail="Los temas seleccionados no tienen átomos procesados aún")
 
-    n_sesiones = ceil(total_atomos / atomos_por_sesion)
+    n_sesiones_fallback = ceil(total_atomos / atomos_por_sesion)
+
+    # Recolectar resultados de diagnóstico
+    atomo_ids = [a["id"] for a in atomos_detalles]
+    resultados_res = db.table("resultados").select("atomo_id, estado").eq("usuario_id", body.usuario_id).in_("atomo_id", atomo_ids).execute()
+    
+    diagnostic_results = {}
+    for r in (resultados_res.data or []):
+        diagnostic_results[r["atomo_id"]] = {"estado": r.get("estado", "rojo")}
+
+    # Generar el plan adaptativo
+    plan_data = await generar_plan_de_estudio(
+        exam_date=body.fecha_examen,
+        selected_atoms=atomos_detalles,
+        diagnostic_results=diagnostic_results,
+        intensity=body.intensity,
+        lang=body.lang
+    )
+
+    is_smart_plan = bool(plan_data.get("today") or plan_data.get("next_days"))
 
     # Nombre del plan desde la asignatura + fecha
     asig_res = db.table("asignaturas").select("nombre").eq("id", body.asignatura_id).execute()
@@ -72,6 +95,15 @@ async def crear_plan(body: CrearPlanRequest):
     plan_nombre = f"{asig_nombre} — {_exam_word.get(body.lang, 'Exam')} {fecha_fmt}"
 
     # Crear plan
+    n_sesiones = 0
+    if is_smart_plan:
+        n_sesiones = len(plan_data.get("today", [])) + sum(len(d.get("sessions", [])) for d in plan_data.get("next_days", []))
+    else:
+        n_sesiones = n_sesiones_fallback
+
+    # Si por alguna razon el modelo devolvio vacio, usamos fallback logic
+    strategy_mode = plan_data.get("strategy_mode", "fallback")
+
     plan_res = db.table("planes").insert({
         "usuario_id":       body.usuario_id,
         "asignatura_id":    body.asignatura_id,
@@ -81,21 +113,43 @@ async def crear_plan(body: CrearPlanRequest):
         "total_sesiones":   n_sesiones,
         "atomos_por_sesion": atomos_por_sesion,
         "status":           "activo",
+        "tipo":             "smart" if is_smart_plan else "standard"
     }).execute()
     plan_id = plan_res.data[0]["id"]
 
-    # Crear N sesiones ligadas al plan
-    for _ in range(n_sesiones):
-        db.table("sesiones").insert({
-            "usuario_id":            body.usuario_id,
-            "asignatura_id":         body.asignatura_id,
-            "temas_elegidos":        body.temas_elegidos,
-            "duration_type":         "plan",
-            "status":                "por_empezar",
-            "current_question_index": 0,
-            "plan_id":               plan_id,
-            "lang":                  body.lang,
-        }).execute()
+    # Crear sesiones ligadas al plan
+    if is_smart_plan:
+        todas_las_sesiones_generadas = plan_data.get("today", [])
+        for day in plan_data.get("next_days", []):
+            todas_las_sesiones_generadas.extend(day.get("sessions", []))
+            
+        for ss in todas_las_sesiones_generadas:
+            db.table("sesiones").insert({
+                "usuario_id":            body.usuario_id,
+                "asignatura_id":         body.asignatura_id,
+                "temas_elegidos":        body.temas_elegidos,
+                "duration_type":         "plan",
+                "status":                "por_empezar",
+                "current_question_index": 0,
+                "plan_id":               plan_id,
+                "lang":                  body.lang,
+                # NUEVO: Guardar meta-datos del plan inteligente (review blocks)
+                "tipo_sesion":           ss.get("type", "initial"),
+                "is_review_session":     ss.get("is_review_session", False),
+                "n_preguntas":           ss.get("number_of_questions", atomos_por_sesion),
+            }).execute()
+    else:
+        for _ in range(n_sesiones_fallback):
+            db.table("sesiones").insert({
+                "usuario_id":            body.usuario_id,
+                "asignatura_id":         body.asignatura_id,
+                "temas_elegidos":        body.temas_elegidos,
+                "duration_type":         "plan",
+                "status":                "por_empezar",
+                "current_question_index": 0,
+                "plan_id":               plan_id,
+                "lang":                  body.lang,
+            }).execute()
 
     logger.info(f"Plan '{plan_nombre}' creado ({n_sesiones} sesiones, {total_atomos} átomos)")
 
@@ -175,7 +229,7 @@ async def sesiones_del_plan(plan_id: str):
     db = get_service_client()
     ses_res = (
         db.table("sesiones")
-        .select("id, status, current_question_index, fecha_inicio, fecha_fin")
+        .select("id, status, current_question_index, fecha_inicio, fecha_fin, is_review_session, tipo_sesion, n_preguntas")
         .eq("plan_id", plan_id)
         .order("id", desc=False)
         .execute()
@@ -189,6 +243,9 @@ async def sesiones_del_plan(plan_id: str):
             "current_question_index": s.get("current_question_index", 0),
             "fecha_inicio": s.get("fecha_inicio"),
             "fecha_fin": s.get("fecha_fin"),
+            "is_review_session": s.get("is_review_session", False),
+            "tipo_sesion": s.get("tipo_sesion", "initial"),
+            "n_preguntas": s.get("n_preguntas"),
         }
         for i, s in enumerate(sessions)
     ]
