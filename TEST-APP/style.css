@@ -3644,8 +3644,12 @@ button { touch-action: manipulation; }
   animation: orb-idle-blue 4s ease-in-out infinite !important;
 }
 
-/* No icons or dots inside orb — state via color only */
+/* Default: hide inner content (evaluated/loading states use pure sphere) */
 .voice-orb > * { display: none !important; }
+
+/* Speaking/Listening: show wave bars, hide sphere */
+.voice-orb.speaking > .orb-wave,
+.voice-orb.listening > .orb-wave { display: flex !important; }
 
 /* Idle: slow organic breathing */
 @keyframes orb-idle-blue {
@@ -3667,73 +3671,90 @@ button { touch-action: manipulation; }
   }
 }
 
-/* Listening: waiting for user to speak */
+/* ─ User Listening — Ripple Wave bars (blue) driven by VAD ─ */
 .voice-orb.listening {
-  background: radial-gradient(circle at 50% 50%,
-    rgba(80,  110, 220, 1.00)  0%,
-    rgba(80,  110, 220, 0.88) 20%,
-    rgba(104, 201, 254, 0.72) 42%,
-    rgba(180, 220, 255, 0.28) 64%,
-    transparent                100%
-  ) !important;
-  animation: orb-listen-blue 3.2s ease-in-out infinite !important;
-}
-@keyframes orb-listen-blue {
-  0%,100% {
-    transform: scale(1) translateY(0); border-radius: 50%;
-    box-shadow:
-      0 0  55px rgba(80, 110, 220, 0.90),
-      0 0 120px rgba(80, 110, 220, 0.52),
-      0 0 210px rgba(104,201,254, 0.30),
-      0 0 360px rgba(104,201,254, 0.12);
-  }
-  50% {
-    transform: scale(1.035) translateY(-5px);
-    border-radius: 52% 48% 50% 50% / 48% 52% 50% 50%;
-    box-shadow:
-      0 0  80px rgba(80, 110, 220, 1.00),
-      0 0 160px rgba(80, 110, 220, 0.68),
-      0 0 290px rgba(104,201,254, 0.46),
-      0 0 480px rgba(104,201,254, 0.18);
-  }
-}
-
-/* VAD active: user is actually talking */
-.voice-orb.listening.vad-active {
+  background: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
   animation: none !important;
-  transform: scale(1.14) translateY(-4px) !important;
-  background: radial-gradient(circle at 50% 50%,
-    rgba(100, 140, 255, 1.00)  0%,
-    rgba(100, 140, 255, 0.90) 20%,
-    rgba(120, 210, 255, 0.72) 44%,
-    rgba(200, 230, 255, 0.28) 66%,
-    transparent               100%
-  ) !important;
-  box-shadow:
-    0 0  90px rgba(80,  130, 255, 1.00),
-    0 0 180px rgba(80,  130, 255, 0.72),
-    0 0 320px rgba(104, 201, 254, 0.50),
-    0 0 520px rgba(104, 201, 254, 0.20) !important;
+  width: min(260px, 72vw) !important;
+  height: 90px !important;
+  transform: none !important;
+}
+.voice-orb.listening .orb-wave {
+  align-items: center; justify-content: center;
+  gap: 6px; height: 90px; width: 100%;
+  filter: drop-shadow(0 0 12px rgba(56,189,248,0.50));
+}
+.voice-orb.listening .orb-bar {
+  width: 9px; height: 54px; border-radius: 5px;
+  transform-origin: center;
+  background: linear-gradient(180deg, #818cf8 0%, #38bdf8 60%, #0ea5e9 100%);
+  transition: transform 0.05s ease-out;
+  /* Idle breathing when not speaking */
+  animation: ripple-idle-user 2.6s ease-in-out infinite;
+}
+.voice-orb.listening .orb-bar:nth-child(1) { animation-delay: 0.00s; }
+.voice-orb.listening .orb-bar:nth-child(2) { animation-delay: 0.10s; }
+.voice-orb.listening .orb-bar:nth-child(3) { animation-delay: 0.20s; }
+.voice-orb.listening .orb-bar:nth-child(4) { animation-delay: 0.30s; }
+.voice-orb.listening .orb-bar:nth-child(5) { animation-delay: 0.20s; }
+.voice-orb.listening .orb-bar:nth-child(6) { animation-delay: 0.10s; }
+.voice-orb.listening .orb-bar:nth-child(7) { animation-delay: 0.00s; }
+@keyframes ripple-idle-user {
+  0%, 100% { transform: scaleY(0.18) translateY(0%); }
+  50%       { transform: scaleY(0.38) translateY(-8%); }
 }
 
-/* Speaking (AI): more purple, energetic morph */
-.voice-orb.speaking {
-  background: radial-gradient(circle at 50% 50%,
-    rgba(124,  92, 240, 1.00)  0%,
-    rgba(124,  92, 240, 0.86) 18%,
-    rgba(104, 201, 254, 0.65) 40%,
-    rgba(200, 180, 255, 0.28) 64%,
-    transparent                100%
-  ) !important;
-  animation: orb-speak-blue 1.9s ease-in-out infinite !important;
+/* VAD active: JS drives scaleY per bar via --vad-level */
+.voice-orb.listening.vad-active .orb-wave {
+  filter: drop-shadow(0 0 18px rgba(56,189,248,0.80));
 }
-@keyframes orb-speak-blue {
-  0%   { transform: scale(1.02) translateY(-2px); border-radius: 50%;
-         box-shadow: 0 0 70px rgba(124,92,240,0.90), 0 0 150px rgba(124,92,240,0.52), 0 0 260px rgba(104,201,254,0.32); }
-  30%  { transform: scale(1.07) translateY(-6px); border-radius: 52% 48% 50% 52% / 50% 52% 48% 50%;
-         box-shadow: 0 0 100px rgba(124,92,240,1.00), 0 0 200px rgba(124,92,240,0.68), 0 0 360px rgba(104,201,254,0.44); }
-  60%  { transform: scale(1.04) translateY(-4px); border-radius: 48% 52% 52% 48% / 52% 48% 50% 52%; }
-  100% { transform: scale(1.02) translateY(-2px); border-radius: 50%; }
+.voice-orb.listening.vad-active .orb-bar {
+  animation: none !important;
+  transition: transform 0.04s ease-out;
+}
+.voice-orb.listening.vad-active .orb-bar:nth-child(1) { transform: scaleY(calc(0.18 + var(--vad-level,0) * 0.55)) translateY(calc(var(--vad-level,0) * -6%)); }
+.voice-orb.listening.vad-active .orb-bar:nth-child(2) { transform: scaleY(calc(0.18 + var(--vad-level,0) * 0.85)) translateY(calc(var(--vad-level,0) * -9%)); }
+.voice-orb.listening.vad-active .orb-bar:nth-child(3) { transform: scaleY(calc(0.18 + var(--vad-level,0) * 1.10)) translateY(calc(var(--vad-level,0) * -11%)); }
+.voice-orb.listening.vad-active .orb-bar:nth-child(4) { transform: scaleY(calc(0.18 + var(--vad-level,0) * 1.30)) translateY(calc(var(--vad-level,0) * -14%)); }
+.voice-orb.listening.vad-active .orb-bar:nth-child(5) { transform: scaleY(calc(0.18 + var(--vad-level,0) * 1.10)) translateY(calc(var(--vad-level,0) * -11%)); }
+.voice-orb.listening.vad-active .orb-bar:nth-child(6) { transform: scaleY(calc(0.18 + var(--vad-level,0) * 0.85)) translateY(calc(var(--vad-level,0) * -9%)); }
+.voice-orb.listening.vad-active .orb-bar:nth-child(7) { transform: scaleY(calc(0.18 + var(--vad-level,0) * 0.55)) translateY(calc(var(--vad-level,0) * -6%)); }
+
+/* ─ AI Speaking — Ripple Wave bars (amber) ─ */
+.voice-orb.speaking {
+  background: none !important;
+  box-shadow: none !important;
+  border: none !important;
+  border-radius: 0 !important;
+  animation: none !important;
+  width: min(260px, 72vw) !important;
+  height: 90px !important;
+}
+.voice-orb.speaking .orb-wave {
+  align-items: center; justify-content: center;
+  gap: 6px; height: 90px; width: 100%;
+  filter: drop-shadow(0 0 14px rgba(249,115,22,0.65));
+}
+.voice-orb.speaking .orb-bar {
+  width: 9px; height: 54px; border-radius: 5px;
+  background: linear-gradient(180deg, #fbbf24 0%, #f97316 60%, #ea580c 100%);
+  transform-origin: center;
+  animation: ripple-wave-ai 0.88s ease-in-out infinite;
+}
+.voice-orb.speaking .orb-bar:nth-child(1) { animation-delay: 0.00s; animation-duration: 0.82s; }
+.voice-orb.speaking .orb-bar:nth-child(2) { animation-delay: 0.11s; animation-duration: 0.90s; }
+.voice-orb.speaking .orb-bar:nth-child(3) { animation-delay: 0.22s; animation-duration: 0.78s; }
+.voice-orb.speaking .orb-bar:nth-child(4) { animation-delay: 0.33s; animation-duration: 0.95s; }
+.voice-orb.speaking .orb-bar:nth-child(5) { animation-delay: 0.44s; animation-duration: 0.84s; }
+.voice-orb.speaking .orb-bar:nth-child(6) { animation-delay: 0.55s; animation-duration: 0.72s; }
+.voice-orb.speaking .orb-bar:nth-child(7) { animation-delay: 0.66s; animation-duration: 0.88s; }
+@keyframes ripple-wave-ai {
+  0%   { transform: scaleY(0.28) scaleX(1)    translateY(0%); }
+  45%  { transform: scaleY(1.20) scaleX(0.82) translateY(-14%); }
+  100% { transform: scaleY(0.28) scaleX(1)    translateY(0%); }
 }
 
 /* Processing: dim slow pulse */

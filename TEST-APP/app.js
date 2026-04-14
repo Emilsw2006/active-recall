@@ -2407,10 +2407,8 @@ async function startMicrophone() {
           if (orb) orb.style.animationPlayState = 'paused';
         }
         vadHasSentAudio = true;
-        // Audio-reactive: simple scale only
-        const scale = 1 + Math.min(rms * 1.5, 0.08); // reduced orb scaling to emphasize bars
-        orb.style.transform = `scale(${scale.toFixed(3)})`;
-        orb.style.setProperty('--vad-level', Math.min(rms * 8, 3.5).toFixed(3)); // map for CSS bars
+        // Drive wave bars via CSS custom property (no sphere scale needed)
+        orb.style.setProperty('--vad-level', Math.min(rms * 14, 1.0).toFixed(3)); // normalized 0-1 for wave bars
         if (vadSilenceTimer) {
           clearTimeout(vadSilenceTimer);
           vadSilenceTimer = null;
@@ -2419,11 +2417,9 @@ async function startMicrophone() {
       } else {
         if (isSpeaking) {
           isSpeaking = false;
-          if (orb) orb.style.animationPlayState = '';
-          orb.style.transform = '';
           orb.style.setProperty('--vad-level', '0');
         }
-        if (!isSpeaking) { orb.style.transform = ''; orb.style.setProperty('--vad-level', '0'); }
+        if (!isSpeaking) { orb.style.setProperty('--vad-level', '0'); }
         if (!vadHasSentAudio) orb.classList.remove('vad-active');
       }
       vadAnimId = requestAnimationFrame(vadLoop);

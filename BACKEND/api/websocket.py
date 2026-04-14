@@ -104,7 +104,7 @@ async def websocket_sesion(
         # Intentar reanudar desde DB
         sesion_db = await asyncio.to_thread(
             lambda: db.table("sesiones").select(
-                "usuario_id, temas_elegidos, fecha_fin, status, duration_type, current_question_index"
+                "usuario_id, temas_elegidos, fecha_fin, status, duration_type, current_question_index, n_preguntas"
             ).eq("id", sesion_id).execute()
         )
 

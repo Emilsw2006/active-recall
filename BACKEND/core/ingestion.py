@@ -17,12 +17,15 @@ from core.deduplicator import deduplicar_atomos
 
 logger = get_logger(__name__)
 
-# Cliente Vertex AI (usa ADC — gcloud auth application-default login)
-_client = genai.Client(
-    vertexai=True,
-    project=settings.google_cloud_project,
-    location=settings.google_cloud_location,
-)
+# Gemini client: API key preferred, Vertex AI ADC as fallback
+if settings.gemini_api_key:
+    _client = genai.Client(api_key=settings.gemini_api_key)
+else:
+    _client = genai.Client(
+        vertexai=True,
+        project=settings.google_cloud_project,
+        location=settings.google_cloud_location,
+    )
 
 PROMPT_EXTRACCION = """
 Analiza este documento y extrae su estructura completa de conocimiento.
