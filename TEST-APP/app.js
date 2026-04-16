@@ -41,7 +41,6 @@ const _isStandalone = window.matchMedia('(display-mode: standalone)').matches
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _deferredInstallPrompt = e;
-  // Show install button as soon as prompt is ready
   if (!_isStandalone) {
     const btn = document.getElementById('pwa-install-btn');
     if (btn) btn.style.display = 'flex';
@@ -54,20 +53,16 @@ window.addEventListener('appinstalled', () => {
   if (btn) btn.style.display = 'none';
 });
 
-// On iOS or Android without prompt yet, still show the button
+// Always show button unless already running as installed PWA
 window.addEventListener('load', () => {
   if (!_isStandalone) {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-    // Only show button on iOS (manual instructions) OR if prompt already captured
-    if (isIOS || _deferredInstallPrompt) {
-      const btn = document.getElementById('pwa-install-btn');
-      if (btn) btn.style.display = 'flex';
-    }
+    const btn = document.getElementById('pwa-install-btn');
+    if (btn) btn.style.display = 'flex';
   }
 });
 
 function installPWA() {
-  // If we have the native deferred prompt, fire it directly — NO intermediate popup
+  // Android/Chrome: native install dialog directly, no intermediate popup
   if (_deferredInstallPrompt) {
     _deferredInstallPrompt.prompt();
     _deferredInstallPrompt.userChoice.then(r => {
@@ -80,14 +75,14 @@ function installPWA() {
     return;
   }
 
-  // Fallback: show instructions popup for iOS / manual install
+  // Fallback popup with manual instructions (iOS or Chrome not ready yet)
   const overlay = document.createElement('div');
   overlay.className = 'pwa-install-overlay';
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
   const instructions = isIOS
     ? 'Pulsa <strong>Compartir ↑</strong> y elige<br><strong>"Añadir a pantalla de inicio"</strong>'
-    : 'Pulsa el menú <strong>⋮</strong> y elige<br><strong>"Instalar app"</strong>';
+    : 'En Chrome, pulsa el menú <strong>⋮</strong><br>y elige <strong>"Instalar app"</strong>';
 
   overlay.innerHTML = `
     <div class="pwa-install-card">
@@ -107,6 +102,7 @@ function installPWA() {
   overlay.querySelector('#pwa-cancel').onclick = closeOverlay;
   overlay.addEventListener('click', e => { if (e.target === overlay) closeOverlay(); });
 }
+
 
 
 // Stop audio when tab goes hidden (phone locks screen, switches app, etc.)
