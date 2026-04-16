@@ -3397,13 +3397,17 @@ function planWizStep1Next() {
   showPlanWizStep(2);
   const dateInp = $('plan-exam-date');
   if (dateInp) {
+    const _localDate = d => {
+      const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
+      return `${y}-${m}-${day}`;
+    };
     const tomorrow = new Date();
     tomorrow.setDate(tomorrow.getDate() + 1);
-    dateInp.min = tomorrow.toISOString().split('T')[0];
+    dateInp.min = _localDate(tomorrow);
     if (!dateInp.value) {
       const suggest = new Date();
       suggest.setDate(suggest.getDate() + 30);
-      dateInp.value = suggest.toISOString().split('T')[0];
+      dateInp.value = _localDate(suggest);
     }
   }
 }
@@ -3575,17 +3579,21 @@ async function _initReviewBlock() {
   } catch(e) { /* silencioso — por defecto no bloquea */ }
 }
 
+function _localDateStr() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+}
 function _reviewSkipIsUsed() {
-  return localStorage.getItem('ar_review_skip_date') === new Date().toISOString().slice(0, 10);
+  return localStorage.getItem('ar_review_skip_date') === _localDateStr();
 }
 function _markReviewSkipUsed() {
-  localStorage.setItem('ar_review_skip_date', new Date().toISOString().slice(0, 10));
+  localStorage.setItem('ar_review_skip_date', _localDateStr());
 }
 function _reviewOptionalDismissed() {
-  return localStorage.getItem('ar_review_opt_dismiss') === new Date().toISOString().slice(0, 10);
+  return localStorage.getItem('ar_review_opt_dismiss') === _localDateStr();
 }
 function _dismissReviewOptional() {
-  localStorage.setItem('ar_review_opt_dismiss', new Date().toISOString().slice(0, 10));
+  localStorage.setItem('ar_review_opt_dismiss', _localDateStr());
   _reviewShowOptional = false;
   const card = $('review-optional-card');
   if (card) { card.style.opacity = '0'; setTimeout(() => card.remove(), 250); }
@@ -3877,7 +3885,7 @@ async function loadSessions() {
         const resumeBtn = !done ? `<button class="sess-acc-btn${isTestSess && s.has_test_draft ? ' accent' : ''}" onclick="resumeSessionFromHistory('${s.sesion_id}','${s.asignatura_id}','${esc(s.asignatura_nombre)}','${s.duration_type||'corta'}','${s.lang||'es'}',${s.n_preguntas||10});event.stopPropagation()">${resumeLabel}</button>` : '';
         const repetirBtn = done ? `<button class="sess-acc-btn" onclick="repetirSesion('${s.sesion_id}');event.stopPropagation()">${T('hist_repeat')}</button>` : '';
         const revisarBtn = (c.total > 0) ? `<button class="sess-acc-btn" onclick="openRevision('${s.sesion_id}');event.stopPropagation()">${T('hist_review')} (${c.total})</button>` : '';
-        const deleteBtn = `<button class="sess-acc-btn danger" onclick="confirmDeleteSession('${s.sesion_id}');event.stopPropagation()">${T('hist_delete')}</button>`;
+        const deleteBtn = `<button class="sess-acc-btn danger" onclick="confirmDeleteSession('${s.sesion_id}','${s.plan_id||''}');event.stopPropagation()">${T('hist_delete')}</button>`;
         return `
           <div class="sess-acc-item" id="sess-acc-${s.sesion_id}" onclick="toggleSessCard('${s.sesion_id}')">
             <div class="sess-acc-header">
@@ -4276,17 +4284,23 @@ async function openPlanDetail(planId) {
           <div class="plan-detail-sess-label">${TF('plan_session_n', {n: s.numero})}</div>
           <div class="plan-detail-sess-status">${_sessLabel(s)}</div>
         </div>
-        ${s.status !== 'completada' ? `<button class="plan-detail-sess-btn${highlight ? '' : ' plan-detail-sess-btn-ghost'}" onclick="startPlanSession('${s.id}')">${T('plan_start_session')}</button>` : ''}
+        ${s.status === 'completada'
+          ? `<button class="plan-detail-sess-btn plan-detail-sess-btn-ghost" onclick="openRevision('${s.id}')">${T('hist_review')}</button>`
+          : `<button class="plan-detail-sess-btn${highlight ? '' : ' plan-detail-sess-btn-ghost'}" onclick="startPlanSession('${s.id}')">${T('plan_start_session')}</button>`
+        }
       </div>`;
 
     const renderReview = s => `
-      <div class="plan-detail-sess review">
-        <div class="plan-detail-sess-num" style="font-size:.85rem">↺</div>
+      <div class="plan-detail-sess review${s.status === 'completada' ? ' done' : ''}">
+        <div class="plan-detail-sess-num" style="font-size:.85rem">${s.status === 'completada' ? '✓' : '↺'}</div>
         <div class="plan-detail-sess-info">
           <div class="plan-detail-sess-label">Sesión de repaso</div>
           <div class="plan-detail-sess-status">${_sessLabel(s)}</div>
         </div>
-        <button class="plan-detail-sess-btn plan-detail-sess-btn-review" onclick="startPlanSession('${s.id}')">Hacer</button>
+        ${s.status === 'completada'
+          ? `<button class="plan-detail-sess-btn plan-detail-sess-btn-ghost" onclick="openRevision('${s.id}')">${T('hist_review')}</button>`
+          : `<button class="plan-detail-sess-btn plan-detail-sess-btn-review" onclick="startPlanSession('${s.id}')">Hacer</button>`
+        }
       </div>`;
 
     let html = '';
@@ -4393,11 +4407,14 @@ async function repetirSesion(sesionId) {
 
 // ─ Borrar sesión ─
 
-async function confirmDeleteSession(sesionId) {
-  if (!confirm(T('confirm_delete_session'))) return;
+async function confirmDeleteSession(sesionId, planId) {
+  const msg = planId
+    ? T('confirm_delete_plan_session') || 'Esta sesión forma parte de un plan. Si la eliminas, el plan quedará incompleto. ¿Continuar?'
+    : T('confirm_delete_session');
+  if (!confirm(msg)) return;
   try {
     await api(`/sesion/${sesionId}`, { method: 'DELETE' });
-    const card = $('sess-card-' + sesionId);
+    const card = $('sess-acc-' + sesionId);
     if (card) card.remove();
     toast(T('toast_session_deleted'), 'ok');
   } catch(e) {

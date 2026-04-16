@@ -1,6 +1,10 @@
 """
-Generador de planes de estudio con Groq + Gemini como fallback.
-Utiliza llm para distribuir sesiones, espaciar repaso y manejar bloqueos por repaso.
+Generador de planes de estudio — v2.
+Sistema dinámico de dos capas:
+  Capa 1: sesiones INITIAL (exposición progresiva)
+  Capa 2: sesiones REVIEW generadas automáticamente (spaced repetition real)
+
+Soporta modo intensivo intradía (1-2 días) y modos acelerado/completo.
 """
 
 import asyncio
@@ -25,101 +29,103 @@ _LANG_INSTRUCTION = {
 
 PROMPT_PLAN = """{lang_instruction}
 
-Eres un sistema de generación de planes de estudio para una app de aprendizaje con Active Recall y Spaced Repetition.
+Eres un sistema avanzado de generación de planes de estudio para una app basada en Active Recall y Spaced Repetition.
 
 CONTEXTO DE LA APP:
-- El usuario estudia dentro de una asignatura.
-- La asignatura contiene temas y átomos (subtemas).
-- El usuario crea un PLAN dentro de la asignatura.
-- El plan organiza sesiones de estudio tipo preguntas/respuestas.
+- El usuario estudia dentro de una asignatura con temas y átomos (unidades de conocimiento).
+- Un plan organiza sesiones de preguntas/respuestas (Active Recall).
+- El usuario define cuántas preguntas quiere por sesión (questions_per_session).
 
 INPUTS:
 - exam_date: {exam_date}
+- today: {today}
 - selected_atoms: {selected_atoms}
 - diagnostic_results: {diagnostic_results}
 - intensity: {intensity}
-
-OBJETIVO:
-Crear un plan de sesiones de estudio optimizado para llegar al examen dominando los átomos seleccionados.
-
-REGLAS DE ESTRATEGIA:
-
-1. Calcular días restantes hasta el examen.
-
-2. Definir modo del plan automáticamente:
-- 1–2 días → modo intensivo
-- 3–7 días → modo acelerado
-- >7 días → modo completo
-
-3. Generación de sesiones:
-Una sesión es una unidad de estudio basada en preguntas de átomos.
-
-Cada sesión debe incluir:
-- type: initial / reinforcement / review
-- atoms (subconjunto de los seleccionados)
-- number_of_questions (calculado automáticamente según tiempo y dificultad)
-- estimated_duration_min (5–15 min)
-
-4. Priorización:
-- primero átomos con peor diagnóstico
-- luego átomos medios
-- asegurar cobertura mínima de todos los átomos seleccionados
-
-5. Repetición (spaced repetition):
-- error alto → repetir en 1 día
-- error medio → repetir en 2–3 días
-- error bajo → repetir en 4–7 días
-
-6. Lógica de aprendizaje:
-- initial = primera exposición a un átomo
-- reinforcement = refuerzo de errores
-- review = repaso espaciado
+- questions_per_session: {questions_per_session}
 
 ---
 
-NUEVA REGLA: SISTEMA DE REPASO Y BLOQUEO (INTEGRADO EN EL PLAN)
+FLUJO OBLIGATORIO DEL SISTEMA — SIGUE ESTE ORDEN SIEMPRE:
 
-Durante la generación del plan, el sistema debe detectar sesiones de tipo REVIEW y gestionarlas así:
+PASO 1 — DIAGNÓSTICO
+Si diagnostic_results está vacío o incompleto:
+  - Marca needs_diagnostic = true en la respuesta.
+  - Crea UNA sesión de tipo "diagnostic" en today con TODOS los átomos seleccionados.
+  - Esta sesión evalúa el nivel del usuario ANTES de planificar.
+  - Sin diagnóstico el plan no puede optimizarse.
 
-A) MARCADO DE SESIONES DE REPASO:
-- cualquier sesión generada por errores acumulados o repetición se marca como:
-  "is_review_session": true
+Si diagnostic_results tiene datos para todos los átomos:
+  - Usa esos datos directamente. needs_diagnostic = false.
+  - Clasifica cada átomo:
+      bajo  = estado "rojo"  (fallo)
+      medio = estado "amarillo" (parcial)
+      alto  = estado "verde"  (dominio)
 
-B) PRIORIDAD VISUAL:
-- las sesiones con "is_review_session": true deben aparecer:
-  - primero en TODAY si caen en el día actual
-  - con prioridad visual alta en la UI (destacadas)
+PASO 2 — CALCULAR MODO SEGÚN DÍAS HASTA EXAMEN
+  dias = días naturales entre hoy y exam_date
+  1–2 días  → strategy_mode = "intensive"   (spaced repetition intradía por horas)
+  3–7 días  → strategy_mode = "accelerated"
+  8+ días   → strategy_mode = "full"
 
-C) REGLA DE BLOQUEO (CONCEPTUAL PARA LA APP):
-- si existe una sesión de repaso activa en TODAY:
-  - debe bloquear la creación o ejecución de nuevas sesiones normales dentro del plan hasta completarla
-  - SOLO se permite:
-    - completar la sesión de repaso
-    - o usar skip (si el sistema lo permite)
+PASO 3 — CAPA 1: SESIONES INITIAL
+  - Distribuir los átomos a lo largo de los días disponibles.
+  - Prioridad de exposición: bajo → medio → alto.
+  - NO llenar todos los días con sesiones initial. Dejar hueco para review.
+  - Exposición progresiva: máximo 60% de los átomos en los primeros 50% de los días.
+  - Carga diaria dinámica: no fija. Calcular según dias_restantes + intensity + n_atomos.
 
-D) SKIP HANDLING:
-- si el usuario usa skip en una sesión de repaso:
-  - la sesión permanece activa
-  - se mantiene como primera acción obligatoria del día siguiente
-  - no se genera nueva sesión de repaso adicional ese día
+PASO 4 — CAPA 2: SPACED REPETITION AUTOMÁTICO
+  Por cada sesión initial, generar automáticamente sesiones review.
 
-E) RESET DEL SISTEMA:
-- cuando una sesión de repaso se completa:
-  - se eliminan flags de bloqueo
-  - se continúa el plan normal
+  MODO NORMAL (3+ días):
+    bajo  (rojo)    → review en 1 día
+    medio (amarillo)→ review en 2-3 días
+    alto  (verde)   → review en 4-7 días
 
-Retorna ÚNICAMENTE JSON válido con esta estructura, sin markdown (excepto si usas formato JSON), sin texto extra:
+  MODO INTENSIVO (1-2 días) — spaced repetition intradía:
+    Día 1 mañana (slot=morning)   → initial
+    Día 1 tarde  (slot=afternoon) → review de lo de la mañana
+    Día 1 noche  (slot=evening)   → review reforzado (si hubo errores)
+    Día 2        (slot=morning)   → repaso global + reinforcement de errores
+
+REGLAS ADICIONALES:
+- Las sesiones review tienen is_review_session = true y MÁXIMA PRIORIDAD.
+- Si hay una review pendiente, BLOQUEA el avance (blocking_enabled = true).
+- Si el usuario usa skip en review: la sesión se mueve al día siguiente (NO se duplica).
+- Cada átomo debe aparecer AL MENOS 2 veces antes del examen (initial + review).
+- Los átomos "bajo" deben aparecer al menos 3 veces.
+
+INTENSITY define agresividad:
+  rapido     → más sesiones/día, menos separación entre reviews
+  equilibrado → balance entre carga y retención
+  exhaustivo  → más repeticiones, más espacio, mayor profundidad
+
+ERRORES A EVITAR:
+  ❌ Planes sin sesiones review reales
+  ❌ Todos los repasos al final del plan
+  ❌ Carga fija por día (siempre el mismo número de sesiones)
+  ❌ Tratar review como opcional
+  ❌ No adaptar al modo intensivo (1-2 días)
+  ❌ No usar diagnóstico cuando es necesario
+
+---
+
+Retorna ÚNICAMENTE JSON válido con esta estructura exacta (sin markdown, sin texto extra):
 
 {{
-  "strategy_mode": "intensive | accelerated | full",
+  "needs_diagnostic": false,
+  "strategy_mode": "full | accelerated | intensive",
   "today": [
     {{
       "session_id": 1,
-      "type": "initial | reinforcement | review",
-      "atoms": ["id_atomo_1", "id_atomo_2"],
+      "type": "diagnostic | initial | review | reinforcement",
+      "slot": "morning | afternoon | evening | anytime",
+      "atoms": ["atom_id_1", "atom_id_2"],
       "number_of_questions": 10,
       "estimated_duration_min": 10,
-      "is_review_session": true
+      "is_review_session": false,
+      "day_offset": 0
     }}
   ],
   "next_days": [
@@ -127,11 +133,13 @@ Retorna ÚNICAMENTE JSON válido con esta estructura, sin markdown (excepto si u
       "day": 1,
       "sessions": [
         {{
-          "type": "initial | reinforcement | review",
-          "atoms": ["id_atomo_3"],
-          "number_of_questions": 5,
-          "estimated_duration_min": 5,
-          "is_review_session": false
+          "type": "initial | review | reinforcement",
+          "slot": "morning | afternoon | evening | anytime",
+          "atoms": ["atom_id_3"],
+          "number_of_questions": 8,
+          "estimated_duration_min": 8,
+          "is_review_session": true,
+          "day_offset": 1
         }}
       ]
     }}
@@ -139,9 +147,10 @@ Retorna ÚNICAMENTE JSON válido con esta estructura, sin markdown (excepto si u
   "review_rules": {{
     "blocking_enabled": true,
     "review_priority": "highest",
-    "skip_allowed": true
+    "skip_moves_to_next_day": true
   }}
 }}""".strip()
+
 
 def _parse_plan(raw: str) -> dict:
     text = raw.strip()
@@ -152,32 +161,39 @@ def _parse_plan(raw: str) -> dict:
         text = text.strip()
     if text.endswith("```"):
         text = text[:-3].strip()
-
     data = json.loads(text)
     return data
+
 
 async def generar_plan_de_estudio(
     exam_date: str,
     selected_atoms: list[dict],
     diagnostic_results: dict,
     intensity: str = "equilibrado",
-    lang: str = "es"
+    lang: str = "es",
+    questions_per_session: int = 10,
 ) -> dict:
     """
-    Genera un plan de estudio adaptativo usando LLM basado en los átomos, 
-    diagnóstico y reglas de Spaced Repetition y bloqueo.
+    Genera un plan de estudio adaptativo de dos capas:
+      Capa 1: sesiones INITIAL distribuidas progresivamente
+      Capa 2: sesiones REVIEW con spaced repetition real
+
+    Si no hay diagnóstico previo, devuelve needs_diagnostic=True y una sesión diagnóstica.
     """
     lang_instr = _LANG_INSTRUCTION.get(lang, _LANG_INSTRUCTION["es"])
-    
+    today_str = date.today().isoformat()
+
     atoms_str = json.dumps(selected_atoms, ensure_ascii=False)
     diag_str = json.dumps(diagnostic_results, ensure_ascii=False)
-    
+
     prompt = PROMPT_PLAN.format(
         exam_date=exam_date,
+        today=today_str,
         selected_atoms=atoms_str,
         diagnostic_results=diag_str,
         intensity=intensity,
-        lang_instruction=lang_instr
+        questions_per_session=questions_per_session,
+        lang_instruction=lang_instr,
     )
 
     # ── Groq (primary — fast) ────────────────────────────────────────────────
@@ -185,20 +201,20 @@ async def generar_plan_de_estudio(
         return _groq.chat.completions.create(
             model="meta-llama/llama-4-scout-17b-16e-instruct",
             messages=[{"role": "user", "content": prompt}],
-            temperature=0.3, # lower temperature for analytical generation
-            max_tokens=4096,
+            temperature=0.2,
+            max_tokens=6000,
             response_format={"type": "json_object"},
         )
 
     try:
-        response = await asyncio.wait_for(asyncio.to_thread(_groq_call), timeout=30.0)
+        response = await asyncio.wait_for(asyncio.to_thread(_groq_call), timeout=40.0)
         plan = _parse_plan(response.choices[0].message.content)
         if plan:
-            logger.info(f"Plan generado con Groq [{lang}]")
+            logger.info(f"Plan v2 generado con Groq [{lang}] — mode={plan.get('strategy_mode')} needs_diagnostic={plan.get('needs_diagnostic')}")
             return plan
         logger.warning("Groq devolvió data inválida — intentando Gemini")
     except asyncio.TimeoutError:
-        logger.warning("Groq timeout (30s) generando plan — intentando Gemini")
+        logger.warning("Groq timeout (40s) generando plan — intentando Gemini")
     except Exception:
         logger.warning(f"Groq falló generando plan:\n{traceback.format_exc()}")
 
@@ -219,20 +235,20 @@ async def generar_plan_de_estudio(
                 model=settings.gemini_model,
                 contents=prompt,
                 config=types.GenerateContentConfig(
-                    temperature=0.3,
+                    temperature=0.2,
                     response_mime_type="application/json",
                 ),
             )
 
         async with GEMINI_SEM:
-            response = await asyncio.wait_for(asyncio.to_thread(_gemini_call), timeout=45.0)
+            response = await asyncio.wait_for(asyncio.to_thread(_gemini_call), timeout=50.0)
 
         plan = _parse_plan(response.text)
         if plan:
-            logger.info(f"Plan generado con Gemini fallback [{lang}]")
+            logger.info(f"Plan v2 generado con Gemini fallback [{lang}]")
             return plan
     except asyncio.TimeoutError:
-        logger.error("Gemini timeout (45s) generando plan — fallback fallido")
+        logger.error("Gemini timeout (50s) generando plan — fallback fallido")
     except Exception:
         logger.error(f"Gemini falló generando plan:\n{traceback.format_exc()}")
 

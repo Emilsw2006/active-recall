@@ -70,9 +70,11 @@ async def crear_plan(body: CrearPlanRequest):
         selected_atoms=atomos_detalles,
         diagnostic_results=diagnostic_results,
         intensity=body.intensity,
-        lang=body.lang
+        lang=body.lang,
+        questions_per_session=atomos_por_sesion,
     )
 
+    needs_diagnostic = plan_data.get("needs_diagnostic", False)
     is_smart_plan = bool(plan_data.get("today") or plan_data.get("next_days"))
 
     # Nombre del plan desde la asignatura + fecha
@@ -104,6 +106,8 @@ async def crear_plan(body: CrearPlanRequest):
     # Si por alguna razon el modelo devolvio vacio, usamos fallback logic
     strategy_mode = plan_data.get("strategy_mode", "fallback")
 
+    plan_tipo = "diagnostic" if needs_diagnostic else ("smart" if is_smart_plan else "standard")
+
     plan_res = db.table("planes").insert({
         "usuario_id":       body.usuario_id,
         "asignatura_id":    body.asignatura_id,
@@ -113,7 +117,7 @@ async def crear_plan(body: CrearPlanRequest):
         "total_sesiones":   n_sesiones,
         "atomos_por_sesion": atomos_por_sesion,
         "status":           "activo",
-        "tipo":             "smart" if is_smart_plan else "standard"
+        "tipo":             plan_tipo,
     }).execute()
     plan_id = plan_res.data[0]["id"]
 
@@ -122,44 +126,50 @@ async def crear_plan(body: CrearPlanRequest):
         todas_las_sesiones_generadas = plan_data.get("today", [])
         for day in plan_data.get("next_days", []):
             todas_las_sesiones_generadas.extend(day.get("sessions", []))
-            
+
         for ss in todas_las_sesiones_generadas:
+            tipo = ss.get("type", "initial")
+            # La sesión diagnóstica usa todos los átomos del plan
+            temas_sesion = body.temas_elegidos
             db.table("sesiones").insert({
-                "usuario_id":            body.usuario_id,
-                "asignatura_id":         body.asignatura_id,
-                "temas_elegidos":        body.temas_elegidos,
-                "duration_type":         "plan",
-                "status":                "por_empezar",
+                "usuario_id":             body.usuario_id,
+                "asignatura_id":          body.asignatura_id,
+                "temas_elegidos":         temas_sesion,
+                "duration_type":          "plan",
+                "status":                 "por_empezar",
                 "current_question_index": 0,
-                "plan_id":               plan_id,
-                "lang":                  body.lang,
-                # NUEVO: Guardar meta-datos del plan inteligente (review blocks)
-                "tipo_sesion":           ss.get("type", "initial"),
-                "is_review_session":     ss.get("is_review_session", False),
-                "n_preguntas":           ss.get("number_of_questions", atomos_por_sesion),
+                "plan_id":                plan_id,
+                "lang":                   body.lang,
+                "tipo_sesion":            tipo,
+                "is_review_session":      ss.get("is_review_session", False),
+                "n_preguntas":            ss.get("number_of_questions", atomos_por_sesion),
+                "day_offset":             ss.get("day_offset", 0),
+                "slot":                   ss.get("slot", "anytime"),
             }).execute()
     else:
         for _ in range(n_sesiones_fallback):
             db.table("sesiones").insert({
-                "usuario_id":            body.usuario_id,
-                "asignatura_id":         body.asignatura_id,
-                "temas_elegidos":        body.temas_elegidos,
-                "duration_type":         "plan",
-                "status":                "por_empezar",
+                "usuario_id":             body.usuario_id,
+                "asignatura_id":          body.asignatura_id,
+                "temas_elegidos":         body.temas_elegidos,
+                "duration_type":          "plan",
+                "status":                 "por_empezar",
                 "current_question_index": 0,
-                "plan_id":               plan_id,
-                "lang":                  body.lang,
+                "plan_id":                plan_id,
+                "lang":                   body.lang,
             }).execute()
 
     logger.info(f"Plan '{plan_nombre}' creado ({n_sesiones} sesiones, {total_atomos} átomos)")
 
     return {
-        "plan_id":          plan_id,
-        "nombre":           plan_nombre,
-        "total_sesiones":   n_sesiones,
-        "total_atomos":     total_atomos,
+        "plan_id":           plan_id,
+        "nombre":            plan_nombre,
+        "total_sesiones":    n_sesiones,
+        "total_atomos":      total_atomos,
         "atomos_por_sesion": atomos_por_sesion,
-        "fecha_examen":     body.fecha_examen,
+        "fecha_examen":      body.fecha_examen,
+        "needs_diagnostic":  needs_diagnostic,
+        "strategy_mode":     plan_data.get("strategy_mode", "standard"),
     }
 
 
@@ -258,12 +268,30 @@ async def sesiones_del_plan(plan_id: str):
 
 @router.delete("/plan/{plan_id}")
 async def eliminar_plan(plan_id: str):
-    """Elimina el plan y sus sesiones no completadas."""
+    """Elimina el plan y TODAS sus sesiones (incluidas las completadas) con cascada completa."""
     db = get_service_client()
-    # Borrar solo sesiones pendientes (no destruir historial completado)
-    db.table("sesiones").delete().eq("plan_id", plan_id).neq("status", "completada").execute()
+
+    # 1. Obtener todos los IDs de sesiones del plan (pendientes + completadas)
+    ses_res = db.table("sesiones").select("id").eq("plan_id", plan_id).execute()
+    sesion_ids = [s["id"] for s in (ses_res.data or [])]
+
+    if sesion_ids:
+        # 2. Borrar resultados de esas sesiones
+        db.table("resultados").delete().in_("sesion_id", sesion_ids).execute()
+
+        # 3. Borrar flashcards_history de esas sesiones
+        db.table("flashcards_history").delete().in_("session_id", sesion_ids).execute()
+
+        # 4. Borrar tests vinculados al plan
+        db.table("tests").delete().eq("plan_id", plan_id).execute()
+
+        # 5. Borrar todas las sesiones del plan
+        db.table("sesiones").delete().eq("plan_id", plan_id).execute()
+
+    # 6. Borrar el plan
     db.table("planes").delete().eq("id", plan_id).execute()
-    logger.info(f"Plan {plan_id} eliminado")
+
+    logger.info(f"Plan {plan_id} eliminado ({len(sesion_ids)} sesiones borradas en cascada)")
     return {"ok": True}
 
 
