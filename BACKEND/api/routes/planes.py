@@ -7,7 +7,7 @@ Endpoints de planes de estudio:
 """
 
 from math import ceil
-from datetime import date
+from datetime import date, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -127,14 +127,15 @@ async def crear_plan(body: CrearPlanRequest):
         for day in plan_data.get("next_days", []):
             todas_las_sesiones_generadas.extend(day.get("sessions", []))
 
+        today = date.today()
         for ss in todas_las_sesiones_generadas:
             tipo = ss.get("type", "initial")
-            # La sesión diagnóstica usa todos los átomos del plan
-            temas_sesion = body.temas_elegidos
+            day_offset = ss.get("day_offset", 0)
+            fecha_objetivo = (today + timedelta(days=day_offset)).isoformat()
             db.table("sesiones").insert({
                 "usuario_id":             body.usuario_id,
                 "asignatura_id":          body.asignatura_id,
-                "temas_elegidos":         temas_sesion,
+                "temas_elegidos":         body.temas_elegidos,
                 "duration_type":          "plan",
                 "status":                 "por_empezar",
                 "current_question_index": 0,
@@ -143,7 +144,7 @@ async def crear_plan(body: CrearPlanRequest):
                 "tipo_sesion":            tipo,
                 "is_review_session":      ss.get("is_review_session", False),
                 "n_preguntas":            ss.get("number_of_questions", atomos_por_sesion),
-                "day_offset":             ss.get("day_offset", 0),
+                "fecha_objetivo":         fecha_objetivo,
                 "slot":                   ss.get("slot", "anytime"),
             }).execute()
     else:
@@ -244,8 +245,9 @@ async def sesiones_del_plan(plan_id: str):
     db = get_service_client()
     ses_res = (
         db.table("sesiones")
-        .select("id, status, current_question_index, fecha_inicio, fecha_fin, is_review_session, tipo_sesion, n_preguntas")
+        .select("id, status, current_question_index, fecha_inicio, fecha_fin, is_review_session, tipo_sesion, n_preguntas, fecha_objetivo, slot")
         .eq("plan_id", plan_id)
+        .order("fecha_objetivo", desc=False, nullsfirst=True)
         .order("id", desc=False)
         .execute()
     )
@@ -261,6 +263,8 @@ async def sesiones_del_plan(plan_id: str):
             "is_review_session": s.get("is_review_session", False),
             "tipo_sesion": s.get("tipo_sesion", "initial"),
             "n_preguntas": s.get("n_preguntas"),
+            "fecha_objetivo": s.get("fecha_objetivo"),
+            "slot": s.get("slot", "anytime"),
         }
         for i, s in enumerate(sessions)
     ]

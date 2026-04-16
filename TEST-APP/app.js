@@ -4396,11 +4396,15 @@ async function openPlanDetail(planId) {
     }
     const nDefault = p.atomos_por_sesion || 10;
 
+    const today = _localDateStr();
     const pending = sessions.filter(s => s.status !== 'completada');
     const done    = sessions.filter(s => s.status === 'completada');
     const review  = pending.filter(s => s.is_review_session);
     const normal  = pending.filter(s => !s.is_review_session);
-    const [next, ...rest] = normal;
+
+    // Split normal sessions: today (no fecha_objetivo or fecha_objetivo === today) vs future
+    const todaySess  = normal.filter(s => !s.fecha_objetivo || s.fecha_objetivo <= today);
+    const futureSess = normal.filter(s => s.fecha_objetivo && s.fecha_objetivo > today);
 
     const _sessLabel = s => {
       const nQ   = s.n_preguntas || nDefault;
@@ -4408,6 +4412,22 @@ async function openPlanDetail(planId) {
       if (s.status === 'completada') return TF('plan_n_questions', {n: `${nQ}/${nQ}`});
       if (s.status === 'empezada')   return TF('plan_n_questions', {n: `${prog}/${nQ}`});
       return TF('plan_n_questions', {n: `0/${nQ}`});
+    };
+
+    const _tipoLabel = s => {
+      if (s.is_review_session) return 'Repaso';
+      const tipo = s.tipo_sesion || 'initial';
+      if (tipo === 'reinforcement') return 'Refuerzo';
+      return 'Estudio';
+    };
+
+    const _cardDateLabel = fechaStr => {
+      if (!fechaStr) return '';
+      const tom = new Date(); tom.setDate(tom.getDate() + 1);
+      const tomStr = `${tom.getFullYear()}-${String(tom.getMonth()+1).padStart(2,'0')}-${String(tom.getDate()).padStart(2,'0')}`;
+      if (fechaStr === tomStr) return 'Mañana';
+      const d = new Date(fechaStr + 'T12:00:00');
+      return d.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' });
     };
 
     const renderNormal = (s, highlight) => `
@@ -4436,6 +4456,20 @@ async function openPlanDetail(planId) {
         }
       </div>`;
 
+    const renderProximaCard = s => {
+      const nQ = s.n_preguntas || nDefault;
+      const isRev = s.is_review_session;
+      const dateLabel = _cardDateLabel(s.fecha_objetivo);
+      return `
+        <div class="plan-proximas-card${isRev ? ' review' : ''}">
+          ${dateLabel ? `<div class="plan-proximas-card-date">${dateLabel}</div>` : ''}
+          <div class="plan-proximas-card-num">${s.numero}</div>
+          <div class="plan-proximas-card-tipo">${_tipoLabel(s)}</div>
+          <div class="plan-proximas-card-sub">${nQ} preguntas</div>
+          <button class="plan-proximas-card-btn${isRev ? ' review' : ''}" onclick="startPlanSession('${s.id}')">${isRev ? 'Hacer' : T('plan_start_session')}</button>
+        </div>`;
+    };
+
     let html = '';
 
     if (review.length) {
@@ -4443,14 +4477,14 @@ async function openPlanDetail(planId) {
       html += review.map(renderReview).join('');
     }
 
-    if (next) {
-      html += `<div class="plan-detail-section-title">SIGUIENTE</div>`;
-      html += renderNormal(next, true);
+    if (todaySess.length) {
+      html += `<div class="plan-detail-section-title">HOY</div>`;
+      html += todaySess.map((s, i) => renderNormal(s, i === 0)).join('');
     }
 
-    if (rest.length) {
+    if (futureSess.length) {
       html += `<div class="plan-detail-section-title">PRÓXIMAS</div>`;
-      html += rest.map(s => renderNormal(s, false)).join('');
+      html += `<div class="plan-proximas-scroll">${futureSess.map(renderProximaCard).join('')}</div>`;
     }
 
     if (done.length) {
