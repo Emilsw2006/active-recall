@@ -4075,10 +4075,10 @@ button { touch-action: manipulation; }
   z-index: 199 !important;
 }
 
-/* Hint box: fixed above transcript when visible */
+/* Hint box: fixed above buttons (transcript hidden) */
 .hint-box {
   position: fixed !important;
-  bottom: calc(env(safe-area-inset-bottom, 0px) + 32px + 42px + 10px + 2.8rem + 10px) !important;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 64px + 42px + 12px) !important;
   left: 50% !important; transform: translateX(-50%) !important;
   width: calc(100% - 48px) !important; max-width: 360px !important;
   background: rgba(255,255,255,0.09) !important;
@@ -4114,6 +4114,13 @@ button { touch-action: manipulation; }
 .duelo-btn.danger { color: #fca5a5 !important; background: rgba(248,113,113,0.13) !important; }
 
 /* end session v4 */
+
+/* ── Hide transcript box and status messages ── */
+.duelo-transcript,
+#duel-transcript {
+  display: none !important;
+}
+
 
 /* ── Header lang flag ── */
 .header-right-btns { display: flex; align-items: center; gap: 6px; }
