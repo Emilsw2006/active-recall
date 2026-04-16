@@ -19,18 +19,8 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js', { scope: '/' }).catch(() => {});
   });
-  // Reload when new SW activates (gets fresh JS)
-  // sessionStorage guard prevents infinite loop: controllerchange fires again
-  // after RESET_HTML unregisters the SW and the fresh page re-registers it.
-  navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (sessionStorage.getItem('_sw_refreshing')) return;
-    sessionStorage.setItem('_sw_refreshing', '1');
-    window.location.reload();
-  });
-  // Also reload on explicit message from new SW
-  navigator.serviceWorker.addEventListener('message', e => {
-    if (e.data && e.data.type === 'sw-updated') window.location.reload();
-  });
+  // No reload on controllerchange — JS/CSS are always fetched from network
+  // by the SW so assets are always fresh without needing a forced reload.
 }
 
 // ─ PWA Install Prompt ─

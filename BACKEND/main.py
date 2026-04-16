@@ -328,11 +328,11 @@ async def get_notificaciones(usuario_id: str, lang: str = "es"):
 
 @app.get("/app", response_class=FileResponse)
 async def serve_app():
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return FileResponse(FRONTEND_DIR / "index.html", headers=_NO_CACHE)
 
 @app.get("/app/", response_class=FileResponse)
 async def serve_app_slash():
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return FileResponse(FRONTEND_DIR / "index.html", headers=_NO_CACHE)
 
 @app.get("/app/{filepath:path}")
 async def serve_app_files(filepath: str):
@@ -355,12 +355,12 @@ async def serve_app_files(filepath: str):
         headers = {}
         if clean_path == "sw.js":
             headers["Service-Worker-Allowed"] = "/app"
+            headers.update(_NO_CACHE)
         # JS/CSS: never cache so browsers always get fresh code
         if suffix in (".js", ".css"):
-            headers["Cache-Control"] = "no-store, no-cache, must-revalidate"
-            headers["Pragma"] = "no-cache"
+            headers.update(_NO_CACHE)
         return FileResponse(file_path, media_type=media_type, headers=headers)
-    return FileResponse(FRONTEND_DIR / "index.html")
+    return FileResponse(FRONTEND_DIR / "index.html", headers=_NO_CACHE)
 
 # Serve key PWA files at root (relative URLs from /app resolve here)
 @app.get("/manifest.json")
@@ -370,7 +370,7 @@ async def serve_manifest_root():
 @app.get("/sw.js")
 async def serve_sw_root():
     return FileResponse(FRONTEND_DIR / "sw.js", media_type="application/javascript",
-                        headers={"Service-Worker-Allowed": "/"})
+                        headers={**_NO_CACHE, "Service-Worker-Allowed": "/"})
 
 @app.get("/icons/{filename}")
 async def serve_icon_root(filename: str):
