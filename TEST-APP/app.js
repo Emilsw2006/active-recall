@@ -9,7 +9,7 @@ if (window.trustedTypes && window.trustedTypes.createPolicy) {
 
 // Si el frontend viene del propio backend...
 // Si viene del servidor estático (8080), apuntamos al backend manualmente
-const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1')
+const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.startsWith('192.168.'))
   ? `http://${location.hostname}:8000`
   : 'https://activerecallmvp.duckdns.org';
 const COLORS = ['#e8a030','#4f7eff','#4dd68a','#ff5c5c','#a78bfa','#f472b6','#38bdf8','#fb923c','#facc15','#34d399'];
@@ -74,7 +74,7 @@ function installPWA() {
   overlay.innerHTML = `
     <div class="pwa-install-card">
       <div class="pwa-install-icon">
-        <img src="icons/icon-192.png" alt="Active Recall" width="64" height="64" style="border-radius:14px"/>
+        <img src="logo.png" alt="Active Recall" width="64" height="64" style="border-radius:14px"/>
       </div>
       <h3 class="pwa-install-title">${T('install_title') || 'Instalar Active Recall'}</h3>
       <p class="pwa-install-desc">${T('install_desc') || 'Accede directamente desde tu pantalla de inicio, sin navegador.'}</p>
@@ -413,7 +413,7 @@ async function _buildSmartNotifs() {
           const pendingReview = (planSessions || []).find(s => s.is_review_session && (s.status === 'por_empezar' || s.status === 'empezada'));
           if (pendingReview) {
             notifs.unshift({
-              color: 'red',
+              color: 'blue',
               titulo: 'Sesión de repaso en tu plan',
               mensaje: `Tu plan "${plan.nombre || 'activo'}" tiene una sesión de repaso prioritaria pendiente.`,
               accion: { tipo: 'ver_plan_review', plan_id: plan.id, sesion_id: pendingReview.id }
@@ -3545,13 +3545,15 @@ const _planCache = {};
 
 // ─ Review Block System ─
 // Parámetros:
-//   REVIEW_MIN_ERRORS   = 5   → >5 errores (rojo+amarillo) en últimos 3 días → bloqueo LIGHT
-//   REVIEW_HEAVY_ERRORS = 20  → ≥20 errores → bloqueo HEAVY (1 obligatoria + 1 opcional)
-//   REVIEW_WINDOW_DAYS  = 3   → ventana de búsqueda
+//   REVIEW_MIN_ERRORS    = 5   → >5 errores en últimos 3 días → muestra botón repaso
+//   REVIEW_BLOCK_ERRORS  = 8   → ≥8 errores → bloquea acceso a nuevas sesiones
+//   REVIEW_BLOCK_SIZE    = 8   → preguntas por bloque de repaso
+//   REVIEW_WINDOW_DAYS   = 3   → ventana de búsqueda
 
 const REVIEW_MIN_ERRORS   = 5;
 const REVIEW_HEAVY_ERRORS = 20;
 const REVIEW_WINDOW_DAYS  = 3;
+const REVIEW_BLOCK_SIZE   = 8;
 
 // Estado del sistema de repaso (se recalcula en cada loadSessions)
 // _reviewBlocked  → bool
@@ -3600,12 +3602,14 @@ function _dismissReviewOptional() {
 }
 
 // Devuelve {blocked, mode, errors}
+// Solo cuenta errores de sesiones normales (NO de sesiones de repaso — duration_type='repaso')
 function _evaluateReviewBlock(soloSessions) {
   if (!soloSessions || !soloSessions.length) return { blocked: false, mode: 'none', errors: 0 };
   const now = Date.now();
   const windowMs = REVIEW_WINDOW_DAYS * 86400000;
   let totalErrors = 0;
   soloSessions.forEach(s => {
+    if (s.duration_type === 'repaso') return; // no contar errores de sesiones de repaso
     const d = s.fecha_inicio ? new Date(s.fecha_inicio).getTime() : 0;
     if (now - d <= windowMs) {
       const c = s.conteo || {};
@@ -3650,20 +3654,19 @@ function _showReviewModal(actionFn) {
 
   const isHeavy   = _reviewMode === 'heavy';
   const subtitle  = isHeavy
-    ? `Tienes <strong>${_reviewErrors} errores</strong> esta semana. Completa 2 sesiones de repaso para limpiarlos.`
-    : `Tienes <strong>${_reviewErrors} errores</strong> esta semana. Resuélvelos antes de seguir estudiando.`;
+    ? `Acumulas <strong>${_reviewErrors} errores</strong>. Repasa 2 veces para continuar.`
+    : `Acumulas <strong>${_reviewErrors} errores</strong>. Haz un repaso para continuar.`;
 
   const modal = document.createElement('div');
   modal.id = 'review-block-modal';
   modal.className = 'review-block-modal';
   modal.innerHTML = `
     <div class="review-block-card">
-      <div class="review-block-icon">${isHeavy ? '🔥' : '⚡'}</div>
-      <div class="review-block-title">Sesión de repaso pendiente</div>
+      <div class="review-block-title">Repaso Necesario</div>
       <div class="review-block-sub">${subtitle}</div>
-      ${isHeavy ? `<div class="review-block-pills"><span class="review-pill obligatoria">1 obligatoria</span><span class="review-pill opcional">+ 1 opcional</span></div>` : ''}
-      <button class="review-block-cta" id="review-block-do-btn">Hacer repaso ahora</button>
-      ${!skipUsed ? `<button class="review-block-skip" id="review-block-skip-btn">Skip hoy (1 vez)</button>` : '<div class="review-block-skip-used">Skip ya utilizado hoy</div>'}
+      ${isHeavy ? `<div class="review-block-pills"><span class="review-pill obligatoria">1 obligatorio</span><span class="review-pill opcional">+ 1 opcional</span></div>` : ''}
+      <button class="review-block-cta" id="review-block-do-btn">Comenzar</button>
+      ${!skipUsed ? `<button class="review-block-skip" id="review-block-skip-btn">Saltar por hoy</button>` : '<div class="review-block-skip-used">Skip no disponible</div>'}
     </div>
   `;
   document.body.appendChild(modal);
@@ -3691,8 +3694,10 @@ function _closeReviewModal() {
   setTimeout(() => modal.remove(), 280);
 }
 
-async function startReviewSession() {
+// Inicia un bloque de repaso con n preguntas (por defecto REVIEW_BLOCK_SIZE)
+async function startReviewSession(nPreguntas) {
   if (!curSubjectId) return;
+  closeReviewPanel();
   try {
     const sessions = await api(`/sesiones/usuario/${uid}`);
     const soloSessions = sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id);
@@ -3700,14 +3705,16 @@ async function startReviewSession() {
     if (!src || !src.temas_elegidos || !src.temas_elegidos.length) {
       switchView('lobby'); return;
     }
+    const n = nPreguntas || REVIEW_BLOCK_SIZE;
     const res = await api('/sesion/crear', {
       method: 'POST',
       body: JSON.stringify({
-        usuario_id: uid,
+        usuario_id:    uid,
         asignatura_id: curSubjectId,
         temas_elegidos: src.temas_elegidos,
-        duration_type: 'corta',
-        lang: currentLang,
+        duration_type: 'repaso',
+        n_preguntas:   n,
+        lang:          currentLang,
       }),
     });
     _reviewSessId   = res.sesion_id;
@@ -3729,60 +3736,118 @@ async function startReviewSession() {
 
 function _onReviewSessionComplete() {
   if (!_reviewSessId || sessId !== _reviewSessId) return;
-  const wasHeavy = _reviewMode === 'heavy';
-  _reviewBlocked  = false;
-  _reviewSessId   = null;
-  _reviewMode     = 'none';
-  if (wasHeavy && !_reviewOptionalDismissed()) {
-    _reviewShowOptional = true;
-    toast('¡Repaso obligatorio completado! Puedes hacer uno más para reforzar.', 'ok');
+  _reviewBlocked = false;
+  _reviewSessId  = null;
+  _reviewMode    = 'none';
+  toast('Repaso completado.', 'ok');
+}
+
+// Actualiza el mini botón de repaso en el panel de sesiones
+function _renderReviewMiniBtn() {
+  const btn = $('repaso-mini-btn');
+  if (!btn) return;
+  if (_reviewErrors > REVIEW_MIN_ERRORS) {
+    const blocksNeeded = Math.ceil(_reviewErrors / REVIEW_BLOCK_SIZE);
+    btn.textContent = `Repaso · ${_reviewErrors} errores`;
+    btn.className = 'repaso-mini-btn' + (_reviewBlocked ? ' urgent' : '');
+    btn.style.display = '';
   } else {
-    toast('¡Repaso completado! Acceso desbloqueado.', 'ok');
+    btn.style.display = 'none';
   }
 }
 
-function _renderReviewCard() {
-  const list = $('sessions-list');
-  if (!list) return;
+// ─ Review Panel (overlay) ─
 
-  // Remove previous cards
-  [$('review-block-card'), $('review-optional-card')].forEach(el => el && el.remove());
+async function openReviewPanel() {
+  const overlay = $('review-panel-overlay');
+  const titleEl = $('review-panel-title');
+  const metaEl  = $('review-panel-meta');
+  const bodyEl  = $('review-panel-body');
+  if (!overlay) return;
 
-  // Optional card (heavy mode, post-mandatory)
-  if (_reviewShowOptional && !_reviewOptionalDismissed()) {
-    const optCard = document.createElement('div');
-    optCard.id = 'review-optional-card';
-    optCard.className = 'review-card-highlight review-card-optional';
-    optCard.innerHTML = `
-      <div class="review-card-left">
-        <div class="review-card-badge" style="color:#a78bfa">OPCIONAL</div>
-        <div class="review-card-title">¿Un repaso más?</div>
-        <div class="review-card-sub">Tenías ${_reviewErrors} errores — un segundo repaso los consolida</div>
-      </div>
-      <div style="display:flex;gap:7px;flex-shrink:0">
-        <button class="review-card-cta" style="background:#a78bfa" onclick="startReviewSession()">Hacer</button>
-        <button class="review-card-cta review-card-dismiss" onclick="_dismissReviewOptional()">Omitir</button>
-      </div>
-    `;
-    list.insertBefore(optCard, list.firstChild);
-    return;
+  if (titleEl) titleEl.textContent = 'Repaso';
+  if (metaEl)  metaEl.textContent  = '';
+  if (bodyEl)  bodyEl.innerHTML    = '<div style="color:rgba(255,255,255,0.4);font-size:.82rem;padding:12px 0">Cargando...</div>';
+  overlay.classList.add('open');
+
+  try {
+    const sessions = await api(`/sesiones/usuario/${uid}`);
+    const soloSessions = sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id);
+
+    // Sesiones normales recientes con errores
+    const now = Date.now();
+    const windowMs = REVIEW_WINDOW_DAYS * 86400000;
+    let totalErrors = 0;
+    soloSessions.forEach(s => {
+      if (s.duration_type === 'repaso') return;
+      const d = s.fecha_inicio ? new Date(s.fecha_inicio).getTime() : 0;
+      if (now - d <= windowMs) {
+        const c = s.conteo || {};
+        totalErrors += (c.rojo || 0) + (c.amarillo || 0);
+      }
+    });
+
+    // Sesiones de repaso ya hechas
+    const repasoSessions = soloSessions.filter(s => s.duration_type === 'repaso');
+    const repasoHechas   = repasoSessions.filter(s => s.status === 'completada');
+
+    if (metaEl) metaEl.textContent = `${totalErrors} errores pendientes`;
+
+    // Calcular bloques
+    const blocks = [];
+    let remaining = totalErrors;
+    let idx = 1;
+    while (remaining > 0) {
+      const n = Math.min(remaining, REVIEW_BLOCK_SIZE);
+      blocks.push({ idx, n });
+      remaining -= n;
+      idx++;
+    }
+
+    let html = '';
+
+    if (blocks.length === 0) {
+      html = `<div style="color:rgba(255,255,255,0.38);font-size:.82rem;padding:20px 0;text-align:center">Sin errores pendientes. Todo correcto.</div>`;
+    } else {
+      html += `<div class="review-panel-summary">${blocks.length} ${blocks.length === 1 ? 'sesión' : 'sesiones'} de repaso · ${totalErrors} preguntas en total</div>`;
+      blocks.forEach(b => {
+        html += `
+          <div class="review-sess-block">
+            <div class="review-sess-block-info">
+              <div class="review-sess-block-label">Bloque ${b.idx}</div>
+              <div class="review-sess-block-sub">${b.n} preguntas</div>
+            </div>
+            <button class="review-sess-block-btn" onclick="startReviewSession(${b.n})">Iniciar</button>
+          </div>`;
+      });
+    }
+
+    // Sesiones de repaso completadas
+    if (repasoHechas.length) {
+      html += `<div class="plan-detail-section-title" style="margin-top:18px">COMPLETADAS (${repasoHechas.length})</div>`;
+      repasoHechas.forEach((s, i) => {
+        const c = s.conteo || {};
+        const fecha = s.fecha_inicio ? new Date(s.fecha_inicio).toLocaleDateString('es',{day:'numeric',month:'short'}) : '—';
+        html += `
+          <div class="review-sess-block done">
+            <div class="review-sess-block-info">
+              <div class="review-sess-block-label">Repaso · ${fecha}</div>
+              <div class="review-sess-block-sub">✓ ${c.verde||0} &nbsp;◐ ${c.amarillo||0} &nbsp;✕ ${c.rojo||0}</div>
+            </div>
+            <button class="review-sess-block-btn ghost" onclick="openRevision('${s.sesion_id}')">Ver</button>
+          </div>`;
+      });
+    }
+
+    if (bodyEl) bodyEl.innerHTML = html;
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = `<div style="color:var(--red);font-size:.82rem;padding:8px">${e.message}</div>`;
   }
+}
 
-  // Mandatory block card
-  if (!_reviewBlocked) return;
-  const card = document.createElement('div');
-  card.id = 'review-block-card';
-  card.className = 'review-card-highlight';
-  const isHeavy = _reviewMode === 'heavy';
-  card.innerHTML = `
-    <div class="review-card-left">
-      <div class="review-card-badge">${isHeavy ? '🔥 REPASO ×2' : 'REPASO'}</div>
-      <div class="review-card-title">${_reviewErrors} errores pendientes</div>
-      <div class="review-card-sub">${isHeavy ? '2 sesiones recomendadas · empieza por la obligatoria' : 'Corrígelos antes de seguir estudiando'}</div>
-    </div>
-    <button class="review-card-cta" onclick="startReviewSession()">Hacer repaso</button>
-  `;
-  list.insertBefore(card, list.firstChild);
+function closeReviewPanel() {
+  const overlay = $('review-panel-overlay');
+  if (overlay) overlay.classList.remove('open');
 }
 
 async function loadSessions() {
@@ -3798,20 +3863,23 @@ async function loadSessions() {
       api(`/tests/usuario/${uid}`).catch(() => []),
     ]);
 
-    // Oral sessions for this subject (no plan)
-    const filteredSess = sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id);
+    // Oral sessions for this subject (no plan, no repaso)
+    const allSubjSess = sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id);
+    const filteredSess = allSubjSess.filter(s => s.duration_type !== 'repaso');
     // Tests for this subject
     const filteredTests = tests.filter(t => t.asignatura_id === curSubjectId);
 
-    // Evaluate review block state
-    const _rev = _evaluateReviewBlock(filteredSess);
+    // Evaluate review block state (uses allSubjSess to count errors correctly)
+    const _rev = _evaluateReviewBlock(allSubjSess);
     _reviewBlocked = _rev.blocked;
     _reviewMode    = _rev.mode;
     _reviewErrors  = _rev.errors;
 
+    // Update mini repaso button
+    _renderReviewMiniBtn();
+
     if (!filteredSess.length && !filteredTests.length) {
       list.innerHTML = `<div class="empty-state">${T('hist_empty_sessions')}</div>`;
-      _renderReviewCard();
       return;
     }
 
@@ -3819,17 +3887,35 @@ async function loadSessions() {
     const sesionToTestId = {};
     filteredTests.forEach(t => { if (t.sesion_id) sesionToTestId[t.sesion_id] = t.test_id; });
 
-    // Build mixed items sorted by date desc
-    const items = [];
-    // Hide oral test sessions that are 'completada' AND have a saved test — they appear as test cards already
+    // Build all items sorted by date desc
+    const allItems = [];
     filteredSess.forEach(s => {
       if (s.duration_type === 'test' && s.status === 'completada' && sesionToTestId[s.sesion_id]) return;
-      items.push({ _type: 'session', _date: s.fecha_inicio || '', ...s });
+      allItems.push({ _type: 'session', _date: s.fecha_inicio || '', ...s });
     });
-    filteredTests.forEach(t => items.push({ _type: 'test', _date: t.fecha || '', ...t }));
-    items.sort((a, b) => new Date(b._date) - new Date(a._date));
+    filteredTests.forEach(t => allItems.push({ _type: 'test', _date: t.fecha || '', ...t }));
+    allItems.sort((a, b) => new Date(b._date) - new Date(a._date));
+
+    // Apply current filter
+    const activeFilter = _sessFilter || 'pendientes';
+    const items = allItems.filter(item => {
+      if (activeFilter === 'todas') return true;
+      if (item._type === 'test') {
+        // Tests: completadas siempre van en "completadas" y "todas"
+        return activeFilter === 'completadas';
+      }
+      const isDone = item.status === 'completada';
+      if (activeFilter === 'pendientes') return !isDone; // por_empezar + empezada
+      if (activeFilter === 'completadas') return isDone;
+      return true;
+    });
 
     list.className = 'sess-acc-list';
+    if (!items.length) {
+      const labels = { pendientes: 'Sin sesiones pendientes', completadas: 'Sin sesiones completadas', todas: T('hist_empty_sessions') };
+      list.innerHTML = `<div class="empty-state">${labels[activeFilter] || T('hist_empty_sessions')}</div>`;
+      return;
+    }
     list.innerHTML = items.map(item => {
       if (item._type === 'test') {
         // ── Test card ──

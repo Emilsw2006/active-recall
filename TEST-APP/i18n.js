@@ -309,7 +309,7 @@ const TRANSLATIONS = {
     feedback_incorrect: 'Incorrecto.',
 
     // Dynamic labels
-    label_question_counter: 'Pregunta {n}/{total}',
+    label_question_counter: '{n}/{total}',
     label_test_score: 'Test · {correct}/{total} correctas',
     label_answered: '{n} respondidas',
     label_unanswered: 'Sin responder',
@@ -618,7 +618,7 @@ const TRANSLATIONS = {
     feedback_feynman: 'Feynman Method',
     feedback_incorrect: 'Incorrect.',
 
-    label_question_counter: 'Question {n}/{total}',
+    label_question_counter: '{n}/{total}',
     label_test_score: 'Test · {correct}/{total} correct',
     label_answered: '{n} answered',
     label_unanswered: 'Unanswered',
@@ -924,7 +924,7 @@ const TRANSLATIONS = {
     feedback_feynman: 'Feynman-Methode',
     feedback_incorrect: 'Falsch.',
 
-    label_question_counter: 'Frage {n}/{total}',
+    label_question_counter: '{n}/{total}',
     label_test_score: 'Test · {correct}/{total} richtig',
     label_answered: '{n} beantwortet',
     label_unanswered: 'Unbeantwortet',

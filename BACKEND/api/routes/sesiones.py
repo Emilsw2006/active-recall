@@ -33,7 +33,7 @@ class CrearSesionRequest(BaseModel):
     usuario_id: str
     asignatura_id: str
     temas_elegidos: List[str]
-    duration_type: Literal["corta", "larga", "test"] = "corta"
+    duration_type: Literal["corta", "larga", "test", "repaso"] = "corta"
     max_atomos: Optional[int] = None  # sobreescribe el límite fijo
     n_preguntas: Optional[int] = None  # para sesiones test: nº elegido en slider
     completo: bool = False  # True → estudiar TODOS los átomos, dividir en partes

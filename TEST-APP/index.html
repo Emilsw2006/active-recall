@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="theme-color" content="#0f1117" />
+<meta name="theme-color" content="#4a70c4" />
 <meta name="description" content="Estudio activo con IA — repasa con voz, flashcards y tests" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="logo.png" />
@@ -398,6 +398,15 @@
 
       <!-- Panel Sesiones -->
       <div id="hist-panel-sesiones">
+        <!-- Barra superior: filtros + botón repaso -->
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">
+          <div id="sess-filter-pills" style="display:flex;gap:6px;flex:1">
+            <button class="sess-filter-pill active" data-filter="pendientes" onclick="setSessFilter('pendientes')">Pendientes</button>
+            <button class="sess-filter-pill" data-filter="completadas" onclick="setSessFilter('completadas')">Completadas</button>
+            <button class="sess-filter-pill" data-filter="todas" onclick="setSessFilter('todas')">Todas</button>
+          </div>
+          <button id="repaso-mini-btn" class="repaso-mini-btn" onclick="openReviewPanel()" style="display:none"></button>
+        </div>
         <div id="sessions-list" style="display:flex;flex-direction:column;gap:0">
           <div class="empty-state" data-i18n="hist_empty_sessions">No hay sesiones aún.</div>
         </div>
@@ -998,6 +1007,22 @@
     </div>
   </div>
   <div class="plan-detail-body" id="plan-detail-body"></div>
+</div>
+
+<!-- Review Panel Overlay -->
+<div class="plan-detail-overlay" id="review-panel-overlay">
+  <div class="plan-detail-header">
+    <div class="fallos-header-left">
+      <button class="ajustes-close" onclick="closeReviewPanel()">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+      <div>
+        <div class="plan-detail-title" id="review-panel-title">Repaso</div>
+        <div class="plan-detail-meta-text" id="review-panel-meta"></div>
+      </div>
+    </div>
+  </div>
+  <div class="plan-detail-body" id="review-panel-body"></div>
 </div>
 
 <!-- ════ SUBJECT WIZARD ════ -->

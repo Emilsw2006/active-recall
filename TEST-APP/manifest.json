@@ -2,30 +2,29 @@
   "name": "Active Recall",
   "short_name": "Recall",
   "description": "Estudio activo con IA — repasa con voz, flashcards y tests",
-  "start_url": "/app",
-  "scope": "/",
+  "start_url": ".",
   "display": "standalone",
-  "background_color": "#0f1117",
-  "theme_color": "#0f1117",
+  "background_color": "#4a70c4",
+  "theme_color": "#4a70c4",
   "orientation": "portrait",
   "categories": ["education"],
   "icons": [
     {
-      "src": "/logo.png",
-      "sizes": "192x192 512x512",
+      "src": "logo.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/logo.png",
-      "sizes": "192x192 512x512",
+      "src": "logo.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "maskable"
     }
   ],
   "screenshots": [
     {
-      "src": "/logo.png",
+      "src": "logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "form_factor": "narrow"

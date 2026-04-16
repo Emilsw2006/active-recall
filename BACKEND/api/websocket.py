@@ -367,6 +367,7 @@ async def websocket_sesion(
                 audio_feedback_b64, fmt_feedback = await _tts(feedback)
             elif ruta in ("rojo", "amarillo"):
                 # Fallback: generate flashcard separately (detalle was None)
+                _is_review_sess = sesion.duration_type == "repaso"
                 async def _gen_flashcard():
                     fc = await generar_flashcard(
                         atomo_id=atomo.id,
@@ -375,6 +376,7 @@ async def websocket_sesion(
                         respuesta_usuario=texto_usuario,
                         mundo_analogias=sesion.usuario_mundo_analogias,
                         lang=lang,
+                        is_review=_is_review_sess,
                     )
                     await _guardar_flashcard_history(atomo.id, fc)
                     return fc

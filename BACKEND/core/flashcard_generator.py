@@ -70,11 +70,13 @@ async def generar_flashcard(
     respuesta_usuario: str,
     mundo_analogias: str,
     lang: str = "es",
+    is_review: bool = False,
 ) -> dict:
     """
     Genera una flashcard para un átomo fallado.
     Siempre regenera el contenido (para analogías frescas con la respuesta incorrecta actual).
-    Actualiza veces_fallada en DB si ya existe.
+    Actualiza veces_fallada en DB si ya existe — EXCEPTO en sesiones de repaso (is_review=True),
+    donde el contador se mantiene igual para no penalizar errores en revisión.
     """
     db = get_service_client()
     inicio = datetime.now()
@@ -131,7 +133,9 @@ async def generar_flashcard(
 
     if existente.data:
         fc_id = existente.data[0]["id"]
-        veces = existente.data[0]["veces_fallada"] + 1
+        veces_actuales = existente.data[0]["veces_fallada"]
+        # En sesiones de repaso no incrementamos el contador — el error ya fue contado antes
+        veces = veces_actuales if is_review else veces_actuales + 1
         updated = await asyncio.to_thread(
             lambda: db.table("flashcards").update({
                 "paso_1_concepto_base": pasos["paso_1_concepto_base"],
@@ -147,7 +151,8 @@ async def generar_flashcard(
             "veces_fallada": veces,
             **pasos,
         }
-        logger.info(f"Flashcard actualizada (veces_fallada: {veces})")
+        accion = "mantenida" if is_review else "actualizada"
+        logger.info(f"Flashcard {accion} (veces_fallada: {veces})")
     else:
         flashcard_data = {
             "atomo_id": atomo_id,
