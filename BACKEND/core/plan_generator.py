@@ -35,14 +35,17 @@ CONTEXTO DE LA APP:
 - El usuario estudia dentro de una asignatura con temas y átomos (unidades de conocimiento).
 - Un plan organiza sesiones de preguntas/respuestas (Active Recall).
 - El usuario define cuántas preguntas quiere por sesión (questions_per_session).
+- REGLA CRÍTICA: "number_of_questions" en CADA sesión debe ser EXACTAMENTE {questions_per_session}. Nunca uses otro valor.
 
 INPUTS:
 - exam_date: {exam_date}
 - today: {today}
-- selected_atoms: {selected_atoms}
+- total_atoms: {total_atoms}
+- selected_atoms (muestra): {selected_atoms_sample}
 - diagnostic_results: {diagnostic_results}
 - intensity: {intensity}
 - questions_per_session: {questions_per_session}
+- dias_hasta_examen: {dias}
 
 ---
 
@@ -69,61 +72,45 @@ PASO 2 — CALCULAR MODO SEGÚN DÍAS HASTA EXAMEN
   8+ días   → strategy_mode = "full"
 
 PASO 3 — CAPA 1: SESIONES INITIAL
-  - Distribuir los átomos a lo largo de los días disponibles.
+  - n_sesiones_initial = ceil(total_atoms / questions_per_session)
+  - Distribuir esas sesiones a lo largo de los dias disponibles.
   - Prioridad de exposición: bajo → medio → alto.
-  - NO llenar todos los días con sesiones initial. Dejar hueco para review.
-  - Exposición progresiva: máximo 60% de los átomos en los primeros 50% de los días.
-  - Carga diaria dinámica: no fija. Calcular según dias_restantes + intensity + n_atomos.
+  - Reservar 1/3 de los días para sesiones review — NO llenar todos los días con initial.
+  - Carga diaria dinámica según intensity:
+      rapido: 2 sesiones/día max
+      equilibrado: 1 sesión/día estudio + hueco para review
+      exhaustivo: 1 sesión/día con muchas reviews
 
-PASO 4 — CAPA 2: SPACED REPETITION AUTOMÁTICO
-  Por cada sesión initial, generar automáticamente sesiones review.
+PASO 4 — CAPA 2: SPACED REPETITION
+  - Por cada grupo de sesiones initial, crear review automático.
+  - MODO NORMAL (3+ días):
+      errores altos (rojo)    → review al día siguiente (day_offset + 1)
+      errores medios (amarillo) → review a los 2-3 días
+      errores bajos (verde)   → review a los 4-7 días
+  - MODO INTENSIVO (1-2 días):
+      Mañana → initial, Tarde → review, Noche → reinforcement si fallos
+  - number_of_questions de TODAS las sesiones = {questions_per_session} (OBLIGATORIO)
+  - is_review_session = true para review y reinforcement
+  - day_offset = días desde hoy (0 = hoy, 1 = mañana, etc.)
 
-  MODO NORMAL (3+ días):
-    bajo  (rojo)    → review en 1 día
-    medio (amarillo)→ review en 2-3 días
-    alto  (verde)   → review en 4-7 días
-
-  MODO INTENSIVO (1-2 días) — spaced repetition intradía:
-    Día 1 mañana (slot=morning)   → initial
-    Día 1 tarde  (slot=afternoon) → review de lo de la mañana
-    Día 1 noche  (slot=evening)   → review reforzado (si hubo errores)
-    Día 2        (slot=morning)   → repaso global + reinforcement de errores
-
-REGLAS ADICIONALES:
-- Las sesiones review tienen is_review_session = true y MÁXIMA PRIORIDAD.
-- Si hay una review pendiente, BLOQUEA el avance (blocking_enabled = true).
-- Si el usuario usa skip en review: la sesión se mueve al día siguiente (NO se duplica).
-- Cada átomo debe aparecer AL MENOS 2 veces antes del examen (initial + review).
-- Los átomos "bajo" deben aparecer al menos 3 veces.
-
-INTENSITY define agresividad:
-  rapido     → más sesiones/día, menos separación entre reviews
-  equilibrado → balance entre carga y retención
-  exhaustivo  → más repeticiones, más espacio, mayor profundidad
-
-ERRORES A EVITAR:
-  ❌ Planes sin sesiones review reales
-  ❌ Todos los repasos al final del plan
-  ❌ Carga fija por día (siempre el mismo número de sesiones)
-  ❌ Tratar review como opcional
-  ❌ No adaptar al modo intensivo (1-2 días)
-  ❌ No usar diagnóstico cuando es necesario
+REGLAS:
+- TODAS las sesiones tienen "number_of_questions": {questions_per_session}
+- Generar SUFICIENTES sesiones: al menos n_sesiones_initial initial + mismo número de reviews
+- Los átomos "bajo/rojo" aparecen mínimo 3 veces, "medio" 2 veces, "alto" 1 vez
+- blocking_enabled = true (review bloquea avance)
 
 ---
 
-Retorna ÚNICAMENTE JSON válido con esta estructura exacta (sin markdown, sin texto extra):
+Retorna ÚNICAMENTE JSON válido (sin markdown, sin texto extra):
 
 {{
   "needs_diagnostic": false,
   "strategy_mode": "full | accelerated | intensive",
   "today": [
     {{
-      "session_id": 1,
       "type": "diagnostic | initial | review | reinforcement",
       "slot": "morning | afternoon | evening | anytime",
-      "atoms": ["atom_id_1", "atom_id_2"],
-      "number_of_questions": 10,
-      "estimated_duration_min": 10,
+      "number_of_questions": {questions_per_session},
       "is_review_session": false,
       "day_offset": 0
     }}
@@ -134,11 +121,9 @@ Retorna ÚNICAMENTE JSON válido con esta estructura exacta (sin markdown, sin t
       "sessions": [
         {{
           "type": "initial | review | reinforcement",
-          "slot": "morning | afternoon | evening | anytime",
-          "atoms": ["atom_id_3"],
-          "number_of_questions": 8,
-          "estimated_duration_min": 8,
-          "is_review_session": true,
+          "slot": "anytime",
+          "number_of_questions": {questions_per_session},
+          "is_review_session": false,
           "day_offset": 1
         }}
       ]
@@ -183,16 +168,27 @@ async def generar_plan_de_estudio(
     lang_instr = _LANG_INSTRUCTION.get(lang, _LANG_INSTRUCTION["es"])
     today_str = date.today().isoformat()
 
-    atoms_str = json.dumps(selected_atoms, ensure_ascii=False)
+    # Pasar solo muestra de átomos (IDs + titulo) para no sobrecargar el contexto
+    atoms_sample = [{"id": a["id"], "titulo_corto": a.get("titulo_corto", "")} for a in selected_atoms[:60]]
+    atoms_sample_str = json.dumps(atoms_sample, ensure_ascii=False)
     diag_str = json.dumps(diagnostic_results, ensure_ascii=False)
+
+    from datetime import date as _date
+    try:
+        exam_dt = _date.fromisoformat(exam_date)
+        dias = (exam_dt - _date.fromisoformat(today_str)).days
+    except Exception:
+        dias = 30
 
     prompt = PROMPT_PLAN.format(
         exam_date=exam_date,
         today=today_str,
-        selected_atoms=atoms_str,
+        total_atoms=len(selected_atoms),
+        selected_atoms_sample=atoms_sample_str,
         diagnostic_results=diag_str,
         intensity=intensity,
         questions_per_session=questions_per_session,
+        dias=dias,
         lang_instruction=lang_instr,
     )
 

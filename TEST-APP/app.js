@@ -3407,10 +3407,38 @@ function togglePlanTopic(i) {
   if (el) el.classList.toggle('checked');
 }
 
+let _planIntensity = 'equilibrado';
+
 function setPlanAtomsSlider(val) {
   _planAtomosPorSesion = parseInt(val, 10);
   const label = $('plan-atoms-val');
-  if (label) label.textContent = TF('plan_n_questions', {n: _planAtomosPorSesion});
+  if (label) label.textContent = `${_planAtomosPorSesion} preguntas por sesión`;
+  _updatePlanEstimate();
+}
+
+function setPlanIntensity(val) {
+  _planIntensity = val;
+  document.querySelectorAll('.plan-intensity-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.val === val);
+  });
+  _updatePlanEstimate();
+}
+
+function _updatePlanEstimate() {
+  const el = $('plan-wiz-estimate');
+  if (!el) return;
+  const selected = _planWizTopics.filter((t, i) => {
+    const item = $(`plan-topic-${i}`);
+    return item && item.classList.contains('checked');
+  });
+  const totalAtomos = selected.reduce((s, t) => s + (t.n_atomos || 0), 0);
+  if (!totalAtomos) { el.innerHTML = ''; return; }
+  const nSess = Math.ceil(totalAtomos / _planAtomosPorSesion);
+  const reviewMult = _planIntensity === 'rapido' ? 1.3 : _planIntensity === 'exhaustivo' ? 2.2 : 1.6;
+  const total = Math.ceil(nSess * reviewMult);
+  el.innerHTML = `
+    <div class="plan-wiz-estimate-row"><span>${totalAtomos} contenidos</span><span>${nSess} sesiones de estudio</span></div>
+    <div class="plan-wiz-estimate-row" style="opacity:.65"><span>+ repasos automáticos</span><span>~${total} sesiones en total</span></div>`;
 }
 
 function planWizStep1Next() {
@@ -3420,6 +3448,13 @@ function planWizStep1Next() {
   });
   if (!selected.length) { toast(T('validation_select_topic'), 'err'); return; }
   showPlanWizStep(2);
+  // Update summary card
+  const sumEl = $('plan-wiz-summary');
+  if (sumEl) {
+    const total = selected.reduce((s, t) => s + (t.n_atomos || 0), 0);
+    sumEl.innerHTML = `<span>${selected.length} ${selected.length === 1 ? 'tema' : 'temas'} seleccionados</span><span>${total} contenidos</span>`;
+  }
+  _updatePlanEstimate();
   const dateInp = $('plan-exam-date');
   if (dateInp) {
     const _localDate = d => {
@@ -3459,10 +3494,12 @@ async function submitPlanWizard() {
         temas_elegidos:    selected.map(t => t.id),
         fecha_examen:      dateInp.value,
         atomos_por_sesion: _planAtomosPorSesion,
+        intensity:         _planIntensity,
         lang:              currentLang,
       }),
     });
-    toast(TF('toast_plan_created', {n: res.total_sesiones}), 'ok');
+    const stratLabel = {full:'completo',accelerated:'acelerado',intensive:'intensivo'}[res.strategy_mode] || res.strategy_mode || '';
+    toast(`Plan creado — ${res.total_sesiones} sesiones, ${res.total_atomos} contenidos${stratLabel ? ' · modo '+stratLabel : ''}`, 'ok');
     closePlanWizard();
     switchHistTab('planes');
     loadPlanes();
@@ -3475,21 +3512,17 @@ async function submitPlanWizard() {
 
 async function loadPlanes() {
   if (!curSubjectId) return;
-  const listHoy  = $('planes-list-hoy');
-  const listDone = $('planes-list-done');
-  if (!listHoy || !listDone) return;
-
-  if (listHoy.innerHTML.includes('loading') || listHoy.innerHTML.includes('empty-state')) {
-    const loadHtml = `<div class="empty-state">${T('hist_loading_plans')}</div>`;
-    listHoy.innerHTML = loadHtml;
-    listDone.innerHTML = loadHtml;
-  }
+  const listEl = $('planes-list');
+  if (!listEl) return;
+  listEl.innerHTML = `<div class="empty-state">${T('hist_loading_plans')}</div>`;
 
   try {
     const planes = await api(`/planes/usuario/${uid}?asignatura_id=${curSubjectId}`);
-    
-    const hoyPlanes  = planes.filter(p => (p.sesiones_completadas || 0) < (p.sesiones_totales || p.total_sesiones || 0));
-    const donePlanes = planes.filter(p => (p.sesiones_completadas || 0) >= (p.sesiones_totales || p.total_sesiones || 0));
+
+    if (!planes.length) {
+      listEl.innerHTML = `<div class="empty-state">${T('hist_empty_plans')}<br><span style="font-size:.78rem;opacity:.6">${T('hist_empty_plans_hint')}</span></div>`;
+      return;
+    }
 
     const renderPlan = (p) => {
       _planCache[p.id] = p;
@@ -3516,7 +3549,7 @@ async function loadPlanes() {
       } else {
         const primaryBtn = hasReview
           ? `<button class="plan-card-btn plan-card-btn-review" onclick="startPlanSession('${proximaId}','${p.id}')">Hacer repaso</button>`
-          : (proximaId ? `<button class="plan-card-btn plan-card-btn-primary" onclick="startPlanSession('${proximaId}','${p.id}')">Siguiente</button>` : '');
+          : (proximaId ? `<button class="plan-card-btn plan-card-btn-primary" onclick="startPlanSession('${proximaId}','${p.id}')">Continuar</button>` : '');
         footer = `<div class="plan-card-actions">
           ${primaryBtn}
           <button class="plan-card-btn plan-card-btn-ghost" onclick="openPlanDetail('${p.id}')">Ver plan</button>
@@ -3524,7 +3557,7 @@ async function loadPlanes() {
       }
 
       return `
-        <div class="plan-card" id="plan-card-${p.id}">
+        <div class="plan-card${allDone ? ' done' : ''}" id="plan-card-${p.id}">
           <div class="plan-card-header">
             <div class="plan-card-name">${esc(p.nombre)}</div>
             <button class="plan-card-del" onclick="deletePlan('${p.id}')" title="${T('hist_delete')}">
@@ -3544,13 +3577,18 @@ async function loadPlanes() {
         </div>`;
     };
 
-    const emptyHoy  = `<div class="empty-state">${T('hist_empty_plans')}<br>${T('hist_empty_plans_hint')}</div>`;
-    const emptyDone = `<div class="empty-state" style="color:rgba(255,255,255,0.28)">${T('plan_no_completed')}</div>`;
-    listHoy.innerHTML  = hoyPlanes.length  ? hoyPlanes.map(renderPlan).join('')  : emptyHoy;
-    listDone.innerHTML = donePlanes.length ? donePlanes.map(renderPlan).join('') : emptyDone;
+    // Active plans first, completed at bottom
+    const active   = planes.filter(p => (p.sesiones_completadas||0) < (p.sesiones_totales||p.total_sesiones||0));
+    const done     = planes.filter(p => (p.sesiones_completadas||0) >= (p.sesiones_totales||p.total_sesiones||0) && (p.sesiones_totales||p.total_sesiones||0) > 0);
+    let html = active.map(renderPlan).join('');
+    if (done.length) {
+      html += `<div class="plan-section-label" style="margin-top:18px">Completados</div>`;
+      html += done.map(renderPlan).join('');
+    }
+    listEl.innerHTML = html;
 
   } catch(e) {
-    listHoy.innerHTML = `<div class="empty-state" style="color:var(--red)">${e.message}</div>`;
+    listEl.innerHTML = `<div class="empty-state" style="color:var(--red)">${e.message}</div>`;
   }
 }
 

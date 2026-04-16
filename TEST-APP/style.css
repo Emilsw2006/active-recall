@@ -2104,12 +2104,13 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 .plan-proximas-scroll {
   display: flex; gap: 10px;
   overflow-x: auto; scroll-snap-type: x mandatory;
-  padding: 4px 2px 14px; margin: 0 -4px;
+  padding: 4px 0 14px; margin: 0 -16px;
+  padding-left: 16px; padding-right: 16px;
   -webkit-overflow-scrolling: touch; scrollbar-width: none;
 }
 .plan-proximas-scroll::-webkit-scrollbar { display: none; }
 .plan-proximas-card {
-  flex-shrink: 0; width: 152px; scroll-snap-align: start;
+  flex-shrink: 0; width: 148px; scroll-snap-align: start;
   background: rgba(255,255,255,0.09); border-radius: 18px;
   padding: 14px 14px 12px; display: flex; flex-direction: column; gap: 5px;
   border: 1px solid rgba(255,255,255,0.10);
@@ -2143,6 +2144,54 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   color: #fca5a5;
 }
 .plan-proximas-card-btn.review:hover { background: rgba(248,113,113,0.28); }
+
+/* Plan detail — overflow fix for proximas swipe on iOS */
+.plan-detail-body { overflow: auto; }
+
+/* Plan card done state */
+.plan-card.done { opacity: 0.55; }
+
+/* Plan section label */
+.plan-section-label {
+  font-size: .63rem; font-weight: 700; letter-spacing: .10em; text-transform: uppercase;
+  color: rgba(255,255,255,0.28); padding: 4px 2px;
+}
+
+/* Plan wizard summary row */
+.plan-wiz-summary {
+  display: flex; justify-content: space-between; align-items: center;
+  background: rgba(255,255,255,0.07); border-radius: 14px;
+  padding: 10px 14px; margin-bottom: 20px;
+  font-size: .78rem; font-weight: 600; color: rgba(255,255,255,0.65);
+}
+
+/* Plan wizard intensity buttons */
+.plan-intensity-row {
+  display: flex; flex-direction: column; gap: 8px; margin-top: 6px;
+}
+.plan-intensity-btn {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  padding: 11px 14px; border-radius: 14px;
+  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10);
+  color: rgba(255,255,255,0.50); cursor: pointer; text-align: left;
+  transition: all .16s;
+}
+.plan-intensity-btn.active {
+  background: rgba(79,126,255,0.16); border-color: rgba(79,126,255,0.40);
+  color: #fff;
+}
+.plan-intensity-name { font-size: .82rem; font-weight: 700; }
+.plan-intensity-desc { font-size: .70rem; opacity: .65; }
+
+/* Plan wizard estimate */
+.plan-wiz-estimate {
+  margin-top: 16px; padding: 12px 14px; border-radius: 14px;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.08);
+}
+.plan-wiz-estimate-row {
+  display: flex; justify-content: space-between;
+  font-size: .76rem; color: rgba(255,255,255,0.60); padding: 2px 0;
+}
 
 /* ─ Voice picker ─ (styles moved to ajustes-sheet section above) ─ */
 

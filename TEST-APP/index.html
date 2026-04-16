@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=33" />
+<link rel="stylesheet" href="style.css?v=34" />
 <script src="i18n.js?v=22"></script>
 </head>
 <body>
@@ -419,29 +419,16 @@
         </div>
       </div>
 
-      <!-- Panel Planes (swipeable: Hoy / Completadas) -->
+      <!-- Panel Planes -->
       <div id="hist-panel-planes" style="display:none">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
-          <div class="planes-swipe-tabs" id="planes-swipe-tabs">
-            <button class="planes-swipe-tab active" id="ptab-hoy" onclick="planesGoTab(0)">Hoy</button>
-            <button class="planes-swipe-tab" id="ptab-done" onclick="planesGoTab(1)">Completadas</button>
-            <div class="planes-swipe-indicator" id="planes-swipe-indicator"></div>
-          </div>
-          <button class="plan-new-btn" onclick="openPlanWizard()" style="margin-bottom:0;width:auto;padding:0 14px;height:36px;border-radius:10px;font-size:.8rem">
+          <span style="font-size:.75rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:rgba(255,255,255,0.35)" data-i18n="hist_plans">Planes</span>
+          <button class="plan-new-btn" onclick="openPlanWizard()" style="margin-bottom:0;width:auto;padding:0 14px;height:34px;border-radius:10px;font-size:.8rem">
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             <span data-i18n="hist_new_plan">Nuevo plan</span>
           </button>
         </div>
-        <div class="planes-viewport" id="planes-viewport">
-          <div class="planes-track" id="planes-track">
-            <div class="planes-slide" id="planes-slide-0">
-              <div id="planes-list-hoy"><div class="empty-state">Cargando...</div></div>
-            </div>
-            <div class="planes-slide" id="planes-slide-1">
-              <div id="planes-list-done"><div class="empty-state">Sin planes completados aun.</div></div>
-            </div>
-          </div>
-        </div>
+        <div id="planes-list"><div class="empty-state">Cargando...</div></div>
       </div>
     </div>
 
@@ -1153,38 +1140,66 @@
     </div>
   </div>
 
-  <!-- Step 2: Fecha examen -->
+  <!-- Step 2: Fecha + Intensidad -->
   <div id="plan-wiz-step2" class="plan-wiz-step" style="display:none">
     <div class="plan-wiz-topbar">
       <button class="lobby-back-btn" onclick="showPlanWizStep(1)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
         Atrás
       </button>
-      <span class="plan-wiz-topbar-title" data-i18n="plan_exam_date">Fecha</span>
+      <span class="plan-wiz-topbar-title" data-i18n="plan_exam_date">Configurar plan</span>
       <button class="lobby-close-btn" onclick="closePlanWizard()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <div class="plan-wiz-scroll">
+
+      <!-- Resumen de lo seleccionado -->
+      <div class="plan-wiz-summary" id="plan-wiz-summary"></div>
+
+      <!-- Fecha examen -->
+      <div class="lobby-label" style="margin-bottom:8px">Fecha del examen</div>
       <input type="date" id="plan-exam-date" class="plan-date-input" />
 
-      <div class="lobby-label" style="margin-top:24px" data-i18n="plan_questions">Preguntas por sesión</div>
+      <!-- Preguntas por sesión -->
+      <div class="lobby-label" style="margin-top:22px">Preguntas por sesión</div>
       <div class="plan-range-row">
         <span class="plan-range-bound">5</span>
         <input type="range" id="plan-atoms-slider" min="5" max="20" value="10" step="1"
                class="plan-range-slider" oninput="setPlanAtomsSlider(this.value)"/>
         <span class="plan-range-bound">20</span>
       </div>
-      <div class="plan-range-val" id="plan-atoms-val">10 preguntas</div>
+      <div class="plan-range-val" id="plan-atoms-val">10 preguntas por sesión</div>
+
+      <!-- Intensidad -->
+      <div class="lobby-label" style="margin-top:22px">Intensidad</div>
+      <div class="plan-intensity-row">
+        <button class="plan-intensity-btn" data-val="rapido" onclick="setPlanIntensity('rapido')">
+          <span class="plan-intensity-name">Rápido</span>
+          <span class="plan-intensity-desc">Más sesiones/día, repaso en 1 día</span>
+        </button>
+        <button class="plan-intensity-btn active" data-val="equilibrado" onclick="setPlanIntensity('equilibrado')">
+          <span class="plan-intensity-name">Equilibrado</span>
+          <span class="plan-intensity-desc">Balance entre carga y retención</span>
+        </button>
+        <button class="plan-intensity-btn" data-val="exhaustivo" onclick="setPlanIntensity('exhaustivo')">
+          <span class="plan-intensity-name">Exhaustivo</span>
+          <span class="plan-intensity-desc">Más repeticiones y profundidad</span>
+        </button>
+      </div>
+
+      <!-- Info estimada -->
+      <div class="plan-wiz-estimate" id="plan-wiz-estimate"></div>
+
     </div>
     <div class="plan-wiz-footer">
-      <button class="lobby-start-btn" id="plan-wiz-submit-btn" onclick="submitPlanWizard()" data-i18n="plan_create">Crear plan</button>
+      <button class="lobby-start-btn" id="plan-wiz-submit-btn" onclick="submitPlanWizard()">Crear plan</button>
     </div>
   </div>
 
 </div>
 
-<script src="app.js?v=29"></script>
+<script src="app.js?v=30"></script>
 <script>
 // goNotif, _notifIdx, _onNotifScroll are defined in app.js (scroll-snap based)
 // Auto-advance every 5s
