@@ -41,65 +41,71 @@ const _isStandalone = window.matchMedia('(display-mode: standalone)').matches
 window.addEventListener('beforeinstallprompt', e => {
   e.preventDefault();
   _deferredInstallPrompt = e;
-});
-window.addEventListener('appinstalled', () => {
-  _deferredInstallPrompt = null;
-  const btn = document.getElementById('pwa-install-btn');
-  if (btn) btn.style.display = 'none';
-});
-
-// Show install button always (unless already installed as standalone)
-window.addEventListener('load', () => {
+  // Show install button as soon as prompt is ready
   if (!_isStandalone) {
     const btn = document.getElementById('pwa-install-btn');
     if (btn) btn.style.display = 'flex';
   }
 });
 
+window.addEventListener('appinstalled', () => {
+  _deferredInstallPrompt = null;
+  const btn = document.getElementById('pwa-install-btn');
+  if (btn) btn.style.display = 'none';
+});
+
+// On iOS or Android without prompt yet, still show the button
+window.addEventListener('load', () => {
+  if (!_isStandalone) {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    // Only show button on iOS (manual instructions) OR if prompt already captured
+    if (isIOS || _deferredInstallPrompt) {
+      const btn = document.getElementById('pwa-install-btn');
+      if (btn) btn.style.display = 'flex';
+    }
+  }
+});
+
 function installPWA() {
+  // If we have the native deferred prompt, fire it directly — NO intermediate popup
+  if (_deferredInstallPrompt) {
+    _deferredInstallPrompt.prompt();
+    _deferredInstallPrompt.userChoice.then(r => {
+      if (r.outcome === 'accepted') {
+        _deferredInstallPrompt = null;
+        const btn = document.getElementById('pwa-install-btn');
+        if (btn) btn.style.display = 'none';
+      }
+    });
+    return;
+  }
+
+  // Fallback: show instructions popup for iOS / manual install
   const overlay = document.createElement('div');
   overlay.className = 'pwa-install-overlay';
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-  const actionHtml = _deferredInstallPrompt
-    ? `<button class="pwa-install-confirm-btn" id="pwa-do-install">Instalar</button>`
-    : isIOS
-      ? `<p class="pwa-install-instructions">Pulsa <strong>Compartir ↑</strong> → "Añadir a inicio"</p>`
-      : `<p class="pwa-install-instructions">Pulsa el menú ⋮ → "Instalar app"</p>`;
+  const instructions = isIOS
+    ? 'Pulsa <strong>Compartir ↑</strong> y elige<br><strong>"Añadir a pantalla de inicio"</strong>'
+    : 'Pulsa el menú <strong>⋮</strong> y elige<br><strong>"Instalar app"</strong>';
 
   overlay.innerHTML = `
     <div class="pwa-install-card">
       <img src="logo.png" alt="Active Recall" class="pwa-install-logo"/>
-      ${actionHtml}
-      <button class="pwa-install-cancel" id="pwa-cancel">Cancelar</button>
+      <p class="pwa-install-instructions">${instructions}</p>
+      <button class="pwa-install-cancel" id="pwa-cancel">Cerrar</button>
     </div>
   `;
 
   document.body.appendChild(overlay);
   requestAnimationFrame(() => overlay.classList.add('visible'));
 
-  overlay.querySelector('#pwa-cancel').onclick = () => {
+  const closeOverlay = () => {
     overlay.classList.remove('visible');
     setTimeout(() => overlay.remove(), 300);
   };
-  overlay.addEventListener('click', e => {
-    if (e.target === overlay) {
-      overlay.classList.remove('visible');
-      setTimeout(() => overlay.remove(), 300);
-    }
-  });
-
-  const installBtn = overlay.querySelector('#pwa-do-install');
-  if (installBtn && _deferredInstallPrompt) {
-    installBtn.onclick = () => {
-      _deferredInstallPrompt.prompt();
-      _deferredInstallPrompt.userChoice.then(r => {
-        if (r.outcome === 'accepted') _deferredInstallPrompt = null;
-        overlay.classList.remove('visible');
-        setTimeout(() => overlay.remove(), 300);
-      });
-    };
-  }
+  overlay.querySelector('#pwa-cancel').onclick = closeOverlay;
+  overlay.addEventListener('click', e => { if (e.target === overlay) closeOverlay(); });
 }
 
 
