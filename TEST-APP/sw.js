@@ -1,4 +1,4 @@
-const CACHE_NAME = 'active-recall-v29';
+const CACHE_NAME = 'active-recall-v30';
 const JS_CSS = /\.(js|css)(\?.*)?$/;
 
 self.addEventListener('install', () => self.skipWaiting());

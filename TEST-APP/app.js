@@ -262,12 +262,8 @@ function switchView(viewName) {
   });
 
   if (viewName === 'lobby') {
-    const s1 = document.getElementById('lobby-step-1');
-    const s2 = document.getElementById('lobby-step-2');
-    if (s1 && s2) {
-      s1.style.display = 'block';
-      s2.style.display = 'none';
-    }
+    // Reset wizard to first step
+    lobbyGoStep(0);
   }
 
   // Session/Lobby mode — hide header + nav
@@ -761,25 +757,61 @@ function goHome() {
 
 // ─ UI Selectors ─
 let modeSelector = 'voz';
+window._lobbyStep = 0;
+
+/** Navigate the lobby onboarding wizard to a specific step (0-based). */
+function lobbyGoStep(step) {
+  const totalSteps = 3;
+  step = Math.max(0, Math.min(totalSteps - 1, step));
+  window._lobbyStep = step;
+
+  const track = document.getElementById('lobby-steps-track');
+  if (track) track.style.transform = `translateX(${-step * (100 / totalSteps)}%)`;
+
+  // Update dot indicators
+  for (let i = 0; i < totalSteps; i++) {
+    const dot = document.getElementById(`ldot-${i}`);
+    if (dot) dot.classList.toggle('active', i === step);
+  }
+
+  // Show/hide back button
+  const backBtn = document.getElementById('lobby-back-btn');
+  if (backBtn) {
+    backBtn.style.visibility = step === 0 ? 'hidden' : 'visible';
+  }
+
+  // On step 2: toggle dur vs nPreguntas sections based on mode
+  if (step === 1) {
+    const durSec = document.getElementById('lob-dur-section');
+    const testSec = document.getElementById('lob-test-n-section');
+    if (durSec) durSec.style.display = modeSelector === 'voz' ? '' : 'none';
+    if (testSec) testSec.style.display = modeSelector === 'test' ? '' : 'none';
+  }
+
+  // Scroll step body to top when navigating
+  const stepEl = document.getElementById(`lob-step-${step}`);
+  if (stepEl) {
+    const body = stepEl.querySelector('.lobby-onb-body');
+    if (body) body.scrollTop = 0;
+  }
+}
 
 function setStudyMode(mode) {
   modeSelector = mode;
-  // New tab style
+  // Update mode card highlight
+  ['lcard-voz', 'lcard-test'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.classList.remove('active');
+  });
+  const activeCard = document.getElementById(mode === 'voz' ? 'lcard-voz' : 'lcard-test');
+  if (activeCard) activeCard.classList.add('active');
+  // Legacy tab style (in case old tabs still present)
   ['ltab-voz','ltab-test'].forEach(id => $(id) && $(id).classList.remove('active'));
   const tabEl = mode === 'voz' ? $('ltab-voz') : $('ltab-test');
   if (tabEl) tabEl.classList.add('active');
-  // Slide indicator
-  const ind = $('lm-indicator');
-  if (ind) ind.classList.toggle('right', mode === 'test');
-  // Show duration (oral) or question count stepper (test)
-  const durRow = document.querySelector('.lobby-dur-row');
-  const durLabel = document.querySelector('[data-i18n="lobby_duration"]');
-  const nRow = $('lobby-test-n');
-  if (durRow) durRow.style.display = mode === 'test' ? 'none' : '';
-  if (durLabel) durLabel.style.display = mode === 'test' ? 'none' : '';
-  if (nRow) nRow.style.display = mode === 'test' ? '' : 'none';
   checkMicPermission();
 }
+
 
 function setTestNPreguntas(n) {
   _testNPreguntas = Math.min(30, Math.max(5, +n));
