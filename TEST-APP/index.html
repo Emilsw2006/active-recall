@@ -475,70 +475,84 @@
         <!-- Scrollable content -->
         <div class="lobby-scroll">
 
-          <!-- Mode tabs: Oral / Test -->
-          <div class="lobby-mode-tabs">
-            <button class="lm-tab active" id="ltab-voz" onclick="setStudyMode('voz')" data-i18n="lobby_mode_oral">Oral</button>
-            <button class="lm-tab" id="ltab-test" onclick="setStudyMode('test')" data-i18n="lobby_mode_test">Test</button>
-            <div class="lm-indicator" id="lm-indicator"></div>
-          </div>
-
-          <!-- Mic warning -->
-          <div id="lobby-mic-check" style="display:none; background:rgba(255,209,102,0.12); border:1px solid rgba(255,209,102,0.30); border-radius:14px; padding:13px 16px; margin-bottom:20px; font-size:.82rem; color:var(--txt)">
-            <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
-              <span data-i18n="lobby_mic_warning">El modo oral requiere acceso al micrófono</span>
+          <!-- ================= STEP 1 ================= -->
+          <div id="lobby-step-1">
+            <!-- Mode tabs: Oral / Test -->
+            <div class="lobby-mode-tabs">
+              <button class="lm-tab active" id="ltab-voz" onclick="setStudyMode('voz')" data-i18n="lobby_mode_oral">Oral</button>
+              <button class="lm-tab" id="ltab-test" onclick="setStudyMode('test')" data-i18n="lobby_mode_test">Test</button>
+              <div class="lm-indicator" id="lm-indicator"></div>
             </div>
-            <button class="duelo-btn" style="width:100%; justify-content:center" onclick="requestLobbyMic()" data-i18n="lobby_mic_allow">Permitir micrófono</button>
-          </div>
 
-          <!-- Duration (oral mode) -->
-          <div class="lobby-label" data-i18n="lobby_duration">Duración</div>
-          <div class="lobby-dur-row">
-            <button class="ldur-pill on" id="dur-corta" onclick="pickDuration('corta')">
-              <span class="ldur-pill-name" data-i18n="lobby_short">Corta</span>
-              <span class="ldur-pill-sub" data-i18n="lobby_short_sub">~5 min</span>
-            </button>
-            <button class="ldur-pill" id="dur-larga" onclick="pickDuration('larga')">
-              <span class="ldur-pill-name" data-i18n="lobby_long">Larga</span>
-              <span class="ldur-pill-sub" data-i18n="lobby_long_sub">~15 min</span>
-            </button>
-          </div>
-
-          <!-- Question count slider (test mode only) -->
-          <div id="lobby-test-n" style="display:none; margin-bottom:20px">
-            <div class="lobby-label" style="display:flex;justify-content:space-between;align-items:center">
-              <span data-i18n="test_n_questions_label">Número de preguntas</span>
-              <span id="lobby-test-n-val" style="font-size:1.1rem;font-weight:700;color:var(--accent)">10</span>
+            <!-- Mic warning -->
+            <div id="lobby-mic-check" style="display:none; background:rgba(255,209,102,0.12); border:1px solid rgba(255,209,102,0.30); border-radius:14px; padding:13px 16px; margin-bottom:20px; font-size:.82rem; color:var(--txt)">
+              <div style="display:flex; align-items:center; gap:8px; margin-bottom:10px">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span data-i18n="lobby_mic_warning">El modo oral requiere acceso al micrófono</span>
+              </div>
+              <button class="duelo-btn" style="width:100%; justify-content:center" onclick="requestLobbyMic()" data-i18n="lobby_mic_allow">Permitir micrófono</button>
             </div>
-            <input type="range" id="lobby-test-n-slider" min="5" max="30" value="10" step="1"
-              oninput="setTestNPreguntas(+this.value)"
-              style="width:100%;margin-top:10px;accent-color:var(--accent);cursor:pointer;height:6px">
-            <div style="display:flex;justify-content:space-between;font-size:.72rem;color:rgba(255,255,255,0.40);margin-top:4px">
-              <span>5</span><span>30</span>
+
+            <!-- Duration (oral mode) -->
+            <div class="lobby-label" data-i18n="lobby_duration">Duración</div>
+            <div class="lobby-dur-row">
+              <button class="ldur-pill on" id="dur-corta" onclick="pickDuration('corta')">
+                <span class="ldur-pill-name" data-i18n="lobby_short">Corta</span>
+                <span class="ldur-pill-sub" data-i18n="lobby_short_sub">~5 min</span>
+              </button>
+              <button class="ldur-pill" id="dur-larga" onclick="pickDuration('larga')">
+                <span class="ldur-pill-name" data-i18n="lobby_long">Larga</span>
+                <span class="ldur-pill-sub" data-i18n="lobby_long_sub">~15 min</span>
+              </button>
             </div>
-          </div>
 
-          <!-- Complete toggle -->
-          <div id="lobby-completo-row" class="lobby-completo-row">
-            <div class="lobby-completo-left">
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-              <span data-i18n="lobby_complete">Completo</span>
+            <!-- Question count slider (test mode only) -->
+            <div id="lobby-test-n" style="display:none; margin-bottom:20px">
+              <div class="lobby-label" style="display:flex;justify-content:space-between;align-items:center">
+                <span data-i18n="test_n_questions_label">Número de preguntas</span>
+                <span id="lobby-test-n-val" style="font-size:1.1rem;font-weight:700;color:var(--accent)">10</span>
+              </div>
+              <input type="range" id="lobby-test-n-slider" min="5" max="30" value="10" step="1"
+                oninput="setTestNPreguntas(+this.value)"
+                style="width:100%;margin-top:10px;accent-color:var(--accent);cursor:pointer;height:6px">
+              <div style="display:flex;justify-content:space-between;font-size:.72rem;color:rgba(255,255,255,0.40);margin-top:4px">
+                <span>5</span><span>30</span>
+              </div>
             </div>
-            <div class="lobby-completo-desc" data-i18n="lobby_complete_desc">Estudiar todos los átomos</div>
-            <label class="lobby-toggle">
-              <input type="checkbox" id="lobby-completo-check" onchange="toggleCompleto(this.checked)">
-              <span class="lobby-toggle-slider"></span>
-            </label>
+            
+            <button class="lobby-start-btn" onclick="document.getElementById('lobby-step-1').style.display='none'; document.getElementById('lobby-step-2').style.display='block'; window.scrollTo(0, 0);" style="margin-top: 24px;">CONTINUAR &rarr;</button>
           </div>
 
-          <!-- Topics -->
-          <div class="lobby-label" data-i18n="lobby_topics">Subtemas</div>
-          <div id="topic-list" class="lobby-topic-list">
-            <div class="empty-state" style="padding:20px" data-i18n="lobby_loading_topics">Cargando temas...</div>
-          </div>
+          <!-- ================= STEP 2 ================= -->
+          <div id="lobby-step-2" style="display:none; padding-top: 10px;">
+            <div style="display:flex; align-items:center; margin-bottom: 24px; cursor: pointer; color: rgba(255,255,255,0.7); width: max-content; transition: color .2s" onclick="document.getElementById('lobby-step-1').style.display='block'; document.getElementById('lobby-step-2').style.display='none'; window.scrollTo(0, 0);" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='rgba(255,255,255,0.7)'">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+              <span style="font-size: .95rem; font-weight: 600; margin-left: 6px;">Atrás</span>
+            </div>
 
-          <!-- Start button -->
-          <button class="lobby-start-btn" onclick="startSessionFlow()" data-i18n="lobby_start">EMPEZAR →</button>
+            <!-- Complete toggle -->
+            <div id="lobby-completo-row" class="lobby-completo-row">
+              <div class="lobby-completo-left">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <span data-i18n="lobby_complete">Completo</span>
+              </div>
+              <div class="lobby-completo-desc" data-i18n="lobby_complete_desc">Estudiar todos los átomos</div>
+              <label class="lobby-toggle">
+                <input type="checkbox" id="lobby-completo-check" onchange="toggleCompleto(this.checked)">
+                <span class="lobby-toggle-slider"></span>
+              </label>
+            </div>
+
+            <!-- Topics -->
+            <div class="lobby-label" data-i18n="lobby_topics">Subtemas</div>
+            <div id="topic-list" class="lobby-topic-list">
+              <div class="empty-state" style="padding:20px" data-i18n="lobby_loading_topics">Cargando temas...</div>
+            </div>
+
+            <!-- Start button -->
+            <button class="lobby-start-btn" onclick="startSessionFlow()" data-i18n="lobby_start" style="margin-top: 10px;">EMPEZAR &rarr;</button>
+          </div>
+          
         </div>
       </div>
     </div>

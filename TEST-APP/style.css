@@ -585,7 +585,7 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   overflow: hidden;
 }
 .lobby-topbar {
-  display: flex; align-items: center; padding: 56px 20px 0;
+  display: flex; align-items: center; padding: calc(env(safe-area-inset-top, 14px) + 16px) 20px 0;
   flex-shrink: 0;
 }
 .lobby-close-btn {
@@ -598,7 +598,7 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 .lobby-close-btn:hover { background: rgba(255,255,255,0.25); color: #fff; }
 /* lobby-topbar-title removed — cleaner lobby */
 .lobby-scroll {
-  flex: 1; overflow-y: auto; padding: 24px 20px calc(60px + env(safe-area-inset-bottom));
+  flex: 1; overflow-y: auto; padding: 16px 20px calc(80px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; gap: 0;
 }
 /* Mode tabs with underline indicator */

@@ -261,6 +261,15 @@ function switchView(viewName) {
     }
   });
 
+  if (viewName === 'lobby') {
+    const s1 = document.getElementById('lobby-step-1');
+    const s2 = document.getElementById('lobby-step-2');
+    if (s1 && s2) {
+      s1.style.display = 'block';
+      s2.style.display = 'none';
+    }
+  }
+
   // Session/Lobby mode — hide header + nav
   const appEl = $('screen-app');
   const wasInDuelo = appEl && appEl.classList.contains('session-mode');
