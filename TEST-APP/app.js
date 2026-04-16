@@ -3889,55 +3889,44 @@ async function loadSessions() {
     list.innerHTML = `<div class="empty-state">${T('hist_loading')}</div>`;
   }
   try {
-    // Fetch oral sessions + tests in parallel
+    // Backend already excludes duration_type='repaso' from default endpoint
     const [sessions, tests] = await Promise.all([
       api(`/sesiones/usuario/${uid}`),
       api(`/tests/usuario/${uid}`).catch(() => []),
     ]);
 
-    // Oral sessions for this subject (no plan, no repaso)
     const allSubjSess = sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id);
-    const filteredSess = allSubjSess.filter(s => s.duration_type !== 'repaso');
-    // Tests for this subject
     const filteredTests = tests.filter(t => t.asignatura_id === curSubjectId);
 
-    // Evaluate review block state (uses allSubjSess to count errors correctly)
+    // Evaluate review block state (sessions already have no repaso)
     const _rev = _evaluateReviewBlock(allSubjSess);
     _reviewBlocked = _rev.blocked;
     _reviewMode    = _rev.mode;
     _reviewErrors  = _rev.errors;
-
-    // Update mini repaso button
     _renderReviewMiniBtn();
 
-    if (!filteredSess.length && !filteredTests.length) {
+    if (!allSubjSess.length && !filteredTests.length) {
       list.innerHTML = `<div class="empty-state">${T('hist_empty_sessions')}</div>`;
       return;
     }
 
-    // Map sesion_id → test_id for completed test sessions
     const sesionToTestId = {};
     filteredTests.forEach(t => { if (t.sesion_id) sesionToTestId[t.sesion_id] = t.test_id; });
 
-    // Build all items sorted by date desc
     const allItems = [];
-    filteredSess.forEach(s => {
+    allSubjSess.forEach(s => {
       if (s.duration_type === 'test' && s.status === 'completada' && sesionToTestId[s.sesion_id]) return;
       allItems.push({ _type: 'session', _date: s.fecha_inicio || '', ...s });
     });
     filteredTests.forEach(t => allItems.push({ _type: 'test', _date: t.fecha || '', ...t }));
     allItems.sort((a, b) => new Date(b._date) - new Date(a._date));
 
-    // Apply current filter
     const activeFilter = _sessFilter || 'pendientes';
     const items = allItems.filter(item => {
       if (activeFilter === 'todas') return true;
-      if (item._type === 'test') {
-        // Tests: completadas siempre van en "completadas" y "todas"
-        return activeFilter === 'completadas';
-      }
+      if (item._type === 'test') return activeFilter === 'completadas';
       const isDone = item.status === 'completada';
-      if (activeFilter === 'pendientes') return !isDone; // por_empezar + empezada
+      if (activeFilter === 'pendientes') return !isDone;
       if (activeFilter === 'completadas') return isDone;
       return true;
     });
@@ -3948,79 +3937,133 @@ async function loadSessions() {
       list.innerHTML = `<div class="empty-state">${labels[activeFilter] || T('hist_empty_sessions')}</div>`;
       return;
     }
-    list.innerHTML = items.map(item => {
-      if (item._type === 'test') {
-        // ── Test card ──
-        const t = item;
-        const tLocale = t.lang || currentLang;
-        const fecha = t.fecha ? new Date(t.fecha).toLocaleDateString(tLocale,{day:'numeric',month:'short'}) : '—';
-        const hora  = t.fecha ? new Date(t.fecha).toLocaleTimeString(tLocale,{hour:'2-digit',minute:'2-digit'}) : '';
-        const pct   = t.total > 0 ? Math.round((t.puntuacion / t.total) * 100) : 0;
-        const pctColor = pct >= 80 ? '#34d399' : pct >= 60 ? '#e8a030' : '#f87171';
-        return `
-          <div class="sess-acc-item" id="sess-acc-test-${t.test_id}" onclick="toggleSessCard('test-${t.test_id}')">
-            <div class="sess-acc-header">
-              <div class="sess-acc-info">
-                <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px">
-                  <span class="sess-acc-test-badge">TEST</span>
-                  ${t.nombre || (t.tipo === 'plan' ? TLang('hist_test_plan', tLocale) : TLang('hist_test_session', tLocale))}
-                </div>
-                <div class="sess-acc-meta">${fecha}${hora ? ' · ' + hora : ''} · <span style="color:${pctColor};font-weight:700">${TF('hist_n_correct', {n: t.puntuacion, total: t.total})} (${pct}%)</span></div>
+
+    // ── Helpers renderizar tarjetas ───────────────────────────────────────
+    const _renderTestCard = t => {
+      const tLocale = t.lang || currentLang;
+      const fecha = t.fecha ? new Date(t.fecha).toLocaleDateString(tLocale,{day:'numeric',month:'short'}) : '—';
+      const hora  = t.fecha ? new Date(t.fecha).toLocaleTimeString(tLocale,{hour:'2-digit',minute:'2-digit'}) : '';
+      const pct   = t.total > 0 ? Math.round((t.puntuacion / t.total) * 100) : 0;
+      const pctColor = pct >= 80 ? '#34d399' : pct >= 60 ? '#e8a030' : '#f87171';
+      return `
+        <div class="sess-acc-item" id="sess-acc-test-${t.test_id}" onclick="toggleSessCard('test-${t.test_id}')">
+          <div class="sess-acc-header">
+            <div class="sess-acc-info">
+              <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px">
+                <span class="sess-acc-test-badge">TEST</span>
+                ${t.nombre || (t.tipo === 'plan' ? TLang('hist_test_plan', tLocale) : TLang('hist_test_session', tLocale))}
               </div>
-              <span class="sess-acc-badge">✓</span>
-              <svg class="sess-acc-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+              <div class="sess-acc-meta">${fecha}${hora ? ' · ' + hora : ''} · <span style="color:${pctColor};font-weight:700">${TF('hist_n_correct', {n: t.puntuacion, total: t.total})} (${pct}%)</span></div>
             </div>
-            <div class="sess-acc-body">
-              <div class="sess-acc-actions">
-                <button class="sess-acc-btn" onclick="openTestRevisionFromHistory('${t.test_id}');event.stopPropagation()">${T('hist_review')} (${t.total})</button>
-              </div>
+            <span class="sess-acc-badge">✓</span>
+            <svg class="sess-acc-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="sess-acc-body">
+            <div class="sess-acc-actions">
+              <button class="sess-acc-btn" onclick="openTestRevisionFromHistory('${t.test_id}');event.stopPropagation()">${T('hist_review')} (${t.total})</button>
             </div>
-          </div>`;
-      } else {
-        // ── Oral session card ──
-        const s = item;
-        _sessHistData[s.sesion_id] = s;
-        const sLocale = s.lang || currentLang;
-        const fecha = s.fecha_inicio ? new Date(s.fecha_inicio).toLocaleDateString(sLocale,{day:'numeric',month:'short'}) : '—';
-        const hora  = s.fecha_inicio ? new Date(s.fecha_inicio).toLocaleTimeString(sLocale,{hour:'2-digit',minute:'2-digit'}) : '';
-        const c = s.conteo || {};
-        const temas = s.temas_nombres || [];
-        const _sesTypeKey = {larga: 'hist_session_long', plan: 'hist_session_plan', asignatura: 'hist_session_subject', test: 'hist_session_test'}[s.duration_type] || 'hist_session_short';
-        const sesNombre = s.nombre || TLang(_sesTypeKey, sLocale);
-        const isTestSess = s.duration_type === 'test';
-        const done = s.status === 'completada';
-        const answered = c.total || 0;
-        const fraccion = done
-          ? (answered > 0 ? TF('label_answered', {n: answered}) : T('hist_completed'))
-          : (answered > 0 ? TF('label_answered', {n: answered}) : T('label_unanswered'));
-        const badgeTxt = done ? '✓' : '';
-        const scoresHtml = (c.total > 0) ? `<div class="sess-acc-scores">
-          <span class="sess-score-pill g">✓ ${c.verde||0}</span>
-          <span class="sess-score-pill y">◐ ${c.amarillo||0}</span>
-          <span class="sess-score-pill r">✕ ${c.rojo||0}</span>
-        </div>` : '';
-        const resumeLabel = isTestSess && s.has_test_draft ? T('test_continue_draft') : T('hist_resume');
-        const resumeBtn = !done ? `<button class="sess-acc-btn${isTestSess && s.has_test_draft ? ' accent' : ''}" onclick="resumeSessionFromHistory('${s.sesion_id}','${s.asignatura_id}','${esc(s.asignatura_nombre)}','${s.duration_type||'corta'}','${s.lang||'es'}',${s.n_preguntas||10});event.stopPropagation()">${resumeLabel}</button>` : '';
-        const repetirBtn = done ? `<button class="sess-acc-btn" onclick="repetirSesion('${s.sesion_id}');event.stopPropagation()">${T('hist_repeat')}</button>` : '';
-        const revisarBtn = (c.total > 0) ? `<button class="sess-acc-btn" onclick="openRevision('${s.sesion_id}');event.stopPropagation()">${T('hist_review')} (${c.total})</button>` : '';
-        const deleteBtn = `<button class="sess-acc-btn danger" onclick="confirmDeleteSession('${s.sesion_id}','${s.plan_id||''}');event.stopPropagation()">${T('hist_delete')}</button>`;
-        return `
-          <div class="sess-acc-item" id="sess-acc-${s.sesion_id}" onclick="toggleSessCard('${s.sesion_id}')">
-            <div class="sess-acc-header">
-              <div class="sess-acc-info">
-                <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px">${isTestSess ? '<span class="sess-acc-test-badge">TEST</span>' : ''}${esc(sesNombre)}</div>
-                <div class="sess-acc-meta">${fecha}${hora ? ' · ' + hora : ''} · <span style="font-variant-numeric:tabular-nums;color:rgba(255,255,255,0.60)">${fraccion}</span></div>
-              </div>
-              <span class="sess-acc-badge">${badgeTxt}</span>
-              <svg class="sess-acc-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+        </div>`;
+    };
+
+    const _renderSessCard = s => {
+      _sessHistData[s.sesion_id] = s;
+      const sLocale = s.lang || currentLang;
+      const fecha = s.fecha_inicio ? new Date(s.fecha_inicio).toLocaleDateString(sLocale,{day:'numeric',month:'short'}) : '—';
+      const hora  = s.fecha_inicio ? new Date(s.fecha_inicio).toLocaleTimeString(sLocale,{hour:'2-digit',minute:'2-digit'}) : '';
+      const c = s.conteo || {};
+      const _sesTypeKey = {larga:'hist_session_long',plan:'hist_session_plan',asignatura:'hist_session_subject',test:'hist_session_test'}[s.duration_type] || 'hist_session_short';
+      const sesNombre = s.nombre || TLang(_sesTypeKey, sLocale);
+      const isTestSess = s.duration_type === 'test';
+      const done = s.status === 'completada';
+      const answered = c.total || 0;
+      const fraccion = done
+        ? (answered > 0 ? TF('label_answered', {n: answered}) : T('hist_completed'))
+        : (answered > 0 ? TF('label_answered', {n: answered}) : T('label_unanswered'));
+      const badgeTxt = done ? '✓' : '';
+      const scoresHtml = c.total > 0 ? `<div class="sess-acc-scores">
+        <span class="sess-score-pill g">✓ ${c.verde||0}</span>
+        <span class="sess-score-pill y">◐ ${c.amarillo||0}</span>
+        <span class="sess-score-pill r">✕ ${c.rojo||0}</span>
+      </div>` : '';
+      const resumeLabel = isTestSess && s.has_test_draft ? T('test_continue_draft') : T('hist_resume');
+      const resumeBtn = !done ? `<button class="sess-acc-btn${isTestSess && s.has_test_draft ? ' accent' : ''}" onclick="resumeSessionFromHistory('${s.sesion_id}','${s.asignatura_id}','${esc(s.asignatura_nombre)}','${s.duration_type||'corta'}','${s.lang||'es'}',${s.n_preguntas||10});event.stopPropagation()">${resumeLabel}</button>` : '';
+      const repetirBtn = done ? `<button class="sess-acc-btn" onclick="repetirSesion('${s.sesion_id}');event.stopPropagation()">${T('hist_repeat')}</button>` : '';
+      const revisarBtn = c.total > 0 ? `<button class="sess-acc-btn" onclick="openRevision('${s.sesion_id}');event.stopPropagation()">${T('hist_review')} (${c.total})</button>` : '';
+      const deleteBtn = `<button class="sess-acc-btn danger" onclick="confirmDeleteSession('${s.sesion_id}','${s.plan_id||''}');event.stopPropagation()">${T('hist_delete')}</button>`;
+      return `
+        <div class="sess-acc-item" id="sess-acc-${s.sesion_id}" onclick="toggleSessCard('${s.sesion_id}')">
+          <div class="sess-acc-header">
+            <div class="sess-acc-info">
+              <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px">${isTestSess ? '<span class="sess-acc-test-badge">TEST</span>' : ''}${esc(sesNombre)}</div>
+              <div class="sess-acc-meta">${fecha}${hora ? ' · ' + hora : ''} · <span style="font-variant-numeric:tabular-nums;color:rgba(255,255,255,0.60)">${fraccion}</span></div>
             </div>
-            <div class="sess-acc-body">
-              ${scoresHtml}
-              <div class="sess-acc-actions">${resumeBtn}${repetirBtn}${revisarBtn}${deleteBtn}</div>
-            </div>
-          </div>`;
-      }
+            <span class="sess-acc-badge">${badgeTxt}</span>
+            <svg class="sess-acc-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div class="sess-acc-body">
+            ${scoresHtml}
+            <div class="sess-acc-actions">${resumeBtn}${repetirBtn}${revisarBtn}${deleteBtn}</div>
+          </div>
+        </div>`;
+    };
+
+    // ── "Pendientes" — lista plana (no tienen fecha, no agrupar) ──────────
+    if (activeFilter === 'pendientes') {
+      list.innerHTML = items.map(item =>
+        item._type === 'test' ? _renderTestCard(item) : _renderSessCard(item)
+      ).join('');
+      return;
+    }
+
+    // ── "Completadas" / "Todas" — agrupar por semana desplegable ─────────
+    const _mondayOf = dateStr => {
+      if (!dateStr) return 'sin_fecha';
+      const d = new Date(dateStr);
+      if (isNaN(d)) return 'sin_fecha';
+      const day = d.getDay(); const diff = day === 0 ? -6 : 1 - day;
+      const m = new Date(d); m.setDate(d.getDate() + diff); m.setHours(0,0,0,0);
+      return m.toISOString().split('T')[0];
+    };
+    const _currentMonday = () => {
+      const now = new Date(); const day = now.getDay();
+      const diff = day === 0 ? -6 : 1 - day;
+      const m = new Date(now); m.setDate(now.getDate() + diff); m.setHours(0,0,0,0);
+      return m.toISOString().split('T')[0];
+    };
+    const todayM = _currentMonday();
+    const prevM = (() => { const d = new Date(todayM + 'T00:00:00'); d.setDate(d.getDate()-7); return d.toISOString().split('T')[0]; })();
+    const _weekLabel = key => {
+      if (key === 'sin_fecha') return 'Sin fecha';
+      if (key === todayM) return 'Esta semana';
+      if (key === prevM) return 'La semana pasada';
+      const mo = new Date(key + 'T00:00:00');
+      const su = new Date(mo); su.setDate(mo.getDate() + 6);
+      const o = { day:'numeric', month:'short' };
+      return `${mo.toLocaleDateString('es',o)} – ${su.toLocaleDateString('es',o)}`;
+    };
+
+    const weekOrder = []; const weekMap = {};
+    items.forEach(item => {
+      const key = _mondayOf(item._date);
+      if (!weekMap[key]) { weekMap[key] = []; weekOrder.push(key); }
+      weekMap[key].push(item);
+    });
+
+    list.innerHTML = weekOrder.map((key, idx) => {
+      const open = idx === 0;
+      const gid = `sw_${key.replace(/-/g,'_')}`;
+      return `
+        <div class="sess-week-header" onclick="toggleSessWeek('${gid}',this)">
+          <span class="sess-week-label">${_weekLabel(key)}</span>
+          <span class="sess-week-count">${weekMap[key].length}</span>
+          <svg class="sess-week-arrow${open?' open':''}" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div id="${gid}" class="sess-week-body${open?'':' hidden'}">
+          ${weekMap[key].map(item => item._type==='test' ? _renderTestCard(item) : _renderSessCard(item)).join('')}
+        </div>`;
     }).join('');
+
   } catch(e) {
     list.innerHTML = `<div class="empty-state" style="color:var(--red)">${e.message}</div>`;
   }
@@ -4031,11 +4074,18 @@ let _sessFilter = 'pendientes';
 
 function setSessFilter(filter) {
   _sessFilter = filter;
-  // Update pill styles
   document.querySelectorAll('.sess-filter-pill').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.filter === filter);
   });
   loadSessions();
+}
+
+function toggleSessWeek(groupId, headerEl) {
+  const body = document.getElementById(groupId);
+  if (!body) return;
+  const open = body.classList.toggle('hidden');
+  const arrow = headerEl.querySelector('.sess-week-arrow');
+  if (arrow) arrow.classList.toggle('open', !open);
 }
 
 async function openTestRevisionFromHistory(testId) {

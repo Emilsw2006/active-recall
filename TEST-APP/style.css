@@ -4329,6 +4329,29 @@ button { touch-action: manipulation; }
   color: #fff;
 }
 
+/* ── Agrupación por semanas ── */
+.sess-week-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 4px 6px;
+  cursor: pointer; user-select: none;
+}
+.sess-week-header:hover .sess-week-label { color: rgba(255,255,255,0.60); }
+.sess-week-label {
+  font-size: .65rem; font-weight: 700; letter-spacing: .10em; text-transform: uppercase;
+  color: rgba(255,255,255,0.38); flex: 1; transition: color .15s;
+}
+.sess-week-count {
+  font-size: .65rem; font-weight: 600; color: rgba(255,255,255,0.28);
+  background: rgba(255,255,255,0.07); border-radius: 10px; padding: 1px 7px;
+}
+.sess-week-arrow {
+  color: rgba(255,255,255,0.28); flex-shrink: 0;
+  transition: transform .2s; transform: rotate(-90deg);
+}
+.sess-week-arrow.open { transform: rotate(0deg); }
+.sess-week-body { display: flex; flex-direction: column; gap: 0; }
+.sess-week-body.hidden { display: none; }
+
 /* ── Mini botón de repaso ── */
 .repaso-mini-btn {
   flex-shrink: 0;
