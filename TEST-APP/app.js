@@ -3983,9 +3983,10 @@ async function loadSessions() {
       const isTestSess = s.duration_type === 'test';
       const done = s.status === 'completada';
       const answered = c.total || 0;
-      const fraccion = done
-        ? (answered > 0 ? TF('label_answered', {n: answered}) : T('hist_completed'))
-        : (answered > 0 ? TF('label_answered', {n: answered}) : T('label_unanswered'));
+      const total_q  = s.n_preguntas || answered || 0;
+      const fraccion = answered > 0
+        ? `${answered}${total_q > 0 && total_q >= answered ? '/' + total_q : ''}`
+        : (done ? T('hist_completed') : T('label_unanswered'));
       const badgeTxt = done ? '✓' : '';
       const scoresHtml = c.total > 0 ? `<div class="sess-acc-scores">
         <span class="sess-score-pill g">✓ ${c.verde||0}</span>
@@ -4014,15 +4015,17 @@ async function loadSessions() {
         </div>`;
     };
 
-    // ── "Pendientes" — lista plana (no tienen fecha, no agrupar) ──────────
+    // ── "Pendientes" — lista plana ────────────────────────────────────────
     if (activeFilter === 'pendientes') {
+      const weekWrap = $('sess-week-wrap');
+      if (weekWrap) weekWrap.style.display = 'none';
       list.innerHTML = items.map(item =>
         item._type === 'test' ? _renderTestCard(item) : _renderSessCard(item)
       ).join('');
       return;
     }
 
-    // ── "Completadas" / "Todas" — agrupar por semana desplegable ─────────
+    // ── "Completadas" / "Todas" — agrupar por semana ─────────────────────
     const _mondayOf = dateStr => {
       if (!dateStr) return 'sin_fecha';
       const d = new Date(dateStr);
@@ -4038,6 +4041,30 @@ async function loadSessions() {
       return m.toISOString().split('T')[0];
     };
     const todayM = _currentMonday();
+
+    // Build week groups from ALL items first (to populate the select)
+    const weekOrderAll = []; const weekMapAll = {};
+    items.forEach(item => {
+      const key = _mondayOf(item._date);
+      if (!weekMapAll[key]) { weekMapAll[key] = []; weekOrderAll.push(key); }
+      weekMapAll[key].push(item);
+    });
+
+    // Populate week select and show it
+    const weekWrap = $('sess-week-wrap');
+    if (weekWrap) weekWrap.style.display = weekOrderAll.length > 1 ? '' : 'none';
+    _populateWeekSelect(weekOrderAll, todayM);
+
+    // Apply week filter
+    const activeWeek = _sessWeekFilter || 'todas';
+    const weekOrder = activeWeek === 'todas' ? weekOrderAll : weekOrderAll.filter(k => k === activeWeek);
+    const weekMap   = weekMapAll;
+
+    if (!weekOrder.length) {
+      list.innerHTML = `<div class="empty-state">Sin sesiones en ese periodo</div>`;
+      return;
+    }
+
     const prevM = (() => { const d = new Date(todayM + 'T00:00:00'); d.setDate(d.getDate()-7); return d.toISOString().split('T')[0]; })();
     const _weekLabel = key => {
       if (key === 'sin_fecha') return 'Sin fecha';
@@ -4049,49 +4076,81 @@ async function loadSessions() {
       return `${mo.toLocaleDateString('es',o)} – ${su.toLocaleDateString('es',o)}`;
     };
 
-    const weekOrder = []; const weekMap = {};
-    items.forEach(item => {
-      const key = _mondayOf(item._date);
-      if (!weekMap[key]) { weekMap[key] = []; weekOrder.push(key); }
-      weekMap[key].push(item);
-    });
-
-    list.innerHTML = weekOrder.map((key, idx) => {
-      const open = idx === 0;
-      const gid = `sw_${key.replace(/-/g,'_')}`;
-      return `
-        <div class="sess-week-header" onclick="toggleSessWeek('${gid}',this)">
-          <span class="sess-week-label">${_weekLabel(key)}</span>
-          <span class="sess-week-count">${weekMap[key].length}</span>
-          <svg class="sess-week-arrow${open?' open':''}" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-        <div id="${gid}" class="sess-week-body${open?'':' hidden'}">
-          ${weekMap[key].map(item => item._type==='test' ? _renderTestCard(item) : _renderSessCard(item)).join('')}
-        </div>`;
-    }).join('');
+    // If only one week visible (filtered), show flat list without header
+    if (weekOrder.length === 1) {
+      list.innerHTML = weekMap[weekOrder[0]].map(item =>
+        item._type === 'test' ? _renderTestCard(item) : _renderSessCard(item)
+      ).join('');
+    } else {
+      list.innerHTML = weekOrder.map((key, idx) => {
+        const open = idx === 0;
+        const gid = `sw_${key.replace(/-/g,'_')}`;
+        return `
+          <div class="sess-week-header" onclick="toggleSessWeek('${gid}',this)">
+            <span class="sess-week-label">${_weekLabel(key)}</span>
+            <span class="sess-week-count">${weekMap[key].length}</span>
+            <svg class="sess-week-arrow${open?' open':''}" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="6 9 12 15 18 9"/></svg>
+          </div>
+          <div id="${gid}" class="sess-week-body${open?'':' hidden'}">
+            ${weekMap[key].map(item => item._type==='test' ? _renderTestCard(item) : _renderSessCard(item)).join('')}
+          </div>`;
+      }).join('');
+    }
 
   } catch(e) {
     list.innerHTML = `<div class="empty-state" style="color:var(--red)">${e.message}</div>`;
   }
 }
 
-// ─ Session filter ─
-let _sessFilter = 'pendientes';
+// ─ Session filters ─
+let _sessFilter     = 'pendientes';
+let _sessWeekFilter = 'todas'; // "todas" | monday ISO string e.g. "2025-04-14"
 
 function setSessFilter(filter) {
   _sessFilter = filter;
-  document.querySelectorAll('.sess-filter-pill').forEach(btn => {
-    btn.classList.toggle('active', btn.dataset.filter === filter);
-  });
+  const sel = $('sess-filter-select');
+  if (sel) sel.value = filter;
+  // Show week selector only when there are dates (completadas/todas)
+  const weekWrap = $('sess-week-wrap');
+  if (weekWrap) weekWrap.style.display = (filter !== 'pendientes') ? '' : 'none';
+  _sessWeekFilter = 'todas'; // reset week when switching filter
+  const weekSel = $('sess-week-select');
+  if (weekSel) weekSel.value = 'todas';
   loadSessions();
+}
+
+function setSessWeekFilter(val) {
+  _sessWeekFilter = val;
+  loadSessions();
+}
+
+function _populateWeekSelect(weekKeys, todayM) {
+  const sel = $('sess-week-select');
+  if (!sel) return;
+  const prevM = (() => { const d = new Date(todayM + 'T00:00:00'); d.setDate(d.getDate()-7); return d.toISOString().split('T')[0]; })();
+  const label = key => {
+    if (key === 'sin_fecha') return 'Sin fecha';
+    if (key === todayM) return 'Esta semana';
+    if (key === prevM) return 'La semana pasada';
+    const mo = new Date(key + 'T00:00:00');
+    const su = new Date(mo); su.setDate(mo.getDate()+6);
+    const o = {day:'numeric',month:'short'};
+    return `${mo.toLocaleDateString('es',o)} – ${su.toLocaleDateString('es',o)}`;
+  };
+  const current = sel.value;
+  sel.innerHTML = `<option value="todas">Todas las semanas</option>` +
+    weekKeys.map(k => `<option value="${k}">${label(k)}</option>`).join('');
+  // Restore selection if still valid
+  if (current && [...sel.options].some(o => o.value === current)) sel.value = current;
+  else sel.value = 'todas';
 }
 
 function toggleSessWeek(groupId, headerEl) {
   const body = document.getElementById(groupId);
   if (!body) return;
-  const open = body.classList.toggle('hidden');
+  const nowHidden = body.classList.toggle('hidden');
   const arrow = headerEl.querySelector('.sess-week-arrow');
-  if (arrow) arrow.classList.toggle('open', !open);
+  if (arrow) arrow.classList.toggle('open', !nowHidden);
 }
 
 async function openTestRevisionFromHistory(testId) {

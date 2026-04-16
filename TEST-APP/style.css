@@ -4312,22 +4312,28 @@ button { touch-action: manipulation; }
 }
 
 /* ── Filtros de sesión ── */
-.sess-filter-pill {
-  background: none;
-  border: 1px solid rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.40);
-  border-radius: 20px;
-  padding: 5px 13px;
-  font-size: 0.75rem; font-weight: 600;
-  cursor: pointer;
-  transition: background .15s, color .15s, border-color .15s;
-  white-space: nowrap;
+/* ── Filtros de sesiones (selects) ── */
+.sess-select-wrap {
+  position: relative; display: flex; align-items: center;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.11);
+  border-radius: 20px; overflow: hidden;
 }
-.sess-filter-pill.active {
-  background: rgba(255,255,255,0.10);
-  border-color: rgba(255,255,255,0.22);
-  color: #fff;
+.sess-select-wrap::after {
+  content: ''; position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+  width: 0; height: 0;
+  border-left: 4px solid transparent; border-right: 4px solid transparent;
+  border-top: 5px solid rgba(255,255,255,0.40);
+  pointer-events: none;
 }
+.sess-filter-select {
+  background: transparent; border: none; outline: none;
+  color: rgba(255,255,255,0.70); font-size: 0.74rem; font-weight: 600;
+  padding: 6px 28px 6px 12px; cursor: pointer;
+  appearance: none; -webkit-appearance: none;
+  white-space: nowrap; min-width: 0;
+}
+.sess-filter-select option { background: #1a1a2e; color: #fff; }
 
 /* ── Agrupación por semanas ── */
 .sess-week-header {
