@@ -2532,35 +2532,37 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 .pwa-install-card {
   background: linear-gradient(150deg, rgba(255,255,255,0.28) 0%, rgba(255,255,255,0.18) 60%, rgba(91,141,238,0.22) 100%);
   backdrop-filter: blur(28px) saturate(160%); -webkit-backdrop-filter: blur(28px) saturate(160%);
-  border: 1px solid rgba(255,255,255,0.38); border-radius: 28px; padding: 32px 28px; max-width: 320px; width: 90%;
-  text-align: center; box-shadow: 0 16px 48px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,255,255,0.45);
+  border: 1px solid rgba(255,255,255,0.38); border-radius: 28px; padding: 36px 28px 28px;
+  max-width: 300px; width: 88%;
+  display: flex; flex-direction: column; align-items: center; gap: 18px;
+  text-align: center; box-shadow: 0 16px 48px rgba(0,0,0,0.28), inset 0 1px 0 rgba(255,255,255,0.45);
   transform: scale(0.9); transition: transform 0.3s;
 }
 .pwa-install-overlay.visible .pwa-install-card { transform: scale(1); }
-.pwa-install-icon { margin-bottom: 16px; }
-.pwa-install-title {
-  font-family: 'Inter', sans-serif; font-size: 1.4rem; font-weight: 600;
-  color: #fff; margin: 0 0 8px; letter-spacing: -0.02em;
+.pwa-install-logo {
+  width: 88px; height: 88px; border-radius: 22px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.25);
 }
-.pwa-install-desc {
-  font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 400;
-  color: rgba(255,255,255,0.7); margin: 0 0 12px; line-height: 1.4;
-}
+.pwa-install-icon { margin-bottom: 0; }
+.pwa-install-title { display: none; }
+.pwa-install-desc  { display: none; }
 .pwa-install-instructions {
-  font-family: 'Inter', sans-serif; font-size: 0.8rem; font-weight: 500;
-  color: rgba(91,141,238,0.95); margin: 0 0 18px; line-height: 1.4;
+  font-family: 'Inter', sans-serif; font-size: 0.88rem; font-weight: 500;
+  color: rgba(255,255,255,0.80); margin: 0; line-height: 1.5;
 }
 .pwa-install-confirm-btn {
-  width: 100%; padding: 14px; border: none; border-radius: 12px;
+  width: 100%; padding: 15px; border: none; border-radius: 14px;
   background: #fff; color: #1e3a6e;
-  font-family: 'Inter', sans-serif; font-size: 0.95rem; font-weight: 600;
-  cursor: pointer; margin-bottom: 10px; transition: all 0.2s;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+  font-family: 'Inter', sans-serif; font-size: 1rem; font-weight: 700;
+  cursor: pointer; transition: all 0.2s;
+  box-shadow: 0 4px 18px rgba(74,112,196,0.30);
+  letter-spacing: .02em;
 }
+.pwa-install-confirm-btn:hover { transform: translateY(-1px); box-shadow: 0 8px 28px rgba(74,112,196,0.40); }
 .pwa-install-confirm-btn:active { transform: scale(0.96); }
 .pwa-install-cancel {
   width: 100%; padding: 12px; border: none; border-radius: 12px;
-  background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.7);
+  background: rgba(255,255,255,0.12); color: rgba(255,255,255,0.60);
   font-family: 'Inter', sans-serif; font-size: 0.85rem; font-weight: 500;
   cursor: pointer; transition: background 0.2s;
 }

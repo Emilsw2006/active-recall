@@ -57,30 +57,21 @@ window.addEventListener('load', () => {
 });
 
 function installPWA() {
-  // Show install overlay
   const overlay = document.createElement('div');
   overlay.className = 'pwa-install-overlay';
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
 
-  let btnHtml = '';
-  if (_deferredInstallPrompt) {
-    btnHtml = `<button class="pwa-install-confirm-btn" id="pwa-do-install">${T('install_btn') || 'Instalar'}</button>`;
-  }
-
-  const instructions = isIOS
-    ? (T('install_ios') || 'Pulsa Compartir (↑) y luego "Añadir a pantalla de inicio"')
-    : (!_deferredInstallPrompt ? (T('install_android') || 'Pulsa el menú (⋮) y luego "Instalar app"') : '');
+  const actionHtml = _deferredInstallPrompt
+    ? `<button class="pwa-install-confirm-btn" id="pwa-do-install">Instalar</button>`
+    : isIOS
+      ? `<p class="pwa-install-instructions">Pulsa <strong>Compartir ↑</strong> → "Añadir a inicio"</p>`
+      : `<p class="pwa-install-instructions">Pulsa el menú ⋮ → "Instalar app"</p>`;
 
   overlay.innerHTML = `
     <div class="pwa-install-card">
-      <div class="pwa-install-icon">
-        <img src="logo.png" alt="Active Recall" width="64" height="64" style="border-radius:14px"/>
-      </div>
-      <h3 class="pwa-install-title">${T('install_title') || 'Instalar Active Recall'}</h3>
-      <p class="pwa-install-desc">${T('install_desc') || 'Accede directamente desde tu pantalla de inicio, sin navegador.'}</p>
-      ${instructions ? `<p class="pwa-install-instructions">${instructions}</p>` : ''}
-      ${btnHtml}
-      <button class="pwa-install-cancel" id="pwa-cancel">${T('cancel') || 'Cancelar'}</button>
+      <img src="logo.png" alt="Active Recall" class="pwa-install-logo"/>
+      ${actionHtml}
+      <button class="pwa-install-cancel" id="pwa-cancel">Cancelar</button>
     </div>
   `;
 
@@ -110,6 +101,7 @@ function installPWA() {
     };
   }
 }
+
 
 // Stop audio when tab goes hidden (phone locks screen, switches app, etc.)
 document.addEventListener('visibilitychange', () => {
