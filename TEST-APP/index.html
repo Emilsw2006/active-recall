@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
@@ -1115,27 +1115,33 @@
   <!-- Step 1: Temas -->
   <div id="plan-wiz-step1" class="plan-wiz-step">
     <div class="plan-wiz-topbar">
+      <span class="plan-wiz-topbar-title" data-i18n="plan_new">Nuevo plan</span>
       <button class="lobby-close-btn" onclick="closePlanWizard()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
-      <span class="plan-wiz-topbar-title" data-i18n="plan_new">Nuevo plan</span>
     </div>
     <div class="plan-wiz-scroll">
-      <div class="plan-wiz-sub" id="plan-wiz-subject" style="margin-bottom:24px">Cargando...</div>
+      <div class="plan-wiz-sub" id="plan-wiz-subject" style="margin-bottom:20px">Cargando...</div>
       <div class="lobby-label" data-i18n="plan_topics">Temas a incluir</div>
-      <div id="plan-wiz-topics" class="lobby-topic-list" style="margin-bottom:28px">
+      <div id="plan-wiz-topics" class="lobby-topic-list">
         <div class="atom-loading" data-i18n="lobby_loading_topics">Cargando temas...</div>
       </div>
-      <button class="lobby-start-btn" onclick="planWizStep1Next()" data-i18n="wiz_next">Siguiente →</button>
+    </div>
+    <div class="plan-wiz-footer">
+      <button class="lobby-start-btn" onclick="planWizStep1Next()" data-i18n="wiz_next">Siguiente &rarr;</button>
     </div>
   </div>
 
   <!-- Step 2: Fecha examen -->
   <div id="plan-wiz-step2" class="plan-wiz-step" style="display:none">
-    <div class="plan-wiz-topbar plan-wiz-topbar-end">
+    <div class="plan-wiz-topbar">
+      <button class="lobby-back-btn" onclick="showPlanWizStep(1)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Atrás
+      </button>
       <span class="plan-wiz-topbar-title" data-i18n="plan_exam_date">Fecha</span>
-      <button class="lobby-close-btn" onclick="showPlanWizStep(1)">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      <button class="lobby-close-btn" onclick="closePlanWizard()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
     <div class="plan-wiz-scroll">
@@ -1149,8 +1155,9 @@
         <span class="plan-range-bound">20</span>
       </div>
       <div class="plan-range-val" id="plan-atoms-val">10 preguntas</div>
-
-      <button class="lobby-start-btn" id="plan-wiz-submit-btn" onclick="submitPlanWizard()" style="margin-top:28px" data-i18n="plan_create">Crear plan</button>
+    </div>
+    <div class="plan-wiz-footer">
+      <button class="lobby-start-btn" id="plan-wiz-submit-btn" onclick="submitPlanWizard()" data-i18n="plan_create">Crear plan</button>
     </div>
   </div>
 
