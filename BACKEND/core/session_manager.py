@@ -301,6 +301,10 @@ async def cargar_sesion(
     total_disp = len(disponibles)
     if max_atomos:
         limite = min(max_atomos, MAX_PREGUNTAS)
+    elif duration_type == "repaso":
+        # Sesión de repaso: usa exactamente n_preguntas si se pasó (ya viene en max_atomos)
+        # Si no, usa el tamaño de bloque estándar (8) o lo disponible
+        limite = min(total_disp, MAX_PREGUNTAS)
     elif duration_type == "corta":
         limite = max(5, total_disp // 2)  # mitad del contenido elegido
     else:

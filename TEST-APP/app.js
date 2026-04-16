@@ -3613,6 +3613,7 @@ async function _initReviewBlock() {
     _reviewMode      = rev.mode;
     _reviewErrors    = rev.errors;
     _reviewEvaluated = true;
+    _renderReviewMiniBtn();
   } catch(e) { /* silencioso — por defecto no bloquea */ }
 }
 
@@ -4024,10 +4025,21 @@ async function loadSessions() {
           </div>`;
       }
     }).join('');
-    _renderReviewCard();
   } catch(e) {
     list.innerHTML = `<div class="empty-state" style="color:var(--red)">${e.message}</div>`;
   }
+}
+
+// ─ Session filter ─
+let _sessFilter = 'pendientes';
+
+function setSessFilter(filter) {
+  _sessFilter = filter;
+  // Update pill styles
+  document.querySelectorAll('.sess-filter-pill').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.filter === filter);
+  });
+  loadSessions();
 }
 
 async function openTestRevisionFromHistory(testId) {
