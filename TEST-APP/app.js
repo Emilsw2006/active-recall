@@ -3475,18 +3475,23 @@ async function submitPlanWizard() {
 
 async function loadPlanes() {
   if (!curSubjectId) return;
-  const listEl = $('planes-list');
-  if (!listEl) return;
-  if (!listEl.innerHTML || listEl.innerHTML.includes('empty-state')) {
-    listEl.innerHTML = `<div class="empty-state">${T('hist_loading_plans')}</div>`;
+  const listHoy  = $('planes-list-hoy');
+  const listDone = $('planes-list-done');
+  if (!listHoy || !listDone) return;
+
+  if (listHoy.innerHTML.includes('loading') || listHoy.innerHTML.includes('empty-state')) {
+    const loadHtml = `<div class="empty-state">${T('hist_loading_plans')}</div>`;
+    listHoy.innerHTML = loadHtml;
+    listDone.innerHTML = loadHtml;
   }
+
   try {
     const planes = await api(`/planes/usuario/${uid}?asignatura_id=${curSubjectId}`);
-    if (!planes.length) {
-      listEl.innerHTML = `<div class="empty-state">${T('hist_empty_plans')}<br>${T('hist_empty_plans_hint')}</div>`;
-      return;
-    }
-    listEl.innerHTML = planes.map(p => {
+    
+    const hoyPlanes  = planes.filter(p => (p.sesiones_completadas || 0) < (p.sesiones_totales || p.total_sesiones || 0));
+    const donePlanes = planes.filter(p => (p.sesiones_completadas || 0) >= (p.sesiones_totales || p.total_sesiones || 0));
+
+    const renderPlan = (p) => {
       _planCache[p.id] = p;
       const completed  = p.sesiones_completadas || 0;
       const total      = p.sesiones_totales || p.total_sesiones || 0;
@@ -3496,7 +3501,7 @@ async function loadPlanes() {
       const proximaId  = p.proxima_sesion_id;
       const fechaExamen = p.fecha_examen
         ? new Date(p.fecha_examen + 'T12:00:00').toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
-        : '—';
+        : '?';
       const daysLeft = p.fecha_examen
         ? Math.ceil((new Date(p.fecha_examen + 'T12:00:00') - new Date()) / 86400000)
         : null;
@@ -3628,14 +3633,13 @@ function _dismissReviewOptional() {
 }
 
 // Devuelve {blocked, mode, errors}
-// Solo cuenta errores de sesiones normales (NO de sesiones de repaso — duration_type='repaso')
+// El endpoint ya excluye duration_type='repaso', no hace falta filtrarlo aquí
 function _evaluateReviewBlock(soloSessions) {
   if (!soloSessions || !soloSessions.length) return { blocked: false, mode: 'none', errors: 0 };
   const now = Date.now();
   const windowMs = REVIEW_WINDOW_DAYS * 86400000;
   let totalErrors = 0;
   soloSessions.forEach(s => {
-    if (s.duration_type === 'repaso') return; // no contar errores de sesiones de repaso
     const d = s.fecha_inicio ? new Date(s.fecha_inicio).getTime() : 0;
     if (now - d <= windowMs) {
       const c = s.conteo || {};
@@ -3797,15 +3801,18 @@ async function openReviewPanel() {
   overlay.classList.add('open');
 
   try {
-    const sessions = await api(`/sesiones/usuario/${uid}`);
-    const soloSessions = sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id);
+    const [normalSessions, repasoSessions] = await Promise.all([
+      api(`/sesiones/usuario/${uid}`),
+      api(`/sesiones/usuario/${uid}?solo_repaso=true`),
+    ]);
+    const soloNormal = normalSessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id);
+    const repasoDeEstaAsig = repasoSessions.filter(s => s.asignatura_id === curSubjectId);
 
     // Sesiones normales recientes con errores
     const now = Date.now();
     const windowMs = REVIEW_WINDOW_DAYS * 86400000;
     let totalErrors = 0;
-    soloSessions.forEach(s => {
-      if (s.duration_type === 'repaso') return;
+    soloNormal.forEach(s => {
       const d = s.fecha_inicio ? new Date(s.fecha_inicio).getTime() : 0;
       if (now - d <= windowMs) {
         const c = s.conteo || {};
@@ -3814,8 +3821,7 @@ async function openReviewPanel() {
     });
 
     // Sesiones de repaso ya hechas
-    const repasoSessions = soloSessions.filter(s => s.duration_type === 'repaso');
-    const repasoHechas   = repasoSessions.filter(s => s.status === 'completada');
+    const repasoHechas = repasoDeEstaAsig.filter(s => s.status === 'completada');
 
     if (metaEl) metaEl.textContent = `${totalErrors} errores pendientes`;
 

@@ -41,18 +41,25 @@ class CrearSesionRequest(BaseModel):
 
 
 @router.get("/sesiones/usuario/{usuario_id}")
-async def listar_sesiones_usuario(usuario_id: str):
-    """Lista todas las sesiones del usuario con info de asignatura."""
+async def listar_sesiones_usuario(
+    usuario_id: str,
+    solo_repaso: bool = False,
+):
+    """Lista sesiones del usuario. Por defecto excluye repaso; solo_repaso=true devuelve solo repaso."""
     db = get_service_client()
 
-    sesiones_res = (
+    q = (
         db.table("sesiones")
         .select("id, asignatura_id, duration_type, status, fecha_inicio, fecha_fin, current_question_index, temas_elegidos, plan_id, lang, nombre, n_preguntas, test_draft")
         .eq("usuario_id", usuario_id)
         .order("fecha_inicio", desc=True)
-        .limit(50)
-        .execute()
     )
+    if solo_repaso:
+        q = q.eq("duration_type", "repaso").limit(100)
+    else:
+        q = q.neq("duration_type", "repaso").limit(100)
+
+    sesiones_res = q.execute()
 
     if not sesiones_res.data:
         return []

@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8" />
@@ -412,19 +412,33 @@
         </div>
       </div>
 
-      <!-- Panel Planes -->
+      <!-- Panel Planes (swipeable: Hoy / Completadas) -->
       <div id="hist-panel-planes" style="display:none">
-        <button class="plan-new-btn" onclick="openPlanWizard()">
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          <span data-i18n="hist_new_plan">Nuevo plan</span>
-        </button>
-        <div id="planes-list">
-          <div class="empty-state" data-i18n="hist_empty_plans">No hay planes aún.</div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+          <div class="planes-swipe-tabs" id="planes-swipe-tabs">
+            <button class="planes-swipe-tab active" id="ptab-hoy" onclick="planesGoTab(0)">Hoy</button>
+            <button class="planes-swipe-tab" id="ptab-done" onclick="planesGoTab(1)">Completadas</button>
+            <div class="planes-swipe-indicator" id="planes-swipe-indicator"></div>
+          </div>
+          <button class="plan-new-btn" onclick="openPlanWizard()" style="margin-bottom:0;width:auto;padding:0 14px;height:36px;border-radius:10px;font-size:.8rem">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            <span data-i18n="hist_new_plan">Nuevo plan</span>
+          </button>
+        </div>
+        <div class="planes-viewport" id="planes-viewport">
+          <div class="planes-track" id="planes-track">
+            <div class="planes-slide" id="planes-slide-0">
+              <div id="planes-list-hoy"><div class="empty-state">Cargando...</div></div>
+            </div>
+            <div class="planes-slide" id="planes-slide-1">
+              <div id="planes-list-done"><div class="empty-state">Sin planes completados aun.</div></div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- 2. HUB (Home) -->
+        <!-- 2. HUB (Home) -->
     <div id="v-hub" class="view-slide active" style="transform:translateX(0)">
       <!-- Saludo -->
       <div id="user-greeting">

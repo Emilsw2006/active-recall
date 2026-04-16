@@ -975,6 +975,59 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 }
 .plan-new-btn:hover { background: rgba(255,255,255,0.13); border-color: rgba(255,255,255,0.45); }
 
+/* ─ Planes Swipeable Tabs ─ */
+.planes-swipe-tabs {
+  position: relative;
+  display: flex;
+  background: rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 4px;
+}
+.planes-swipe-tab {
+  border: none;
+  background: none;
+  color: rgba(255,255,255,0.50);
+  font-size: .82rem;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: 9px;
+  cursor: pointer;
+  z-index: 2;
+  transition: color .2s;
+  position: relative;
+}
+.planes-swipe-tab.active {
+  color: #fff;
+}
+.planes-swipe-indicator {
+  position: absolute;
+  top: 3px; left: 3px;
+  height: calc(100% - 6px);
+  width: 70px; /* will be adjusted by JS */
+  background: rgba(255,255,255,0.15);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 9px;
+  z-index: 1;
+  transition: transform .3s cubic-bezier(0.4, 0, 0.2, 1), width .3s ease;
+}
+
+.planes-viewport {
+  width: 100%;
+  overflow: hidden;
+  position: relative;
+}
+.planes-track {
+  display: flex;
+  width: 200%;
+  transition: transform .35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.planes-slide {
+  flex: 0 0 50%;
+  width: 50%;
+  box-sizing: border-box;
+}
+
 .plan-card {
   background: rgba(255,255,255,0.10);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
