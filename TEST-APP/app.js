@@ -3542,9 +3542,15 @@ async function loadPlanes() {
           </div>
           ${footer}
         </div>`;
-    }).join('');
+    };
+
+    const emptyHoy  = `<div class="empty-state">${T('hist_empty_plans')}<br>${T('hist_empty_plans_hint')}</div>`;
+    const emptyDone = `<div class="empty-state" style="color:rgba(255,255,255,0.28)">${T('plan_no_completed')}</div>`;
+    listHoy.innerHTML  = hoyPlanes.length  ? hoyPlanes.map(renderPlan).join('')  : emptyHoy;
+    listDone.innerHTML = donePlanes.length ? donePlanes.map(renderPlan).join('') : emptyDone;
+
   } catch(e) {
-    listEl.innerHTML = `<div class="empty-state" style="color:var(--red)">${e.message}</div>`;
+    listHoy.innerHTML = `<div class="empty-state" style="color:var(--red)">${e.message}</div>`;
   }
 }
 
