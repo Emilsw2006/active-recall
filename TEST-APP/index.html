@@ -272,12 +272,13 @@
             <p class="ob2-sub">Empieza con la materia en la que más necesitas avanzar.</p>
             <input class="ob2-input" id="ob-subj-name" type="text"
               placeholder="Ej: Historia Medieval, Cálculo II..." maxlength="40"
-              onkeydown="if(event.key==='Enter')obCreateSubject()"/>
+              onkeydown="if(event.key==='Enter')obCreateSubject()"
+              oninput="document.getElementById('ob-step6-next').disabled = !this.value.trim()"/>
             <div class="ob2-color-label">Color del tema</div>
             <div class="ob-color-row" id="ob-color-picker"></div>
           </div>
           <div class="ob2-footer">
-            <button class="ob2-continue-btn" id="ob-step6-next" onclick="obCreateSubject()">Crear asignatura →</button>
+            <button class="ob2-continue-btn" id="ob-step6-next" onclick="obCreateSubject()" disabled>Crear asignatura →</button>
           </div>
         </div>
 
