@@ -2109,11 +2109,12 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 
 /* ── Historial swipe slides ── */
 .hist-slide {
-  min-width: 100%; height: 100%; overflow-y: auto;
+  width: 50%; flex-shrink: 0; height: 100%; overflow-y: auto;
   display: flex; flex-direction: column;
   padding-bottom: 16px;
 }
-#hist-viewport { display: flex; flex-direction: column; overflow: hidden; }
+#hist-viewport { display: flex; flex-direction: column; overflow: hidden; width: 100%; }
+#hist-track { width: 200%; }
 
 /* Plan detail — PRÓXIMAS horizontal swipeable cards */
 .plan-proximas-scroll {
@@ -4477,21 +4478,19 @@ button { touch-action: manipulation; }
 .sess-week-body.hidden { display: none; }
 
 /* ── Mini botón de repaso ── */
-.repaso-mini-btn {
+.repaso-icon-btn {
   flex-shrink: 0;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
   background: rgba(79,126,255,0.15);
   border: 1px solid rgba(79,126,255,0.35);
   color: #4f7eff;
-  border-radius: 20px;
-  padding: 5px 12px;
-  font-size: 0.75rem; font-weight: 700;
+  border-radius: 50%;
   cursor: pointer;
   transition: background .15s, opacity .15s;
-  white-space: nowrap;
-  letter-spacing: 0.03em;
 }
-.repaso-mini-btn:active { opacity: 0.75; }
-.repaso-mini-btn.urgent {
+.repaso-icon-btn:active { opacity: 0.75; }
+.repaso-icon-btn.urgent {
   background: rgba(248,113,113,0.15);
   border-color: rgba(248,113,113,0.40);
   color: #f87171;

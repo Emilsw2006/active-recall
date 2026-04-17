@@ -3762,11 +3762,36 @@ function _closeReviewModal() {
   setTimeout(() => modal.remove(), 280);
 }
 
-// Inicia un bloque de repaso con n preguntas (por defecto REVIEW_BLOCK_SIZE)
+// Inicia un bloque de repaso — retoma la más reciente sin terminar, o crea nueva
 async function startReviewSession(nPreguntas) {
   if (!curSubjectId) return;
   closeReviewPanel();
   try {
+    // 1. Buscar sesión repaso sin completar para esta asignatura
+    const existingRepaso = await api(`/sesiones/usuario/${uid}?solo_repaso=true`);
+    const pendingRepaso = existingRepaso
+      .filter(s => s.asignatura_id === curSubjectId && s.status !== 'completada')
+      .sort((a, b) => new Date(b.fecha_inicio || 0) - new Date(a.fecha_inicio || 0));
+
+    if (pendingRepaso.length > 0) {
+      // Retomar la más reciente sin crear nueva
+      const s = pendingRepaso[0];
+      _reviewSessId   = s.sesion_id;
+      sessId          = s.sesion_id;
+      sessSubjectId   = curSubjectId;
+      sessSubjectName = curSubjectName;
+      sessGreenCount  = 0; sessYellowCount = 0; sessRedCount = 0;
+      sessModoVoz     = true;
+      sessLang        = s.lang || currentLang;
+      sessPlanId      = '';
+      sessPartIds     = [s.sesion_id];
+      sessPartIndex   = 0;
+      switchView('duelo');
+      connectSessionWS(s.n_preguntas || nPreguntas || REVIEW_BLOCK_SIZE);
+      return;
+    }
+
+    // 2. No hay ninguna pendiente — crear sesión nueva
     const sessions = await api(`/sesiones/usuario/${uid}`);
     const soloSessions = sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id);
     const src = _findReviewSourceSession(soloSessions);
@@ -3815,10 +3840,9 @@ function _renderReviewMiniBtn() {
   const btn = $('repaso-mini-btn');
   if (!btn) return;
   if (_reviewErrors > 0) {
-    const blocksNeeded = Math.ceil(_reviewErrors / REVIEW_BLOCK_SIZE);
-    btn.textContent = `Repaso · ${_reviewErrors} errores`;
-    btn.className = 'repaso-mini-btn' + (_reviewBlocked ? ' urgent' : '');
-    btn.style.display = '';
+    btn.title = `Repaso · ${_reviewErrors} errores`;
+    btn.className = 'repaso-icon-btn' + (_reviewBlocked ? ' urgent' : '');
+    btn.style.display = 'flex';
   } else {
     btn.style.display = 'none';
   }
@@ -4136,9 +4160,6 @@ function setSessFilter(filter) {
   _sessFilter = filter;
   const sel = $('sess-filter-select');
   if (sel) sel.value = filter;
-  // Show week selector only when there are dates (completadas/todas)
-  const weekWrap = $('sess-week-wrap');
-  if (weekWrap) weekWrap.style.display = (filter !== 'pendientes') ? '' : 'none';
   _sessWeekFilter = 'todas'; // reset week when switching filter
   const weekSel = $('sess-week-select');
   if (weekSel) weekSel.value = 'todas';

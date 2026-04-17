@@ -402,23 +402,25 @@
 
           <!-- Slide 0: Sesiones -->
           <div class="hist-slide" id="hist-slide-sesiones">
-            <!-- Filtros: estado + semana -->
+            <!-- Filtros: estado + semana + botón repaso -->
             <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
               <div class="sess-select-wrap">
                 <select id="sess-filter-select" class="sess-filter-select" onchange="setSessFilter(this.value)">
                   <option value="pendientes">Pendientes</option>
                   <option value="completadas">Completadas</option>
                   <option value="todas">Todas</option>
-                  <option value="repaso">Repaso</option>
                 </select>
               </div>
-              <div class="sess-select-wrap" id="sess-week-wrap" style="display:none">
+              <div class="sess-select-wrap" id="sess-week-wrap">
                 <select id="sess-week-select" class="sess-filter-select" onchange="setSessWeekFilter(this.value)">
                   <option value="todas">Todas las semanas</option>
                 </select>
               </div>
-              <!-- repaso button hidden, replaced by dropdown option -->
-              <button id="repaso-mini-btn" class="repaso-mini-btn" onclick="openReviewPanel()" style="display:none"></button>
+              <button id="repaso-mini-btn" class="repaso-icon-btn" onclick="openReviewPanel()" style="display:none" title="Repaso">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                </svg>
+              </button>
             </div>
             <div id="sessions-list" style="display:flex;flex-direction:column;gap:0">
               <div class="empty-state" data-i18n="hist_empty_sessions">No hay sesiones aún.</div>
