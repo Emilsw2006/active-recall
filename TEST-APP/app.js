@@ -3963,8 +3963,8 @@ async function loadSessions() {
     ];
     const filteredTests = tests.filter(t => t.asignatura_id === curSubjectId);
 
-    // Evaluate review block state (sessions already have no repaso)
-    const _rev = _evaluateReviewBlock(allSubjSess);
+    // Evaluate review block state — only normal sessions (not repaso) count as error source
+    const _rev = _evaluateReviewBlock(allSubjSess.filter(s => s.duration_type !== 'repaso'));
     _reviewBlocked = _rev.blocked;
     _reviewMode    = _rev.mode;
     _reviewErrors  = _rev.errors;
@@ -3991,7 +3991,9 @@ async function loadSessions() {
       if (activeFilter === 'todas') return true;
       if (item._type === 'test') return activeFilter === 'completadas';
       const isDone = item.status === 'completada';
-      if (activeFilter === 'pendientes') return !isDone;
+      const isRepaso = item.duration_type === 'repaso';
+      // Pendientes: only normal sessions not yet done (no repaso)
+      if (activeFilter === 'pendientes') return !isDone && !isRepaso;
       if (activeFilter === 'completadas') return isDone;
       return true;
     });
