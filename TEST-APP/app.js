@@ -996,7 +996,11 @@ function obSelect(key, value, btn) {
     btn.parentElement.querySelectorAll('.ob2-opt, .ob-opt-row').forEach(b => b.classList.remove('active'));
   }
   if (btn) btn.classList.add('active');
-  if (key === 'source' || key === 'nivel') setTimeout(obNext, 250);
+  if (key === 'source' || key === 'nivel') {
+    const slide = btn ? btn.closest('.ob2-slide') : null;
+    const continueBtn = slide ? slide.querySelector('.ob2-continue-btn') : null;
+    if (continueBtn) continueBtn.disabled = false;
+  }
 }
 
 function obSelectAnalogy(val, el) {
