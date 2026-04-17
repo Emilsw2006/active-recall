@@ -3371,12 +3371,36 @@ function closePlanWizard() {
 }
 
 function showPlanWizStep(n) {
-  [1,2,3,4].forEach(i => {
+  [1,2,3,4,5].forEach(i => {
     const el = $(`plan-wiz-step${i}`);
     if (el) el.style.display = i === n ? 'flex' : 'none';
   });
   const fill = $('plan-wiz-progress');
-  if (fill) fill.style.width = `${n * 25}%`;
+  if (fill) fill.style.width = `${n * 20}%`;
+}
+
+function planWizShowSummary() {
+  const dateInp = $('plan-exam-date');
+  if (!dateInp || !dateInp.value) { toast(T('validation_select_date'), 'err'); showPlanWizStep(2); return; }
+  const selected = _planWizTopics.filter((t, i) => {
+    const el = $(`plan-topic-${i}`);
+    return el && el.classList.contains('checked');
+  });
+  if (!selected.length) { toast(T('validation_select_topic'), 'err'); showPlanWizStep(1); return; }
+  const sumEl = $('plan-wiz-summary');
+  if (sumEl) {
+    const totalAt = selected.reduce((s, t) => s + (t.n_atomos || 0), 0);
+    const fechaFmt = new Date(dateInp.value + 'T12:00:00').toLocaleDateString('es',{day:'numeric',month:'long',year:'numeric'});
+    const intensLabels = {rapido:'⚡ Rápido',equilibrado:'⚖️ Equilibrado',exhaustivo:'🧠 Exhaustivo'};
+    sumEl.innerHTML = `
+      <div class="plan-wiz-sum-row"><span>Temas</span><span>${selected.length}</span></div>
+      <div class="plan-wiz-sum-row"><span>Contenidos</span><span>${totalAt}</span></div>
+      <div class="plan-wiz-sum-row"><span>Examen</span><span>${fechaFmt}</span></div>
+      <div class="plan-wiz-sum-row"><span>Preguntas/sesión</span><span>${_planAtomosPorSesion}</span></div>
+      <div class="plan-wiz-sum-row"><span>Intensidad</span><span>${intensLabels[_planIntensity]||_planIntensity}</span></div>`;
+    _updatePlanEstimate();
+  }
+  showPlanWizStep(5);
 }
 
 function renderPlanWizTopics() {
@@ -3457,24 +3481,6 @@ async function submitPlanWizard() {
     return el && el.classList.contains('checked');
   });
   if (!selected.length) { toast(T('validation_select_topic'), 'err'); showPlanWizStep(1); return; }
-
-  // Update step 4 summary before showing it
-  const sumEl = $('plan-wiz-summary');
-  if (sumEl) {
-    const totalAt = selected.reduce((s, t) => s + (t.n_atomos || 0), 0);
-    const dateInp2 = $('plan-exam-date');
-    const fechaFmt = dateInp2 && dateInp2.value
-      ? new Date(dateInp2.value + 'T12:00:00').toLocaleDateString('es',{day:'numeric',month:'long',year:'numeric'})
-      : '—';
-    const intensLabels = {rapido:'Rápido',equilibrado:'Equilibrado',exhaustivo:'Exhaustivo'};
-    sumEl.innerHTML = `
-      <div class="plan-wiz-sum-row"><span>Temas</span><span>${selected.length}</span></div>
-      <div class="plan-wiz-sum-row"><span>Contenidos</span><span>${totalAt}</span></div>
-      <div class="plan-wiz-sum-row"><span>Examen</span><span>${fechaFmt}</span></div>
-      <div class="plan-wiz-sum-row"><span>Preguntas/sesión</span><span>${_planAtomosPorSesion}</span></div>
-      <div class="plan-wiz-sum-row"><span>Intensidad</span><span>${intensLabels[_planIntensity]||_planIntensity}</span></div>`;
-    _updatePlanEstimate();
-  }
 
   const btn = $('plan-wiz-submit-btn');
   if (btn) { btn.disabled = true; btn.textContent = T('empty_loading'); }
@@ -3839,12 +3845,13 @@ function _onReviewSessionComplete() {
 function _renderReviewMiniBtn() {
   const btn = $('repaso-mini-btn');
   if (!btn) return;
+  btn.style.display = 'flex';
   if (_reviewErrors > 0) {
     btn.title = `Repaso · ${_reviewErrors} errores`;
-    btn.className = 'repaso-icon-btn' + (_reviewBlocked ? ' urgent' : '');
-    btn.style.display = 'flex';
+    btn.className = 'repaso-icon-btn' + (_reviewBlocked ? ' urgent' : ' has-errors');
   } else {
-    btn.style.display = 'none';
+    btn.title = 'Repaso';
+    btn.className = 'repaso-icon-btn dim';
   }
 }
 
@@ -4566,13 +4573,15 @@ async function openPlanDetail(planId) {
     const nDefault = p.atomos_por_sesion || 10;
 
     const today = _localDateStr();
+    const yesterday = (() => { const d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0]; })();
     const pending = sessions.filter(s => s.status !== 'completada');
     const done    = sessions.filter(s => s.status === 'completada');
     const review  = pending.filter(s => s.is_review_session);
     const normal  = pending.filter(s => !s.is_review_session);
 
-    // Split normal sessions: today (no fecha_objetivo or fecha_objetivo === today) vs future
-    const todaySess  = normal.filter(s => !s.fecha_objetivo || s.fecha_objetivo <= today);
+    // Split: past (missed), today/current, future
+    const pastSess   = normal.filter(s => s.fecha_objetivo && s.fecha_objetivo < today);
+    const todaySess  = normal.filter(s => !s.fecha_objetivo || s.fecha_objetivo === today);
     const futureSess = normal.filter(s => s.fecha_objetivo && s.fecha_objetivo > today);
 
     const _sessLabel = s => {
@@ -4646,9 +4655,14 @@ async function openPlanDetail(planId) {
       html += review.map(renderReview).join('');
     }
 
+    if (pastSess.length) {
+      html += `<div class="plan-detail-section-title" style="color:rgba(248,113,113,0.75)">ATRASADAS (${pastSess.length})</div>`;
+      html += pastSess.map(s => `<div style="opacity:.65">${renderNormal(s, false)}</div>`).join('');
+    }
+
     if (todaySess.length) {
       html += `<div class="plan-detail-section-title">HOY</div>`;
-      html += todaySess.map((s, i) => renderNormal(s, i === 0)).join('');
+      html += todaySess.map((s, i) => renderNormal(s, i === 0 && !pastSess.length)).join('');
     }
 
     // PRÓXIMAS goes to slide 2 — not here

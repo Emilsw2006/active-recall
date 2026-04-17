@@ -4489,6 +4489,16 @@ button { touch-action: manipulation; }
   cursor: pointer;
   transition: background .15s, opacity .15s;
 }
+.repaso-icon-btn.dim {
+  background: rgba(255,255,255,0.06);
+  border-color: rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.30);
+}
+.repaso-icon-btn.has-errors {
+  background: rgba(79,126,255,0.18);
+  border-color: rgba(79,126,255,0.45);
+  color: #6b96ff;
+}
 .repaso-icon-btn:active { opacity: 0.75; }
 .repaso-icon-btn.urgent {
   background: rgba(248,113,113,0.15);

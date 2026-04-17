@@ -416,7 +416,7 @@
                   <option value="todas">Todas las semanas</option>
                 </select>
               </div>
-              <button id="repaso-mini-btn" class="repaso-icon-btn" onclick="openReviewPanel()" style="display:none" title="Repaso">
+              <button id="repaso-mini-btn" class="repaso-icon-btn" onclick="openReviewPanel()" title="Repaso">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
                 </svg>
@@ -534,11 +534,11 @@
                 <div id="lob-dur-section">
                   <p class="lobby-onb-label">Duracion de la sesion</p>
                   <div class="lobby-dur-row">
-                    <button class="ldur-pill on" id="dur-corta" onclick="pickDuration('corta')">
+                    <button class="ldur-pill on" id="dur-corta" onclick="pickDuration('corta'); lobbyGoStep(2)">
                       <span class="ldur-pill-name">Corta</span>
                       <span class="ldur-pill-sub">~5 min</span>
                     </button>
-                    <button class="ldur-pill" id="dur-larga" onclick="pickDuration('larga')">
+                    <button class="ldur-pill" id="dur-larga" onclick="pickDuration('larga'); lobbyGoStep(2)">
                       <span class="ldur-pill-name">Larga</span>
                       <span class="ldur-pill-sub">~15 min</span>
                     </button>
@@ -1155,7 +1155,7 @@
   <div id="plan-wiz-step1" class="plan-wiz-step">
     <div class="plan-wiz-topbar">
       <div></div>
-      <span class="plan-wiz-step-label">1 / 4</span>
+      <span class="plan-wiz-step-label">1 / 5</span>
       <button class="lobby-close-btn" onclick="closePlanWizard()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -1178,7 +1178,7 @@
       <button class="lobby-back-btn" onclick="showPlanWizStep(1)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <span class="plan-wiz-step-label">2 / 4</span>
+      <span class="plan-wiz-step-label">2 / 5</span>
       <button class="lobby-close-btn" onclick="closePlanWizard()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -1193,44 +1193,29 @@
     </div>
   </div>
 
-  <!-- Step 3: Preguntas + Intensidad -->
+  <!-- Step 3: Preguntas por sesión -->
   <div id="plan-wiz-step3" class="plan-wiz-step" style="display:none">
     <div class="plan-wiz-topbar">
       <button class="lobby-back-btn" onclick="showPlanWizStep(2)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <span class="plan-wiz-step-label">3 / 4</span>
+      <span class="plan-wiz-step-label">3 / 5</span>
       <button class="lobby-close-btn" onclick="closePlanWizard()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
     </div>
-    <div class="plan-wiz-content">
+    <div class="plan-wiz-content plan-wiz-content-center">
       <div class="plan-wiz-question">¿Cuántas preguntas por sesión?</div>
       <div class="plan-wiz-hint">Ajusta según tu disponibilidad de tiempo</div>
-      <div class="plan-wiz-slider-big">
+      <div class="plan-wiz-slider-big" style="margin-top:32px">
         <div class="plan-wiz-slider-val" id="plan-atoms-val">10</div>
-        <div class="plan-wiz-slider-unit">preguntas</div>
-        <div class="plan-range-row" style="margin-top:16px">
+        <div class="plan-wiz-slider-unit">preguntas por sesión</div>
+        <div class="plan-range-row" style="margin-top:20px">
           <span class="plan-range-bound">5</span>
           <input type="range" id="plan-atoms-slider" min="5" max="20" value="10" step="1"
                  class="plan-range-slider" oninput="setPlanAtomsSlider(this.value)"/>
           <span class="plan-range-bound">20</span>
         </div>
-      </div>
-      <div class="lobby-label" style="margin-top:24px;margin-bottom:10px">Intensidad del plan</div>
-      <div class="plan-intensity-row">
-        <button class="plan-intensity-btn" data-val="rapido" onclick="setPlanIntensity('rapido')">
-          <span class="plan-intensity-name">Rápido</span>
-          <span class="plan-intensity-desc">Más sesiones al día, repaso en 1 día</span>
-        </button>
-        <button class="plan-intensity-btn active" data-val="equilibrado" onclick="setPlanIntensity('equilibrado')">
-          <span class="plan-intensity-name">Equilibrado</span>
-          <span class="plan-intensity-desc">Balance entre carga y retención</span>
-        </button>
-        <button class="plan-intensity-btn" data-val="exhaustivo" onclick="setPlanIntensity('exhaustivo')">
-          <span class="plan-intensity-name">Exhaustivo</span>
-          <span class="plan-intensity-desc">Más repeticiones, mayor profundidad</span>
-        </button>
       </div>
     </div>
     <div class="plan-wiz-footer-ob">
@@ -1238,13 +1223,47 @@
     </div>
   </div>
 
-  <!-- Step 4: Resumen + Crear -->
+  <!-- Step 4: Intensidad -->
   <div id="plan-wiz-step4" class="plan-wiz-step" style="display:none">
     <div class="plan-wiz-topbar">
       <button class="lobby-back-btn" onclick="showPlanWizStep(3)">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <span class="plan-wiz-step-label">4 / 4</span>
+      <span class="plan-wiz-step-label">4 / 5</span>
+      <button class="lobby-close-btn" onclick="closePlanWizard()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="plan-wiz-content">
+      <div class="plan-wiz-question">¿Qué intensidad quieres?</div>
+      <div class="plan-wiz-hint">Controla cuánto estudias cada día</div>
+      <div class="plan-intensity-row" style="margin-top:24px">
+        <button class="plan-intensity-btn" data-val="rapido" onclick="setPlanIntensity('rapido')">
+          <span class="plan-intensity-name">⚡ Rápido</span>
+          <span class="plan-intensity-desc">Más sesiones al día, repaso en 1 día</span>
+        </button>
+        <button class="plan-intensity-btn active" data-val="equilibrado" onclick="setPlanIntensity('equilibrado')">
+          <span class="plan-intensity-name">⚖️ Equilibrado</span>
+          <span class="plan-intensity-desc">Balance entre carga y retención</span>
+        </button>
+        <button class="plan-intensity-btn" data-val="exhaustivo" onclick="setPlanIntensity('exhaustivo')">
+          <span class="plan-intensity-name">🧠 Exhaustivo</span>
+          <span class="plan-intensity-desc">Más repeticiones, mayor profundidad</span>
+        </button>
+      </div>
+    </div>
+    <div class="plan-wiz-footer-ob">
+      <button class="lobby-start-btn" onclick="planWizShowSummary()">Ver resumen →</button>
+    </div>
+  </div>
+
+  <!-- Step 5: Resumen + Crear -->
+  <div id="plan-wiz-step5" class="plan-wiz-step" style="display:none">
+    <div class="plan-wiz-topbar">
+      <button class="lobby-back-btn" onclick="showPlanWizStep(4)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <span class="plan-wiz-step-label">5 / 5</span>
       <button class="lobby-close-btn" onclick="closePlanWizard()">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
       </button>
@@ -1255,7 +1274,7 @@
       <div class="plan-wiz-estimate" id="plan-wiz-estimate" style="margin-top:12px"></div>
     </div>
     <div class="plan-wiz-footer-ob">
-      <button class="lobby-start-btn" id="plan-wiz-submit-btn" onclick="submitPlanWizard()">Crear plan</button>
+      <button class="lobby-start-btn" id="plan-wiz-submit-btn" onclick="submitPlanWizard()">Crear plan 🚀</button>
     </div>
   </div>
 
