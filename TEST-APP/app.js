@@ -713,18 +713,14 @@ function resetAndOpenOnboarding() {
 }
 
 function switchHistTab(tab) {
-  const sesEl = $('hist-panel-sesiones');
-  const plEl  = $('hist-panel-planes');
-  const tabS  = $('hist-tab-sesiones');
-  const tabP  = $('hist-tab-planes');
-  if (!sesEl || !plEl) return;
-  if (tab === 'sesiones') {
-    sesEl.style.display = ''; plEl.style.display = 'none';
-    tabS.classList.add('on'); tabP.classList.remove('on');
-  } else {
-    sesEl.style.display = 'none'; plEl.style.display = '';
-    tabS.classList.remove('on'); tabP.classList.add('on');
-  }
+  const track = $('hist-track');
+  if (track) track.style.transform = tab === 'planes' ? 'translateX(-50%)' : 'translateX(0)';
+  const tabSes = $('hist-tab-sesiones');
+  const tabPl  = $('hist-tab-planes');
+  if (tabSes) tabSes.classList.toggle('on', tab === 'sesiones');
+  if (tabPl)  tabPl.classList.toggle('on', tab === 'planes');
+  if (tab === 'planes') loadPlanes();
+  if (tab === 'sesiones') loadSessions();
 }
 
 function goHome() {
@@ -2208,12 +2204,18 @@ function connectSessionWS(totalAtomos) {
     else if (msg.type === 'pista') {
       stopMicrophone();
       setVoiceState('speaking_ai');
-      const hintBox = $('hint-box');
+      const hintBox  = $('hint-box');
       const hintText = $('hint-box-text');
-      if (hintBox && hintText) { hintText.textContent = msg.texto; hintBox.style.display = ''; }
+      // Store hint text hidden; show only after audio
+      if (hintText) { hintText.textContent = msg.texto; hintText.style.display = 'none'; }
+      if (hintBox) hintBox.style.display = 'none';
       const trEl = $('duel-transcript'); if (trEl) trEl.textContent = '';
       _hideAllBtns();
       await playAudio(msg.audio_base64, msg.texto, msg.audio_format);
+      // Reveal icon only — user taps to see text
+      if (hintBox) hintBox.style.display = '';
+      const iconBtn = $('hint-icon-btn');
+      if (iconBtn) iconBtn.classList.remove('active');
       setVoiceState('listening');
       _showBtn('btn-enviar', true);
       _showBtn('btn-saltar', true);
@@ -2536,38 +2538,13 @@ async function requestLobbyMic() {
 let _typewriterTimer = null;
 
 async function typewriterText(el, texto, durationMs) {
-  // Cancel any ongoing typewriter
   if (_typewriterTimer) { clearInterval(_typewriterTimer); _typewriterTimer = null; }
   if (!el || !texto) return;
-
-  el.style.position = 'relative';
-  el.innerHTML = `
-    <span style="visibility:hidden; width:100%; display:inline-block; text-align:center;">${esc(texto)}</span>
-    <span class="typewriter-target" style="position:absolute; top:0; left:0; width:100%; height:100%; padding:inherit; display:flex; align-items:center; justify-content:center; box-sizing:border-box;"></span>
-  `;
-  const target = el.querySelector('.typewriter-target');
-
-  el.classList.add('typewriting');
-  el.classList.remove('expanded');
-
-  const chars = Array.from(texto); // proper unicode split
-  const msPerChar = Math.max(12, Math.min(55, (durationMs || 2000) / chars.length));
-  let i = 0;
-
-  return new Promise(resolve => {
-    _typewriterTimer = setInterval(() => {
-      if (i < chars.length) {
-        target.textContent += chars[i];
-        i++;
-      } else {
-        clearInterval(_typewriterTimer);
-        _typewriterTimer = null;
-        el.classList.remove('typewriting');
-        _maybeShowExpandBtn(texto);
-        resolve();
-      }
-    }, msPerChar);
-  });
+  el.style.position = '';
+  el.innerHTML = '';
+  el.textContent = texto;
+  el.classList.remove('typewriting', 'expanded');
+  _maybeShowExpandBtn(texto);
 }
 
 function estimateAudioDuration(base64, fmt) {
@@ -3189,6 +3166,15 @@ function _maybeShowExpandBtn(text) {
   btn.style.display = (text && text.length > 80) ? 'flex' : 'none';
 }
 
+function toggleHintText() {
+  const textEl  = $('hint-box-text');
+  const iconBtn = $('hint-icon-btn');
+  if (!textEl) return;
+  const shown = textEl.style.display !== 'none';
+  textEl.style.display = shown ? 'none' : '';
+  if (iconBtn) iconBtn.classList.toggle('active', !shown);
+}
+
 // ─ Reanudar escucha después de pista ─
 function reanudarEscucha() {
   _showBtn('btn-reanudar-escucha', false);
@@ -3354,10 +3340,14 @@ function openPlanWizard() {
 
   showPlanWizStep(1);
   _planAtomosPorSesion = 10;
+  _planIntensity = 'equilibrado';
   const slider = $('plan-atoms-slider');
   if (slider) slider.value = 10;
   const sliderLabel = $('plan-atoms-val');
-  if (sliderLabel) sliderLabel.textContent = TF('plan_n_questions', {n: 10});
+  if (sliderLabel) sliderLabel.textContent = '10';
+  document.querySelectorAll('.plan-intensity-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.val === 'equilibrado');
+  });
 
   const subjEl = $('plan-wiz-subject');
   if (subjEl) subjEl.textContent = curSubjectName || T('subj_modal_title');
@@ -3381,10 +3371,12 @@ function closePlanWizard() {
 }
 
 function showPlanWizStep(n) {
-  const s1 = $('plan-wiz-step1');
-  const s2 = $('plan-wiz-step2');
-  if (s1) s1.style.display = n === 1 ? 'flex' : 'none';
-  if (s2) s2.style.display = n === 2 ? 'flex' : 'none';
+  [1,2,3,4].forEach(i => {
+    const el = $(`plan-wiz-step${i}`);
+    if (el) el.style.display = i === n ? 'flex' : 'none';
+  });
+  const fill = $('plan-wiz-progress');
+  if (fill) fill.style.width = `${n * 25}%`;
 }
 
 function renderPlanWizTopics() {
@@ -3412,7 +3404,7 @@ let _planIntensity = 'equilibrado';
 function setPlanAtomsSlider(val) {
   _planAtomosPorSesion = parseInt(val, 10);
   const label = $('plan-atoms-val');
-  if (label) label.textContent = `${_planAtomosPorSesion} preguntas por sesión`;
+  if (label) label.textContent = String(_planAtomosPorSesion);
   _updatePlanEstimate();
 }
 
@@ -3448,28 +3440,12 @@ function planWizStep1Next() {
   });
   if (!selected.length) { toast(T('validation_select_topic'), 'err'); return; }
   showPlanWizStep(2);
-  // Update summary card
-  const sumEl = $('plan-wiz-summary');
-  if (sumEl) {
-    const total = selected.reduce((s, t) => s + (t.n_atomos || 0), 0);
-    sumEl.innerHTML = `<span>${selected.length} ${selected.length === 1 ? 'tema' : 'temas'} seleccionados</span><span>${total} contenidos</span>`;
-  }
-  _updatePlanEstimate();
+}
+
+function planWizStep2Next() {
   const dateInp = $('plan-exam-date');
-  if (dateInp) {
-    const _localDate = d => {
-      const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), day = String(d.getDate()).padStart(2,'0');
-      return `${y}-${m}-${day}`;
-    };
-    const tomorrow = new Date();
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    dateInp.min = _localDate(tomorrow);
-    if (!dateInp.value) {
-      const suggest = new Date();
-      suggest.setDate(suggest.getDate() + 30);
-      dateInp.value = _localDate(suggest);
-    }
-  }
+  if (!dateInp || !dateInp.value) { toast(T('validation_select_date'), 'err'); return; }
+  showPlanWizStep(3);
 }
 
 async function submitPlanWizard() {
@@ -3481,6 +3457,24 @@ async function submitPlanWizard() {
     return el && el.classList.contains('checked');
   });
   if (!selected.length) { toast(T('validation_select_topic'), 'err'); showPlanWizStep(1); return; }
+
+  // Update step 4 summary before showing it
+  const sumEl = $('plan-wiz-summary');
+  if (sumEl) {
+    const totalAt = selected.reduce((s, t) => s + (t.n_atomos || 0), 0);
+    const dateInp2 = $('plan-exam-date');
+    const fechaFmt = dateInp2 && dateInp2.value
+      ? new Date(dateInp2.value + 'T12:00:00').toLocaleDateString('es',{day:'numeric',month:'long',year:'numeric'})
+      : '—';
+    const intensLabels = {rapido:'Rápido',equilibrado:'Equilibrado',exhaustivo:'Exhaustivo'};
+    sumEl.innerHTML = `
+      <div class="plan-wiz-sum-row"><span>Temas</span><span>${selected.length}</span></div>
+      <div class="plan-wiz-sum-row"><span>Contenidos</span><span>${totalAt}</span></div>
+      <div class="plan-wiz-sum-row"><span>Examen</span><span>${fechaFmt}</span></div>
+      <div class="plan-wiz-sum-row"><span>Preguntas/sesión</span><span>${_planAtomosPorSesion}</span></div>
+      <div class="plan-wiz-sum-row"><span>Intensidad</span><span>${intensLabels[_planIntensity]||_planIntensity}</span></div>`;
+    _updatePlanEstimate();
+  }
 
   const btn = $('plan-wiz-submit-btn');
   if (btn) { btn.disabled = true; btn.textContent = T('empty_loading'); }
@@ -3624,9 +3618,9 @@ const _planCache = {};
 //   REVIEW_BLOCK_SIZE    = 8   → preguntas por bloque de repaso
 //   REVIEW_WINDOW_DAYS   = 3   → ventana de búsqueda
 
-const REVIEW_MIN_ERRORS   = 5;
+const REVIEW_MIN_ERRORS   = 0;
 const REVIEW_HEAVY_ERRORS = 20;
-const REVIEW_WINDOW_DAYS  = 3;
+const REVIEW_WINDOW_DAYS  = 7;
 const REVIEW_BLOCK_SIZE   = 8;
 
 // Estado del sistema de repaso (se recalcula en cada loadSessions)
@@ -3692,7 +3686,7 @@ function _evaluateReviewBlock(soloSessions) {
   });
   if (totalErrors <= REVIEW_MIN_ERRORS) return { blocked: false, mode: 'none', errors: totalErrors };
   if (totalErrors >= REVIEW_HEAVY_ERRORS) return { blocked: true, mode: 'heavy', errors: totalErrors };
-  return { blocked: true, mode: 'light', errors: totalErrors };
+  return { blocked: false, mode: 'light', errors: totalErrors };
 }
 
 function _findReviewSourceSession(soloSessions) {
@@ -3820,7 +3814,7 @@ function _onReviewSessionComplete() {
 function _renderReviewMiniBtn() {
   const btn = $('repaso-mini-btn');
   if (!btn) return;
-  if (_reviewErrors > REVIEW_MIN_ERRORS) {
+  if (_reviewErrors > 0) {
     const blocksNeeded = Math.ceil(_reviewErrors / REVIEW_BLOCK_SIZE);
     btn.textContent = `Repaso · ${_reviewErrors} errores`;
     btn.className = 'repaso-mini-btn' + (_reviewBlocked ? ' urgent' : '');
@@ -3933,13 +3927,16 @@ async function loadSessions() {
     list.innerHTML = `<div class="empty-state">${T('hist_loading')}</div>`;
   }
   try {
-    // Backend already excludes duration_type='repaso' from default endpoint
-    const [sessions, tests] = await Promise.all([
+    const [sessions, repasoSessions, tests] = await Promise.all([
       api(`/sesiones/usuario/${uid}`),
+      api(`/sesiones/usuario/${uid}?solo_repaso=true`).catch(() => []),
       api(`/tests/usuario/${uid}`).catch(() => []),
     ]);
 
-    const allSubjSess = sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id);
+    const allSubjSess = [
+      ...sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id),
+      ...repasoSessions.filter(s => s.asignatura_id === curSubjectId),
+    ];
     const filteredTests = tests.filter(t => t.asignatura_id === curSubjectId);
 
     // Evaluate review block state (sessions already have no repaso)
@@ -4016,9 +4013,10 @@ async function loadSessions() {
       const fecha = s.fecha_inicio ? new Date(s.fecha_inicio).toLocaleDateString(sLocale,{day:'numeric',month:'short'}) : '—';
       const hora  = s.fecha_inicio ? new Date(s.fecha_inicio).toLocaleTimeString(sLocale,{hour:'2-digit',minute:'2-digit'}) : '';
       const c = s.conteo || {};
-      const _sesTypeKey = {larga:'hist_session_long',plan:'hist_session_plan',asignatura:'hist_session_subject',test:'hist_session_test'}[s.duration_type] || 'hist_session_short';
-      const sesNombre = s.nombre || TLang(_sesTypeKey, sLocale);
+      const _sesTypeKey = {larga:'hist_session_long',plan:'hist_session_plan',asignatura:'hist_session_subject',test:'hist_session_test',repaso:'hist_session_short'}[s.duration_type] || 'hist_session_short';
+      const sesNombre = s.duration_type === 'repaso' ? 'Repaso' : (s.nombre || TLang(_sesTypeKey, sLocale));
       const isTestSess = s.duration_type === 'test';
+      const isRepaso = s.duration_type === 'repaso';
       const done = s.status === 'completada';
       const answered = c.total || 0;
       const total_q  = s.n_preguntas || answered || 0;
@@ -4040,7 +4038,7 @@ async function loadSessions() {
         <div class="sess-acc-item" id="sess-acc-${s.sesion_id}" onclick="toggleSessCard('${s.sesion_id}')">
           <div class="sess-acc-header">
             <div class="sess-acc-info">
-              <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px">${isTestSess ? '<span class="sess-acc-test-badge">TEST</span>' : ''}${esc(sesNombre)}</div>
+              <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px">${isTestSess ? '<span class="sess-acc-test-badge">TEST</span>' : isRepaso ? '<span class="sess-acc-test-badge" style="background:rgba(120,100,220,0.35);color:#c4b5fd;border-color:rgba(120,100,220,0.5)">REPASO</span>' : ''}${esc(sesNombre)}</div>
               <div class="sess-acc-meta">${fecha}${hora ? ' · ' + hora : ''} · <span style="font-variant-numeric:tabular-nums;color:rgba(255,255,255,0.60)">${fraccion}</span></div>
             </div>
             <span class="sess-acc-badge">${badgeTxt}</span>
@@ -4053,17 +4051,7 @@ async function loadSessions() {
         </div>`;
     };
 
-    // ── "Pendientes" — lista plana ────────────────────────────────────────
-    if (activeFilter === 'pendientes') {
-      const weekWrap = $('sess-week-wrap');
-      if (weekWrap) weekWrap.style.display = 'none';
-      list.innerHTML = items.map(item =>
-        item._type === 'test' ? _renderTestCard(item) : _renderSessCard(item)
-      ).join('');
-      return;
-    }
-
-    // ── "Completadas" / "Todas" — agrupar por semana ─────────────────────
+    // ── Agrupar por semana (todas las vistas) ────────────────────────────
     const _mondayOf = dateStr => {
       if (!dateStr) return 'sin_fecha';
       const d = new Date(dateStr);
@@ -4631,10 +4619,7 @@ async function openPlanDetail(planId) {
       html += todaySess.map((s, i) => renderNormal(s, i === 0)).join('');
     }
 
-    if (futureSess.length) {
-      html += `<div class="plan-detail-section-title">PRÓXIMAS</div>`;
-      html += `<div class="plan-proximas-scroll">${futureSess.map(renderProximaCard).join('')}</div>`;
-    }
+    // PRÓXIMAS goes to slide 2 — not here
 
     if (done.length) {
       const toggleId = `plan-done-${planId}`;
@@ -4647,9 +4632,34 @@ async function openPlanDetail(planId) {
     }
 
     bodyEl.innerHTML = html;
+    // Populate slide 2: PRÓXIMAS
+    const proximasEl = $('plan-detail-proximas');
+    if (proximasEl) {
+      if (futureSess.length) {
+        proximasEl.innerHTML = `
+          <div class="plan-detail-section-title" style="padding-top:4px">PRÓXIMAS</div>
+          <div class="plan-proximas-scroll">${futureSess.map(renderProximaCard).join('')}</div>
+          ${done.length ? `<div class="plan-detail-section-title" style="margin-top:16px">COMPLETADAS (${done.length})</div>${done.map(s => renderNormal(s,false)).join('')}` : ''}`;
+      } else {
+        proximasEl.innerHTML = `<div style="color:rgba(255,255,255,0.35);font-size:.82rem;padding:20px 4px">Sin sesiones próximas</div>`;
+      }
+    }
+    // Reset to slide 0 on open
+    planDetailGoSlide(0);
+    // Show/hide dots based on whether there are proximas
+    const dotsEl = $('plan-detail-dots');
+    if (dotsEl) dotsEl.style.display = futureSess.length ? 'flex' : 'none';
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = `<div style="color:var(--red);font-size:.82rem;padding:8px">${e.message}</div>`;
   }
+}
+
+function planDetailGoSlide(idx) {
+  const track = $('plan-detail-track');
+  if (track) track.style.transform = idx === 1 ? 'translateX(-50%)' : 'translateX(0)';
+  document.querySelectorAll('.plan-detail-dot').forEach((d, i) => {
+    d.classList.toggle('active', i === idx);
+  });
 }
 
 function togglePlanDone(id, titleEl) {

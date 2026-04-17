@@ -1187,7 +1187,7 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 
 /* ─ Sessions Accordion ─ */
 .sess-acc-list { display: flex; flex-direction: column; }
-.sess-acc-item { margin-bottom: 4px; }
+.sess-acc-item { margin-bottom: 2px; }
 .sess-acc-header { display: flex; align-items: center; gap: 10px; padding: 13px 0; cursor: pointer; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; }
 .sess-acc-info { flex: 1; min-width: 0; }
 .sess-acc-title { font-size: .92rem; font-weight: 500; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1675,24 +1675,23 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 .duelo-counter { font-size: .75rem; color: rgba(255,255,255,0.45); letter-spacing: .12em; font-weight: 700; text-transform: uppercase; margin-bottom: 4px; }
 .duelo-question {
   width: 100%;
-  font-size: 1.1rem; font-weight: 700; line-height: 1.45; text-align: center; color: var(--txt);
+  font-size: 1rem; font-weight: 700; line-height: 1.5; text-align: center; color: var(--txt);
   font-family: 'Inter', sans-serif; letter-spacing: -0.02em;
   padding: 8px 24px 2px;
-  /* 2-line clamp */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   flex-shrink: 0;
   cursor: pointer;
-  transition: all .3s ease;
-  height: 3.6rem; /* fixed ~2 lines, prevents layout shift */
+  transition: max-height .3s ease, opacity .2s ease;
+  min-height: 3.2rem;
+  max-height: 3.6rem;
 }
 .duelo-question.expanded {
   -webkit-line-clamp: unset;
-  height: auto;
-  max-height: 40vh;
-  overflow: visible;
+  max-height: 35vh;
+  overflow: auto;
 }
 .duelo-question::-webkit-scrollbar { display: none; }
 
@@ -1721,13 +1720,21 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 }
 .duelo-transcript:empty { visibility: hidden; }
 .hint-box {
-  display: flex; align-items: flex-start; gap: 8px;
-  margin: 8px 24px 0; padding: 10px 14px;
-  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.25);
-  border-radius: 12px; animation: hintFadeIn .3s ease;
+  display: flex; align-items: center; gap: 10px;
+  margin: 8px 24px 0; padding: 8px 12px;
+  background: rgba(255,255,255,0.10); border: 1px solid rgba(255,255,255,0.20);
+  border-radius: 14px; animation: hintFadeIn .3s ease;
 }
-.hint-box-icon { font-size: 1rem; flex-shrink: 0; line-height: 1.5; }
-.hint-box-text { font-size: .85rem; color: rgba(255,255,255,0.85); line-height: 1.5; }
+.hint-icon-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 34px; height: 34px; flex-shrink: 0;
+  background: rgba(255,255,255,0.12); border: 1px solid rgba(255,255,255,0.18);
+  border-radius: 50%; cursor: pointer; color: rgba(255,255,255,0.70);
+  transition: background .15s, color .15s, border-color .15s;
+}
+.hint-icon-btn.active { background: rgba(255,215,80,0.20); color: #ffd84a; border-color: rgba(255,215,80,0.40); }
+.hint-icon-btn:active { opacity: .75; }
+.hint-box-text { font-size: .83rem; color: rgba(255,255,255,0.82); line-height: 1.5; }
 @keyframes hintFadeIn { from { opacity:0; transform: translateY(6px); } to { opacity:1; transform: translateY(0); } }
 .duelo-actions {
   position: fixed; bottom: calc(env(safe-area-inset-bottom, 12px) + 15vh); left: 0; right: 0;
@@ -2100,6 +2107,14 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 /* Plan detail — collapsed done list */
 .plan-detail-done-list.hidden { display: none; }
 
+/* ── Historial swipe slides ── */
+.hist-slide {
+  min-width: 100%; height: 100%; overflow-y: auto;
+  display: flex; flex-direction: column;
+  padding-bottom: 16px;
+}
+#hist-viewport { display: flex; flex-direction: column; overflow: hidden; }
+
 /* Plan detail — PRÓXIMAS horizontal swipeable cards */
 .plan-proximas-scroll {
   display: flex; gap: 10px;
@@ -2144,6 +2159,63 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   color: #fca5a5;
 }
 .plan-proximas-card-btn.review:hover { background: rgba(248,113,113,0.28); }
+
+/* Plan detail dots */
+.plan-detail-dots {
+  display: flex; gap: 6px; align-items: center; padding: 0 4px;
+}
+.plan-detail-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: rgba(255,255,255,0.22); cursor: pointer; transition: all .2s;
+}
+.plan-detail-dot.active { background: #fff; transform: scale(1.2); }
+
+/* Plan wizard onboarding layout */
+.plan-wiz-progress-bar {
+  height: 3px; background: rgba(255,255,255,0.10); flex-shrink: 0;
+}
+.plan-wiz-progress-fill {
+  height: 100%; background: #4f7eff; border-radius: 2px; transition: width .3s ease;
+}
+.plan-wiz-step-label {
+  font-size: .72rem; font-weight: 600; color: rgba(255,255,255,0.35); letter-spacing: .04em;
+}
+.plan-wiz-content {
+  flex: 1; overflow-y: auto; padding: 28px 20px 16px;
+  display: flex; flex-direction: column;
+}
+.plan-wiz-content-center { justify-content: center; }
+.plan-wiz-question {
+  font-size: 1.35rem; font-weight: 700; color: #fff; line-height: 1.3; margin-bottom: 8px;
+}
+.plan-wiz-hint {
+  font-size: .80rem; color: rgba(255,255,255,0.42); margin-bottom: 24px;
+}
+.plan-wiz-slider-big {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 24px 0 8px;
+}
+.plan-wiz-slider-val {
+  font-size: 3.5rem; font-weight: 700; color: #fff; line-height: 1;
+}
+.plan-wiz-slider-unit {
+  font-size: .85rem; color: rgba(255,255,255,0.45); margin-top: 4px;
+}
+.plan-wiz-footer-ob {
+  flex-shrink: 0; padding: 12px 20px calc(env(safe-area-inset-bottom,0px) + 16px);
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+.plan-wiz-footer-ob .lobby-start-btn { width: 100%; margin: 0; }
+.plan-date-input-big {
+  font-size: 1.1rem; text-align: center; padding: 16px; margin-top: 8px;
+}
+.plan-wiz-sum-row {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: .82rem; padding: 10px 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  color: rgba(255,255,255,0.70);
+}
+.plan-wiz-sum-row span:last-child { font-weight: 600; color: #fff; }
 
 /* Plan detail — overflow fix for proximas swipe on iOS */
 .plan-detail-body { overflow: auto; }
@@ -2343,9 +2415,6 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   .duelo-actions { padding: 6px 0 8px; }
 }
 
-/* ── Typewriter cursor ── */
-.duelo-question.typewriting { border-right: 2px solid rgba(255,255,255,0.7); animation: blink-cursor .7s step-end infinite; }
-@keyframes blink-cursor { 50% { border-right-color: transparent; } }
 
 /* ══ RESUMEN COMPLETADA ══ */
 #v-resumen {
