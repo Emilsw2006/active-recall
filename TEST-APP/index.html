@@ -300,39 +300,40 @@
           </div>
           <div class="ob2-footer ob2-footer-dual">
             <button class="ob2-skip-btn" onclick="obNext()">Saltar</button>
-            <button class="ob2-continue-btn ob2-continue-flex" id="ob-step6-upload" onclick="obNext()">Procesar →</button>
+            <button class="ob2-continue-btn ob2-continue-flex" id="ob-step6-upload" onclick="obTerminarUpload()" disabled>Procesar →</button>
           </div>
         </div>
 
-        <!-- PASO 7: Tutorial -->
+        <!-- PASO 7: Tutorial 1/3 -->
         <div class="ob2-slide" id="ob-step-7">
           <div class="ob2-body ob2-body-center">
-            <div class="ob2-tutorial-icon">🧠</div>
-            <h1 class="ob2-title">Así funciona<br>Active Recall</h1>
-            <p class="ob2-sub">El método más efectivo para recordar de verdad.</p>
-            <div class="ob2-how-list">
-              <div class="ob2-how-item">
-                <div class="ob2-how-num">1</div>
-                <div class="ob2-how-text">
-                  <strong>Elige qué estudiar</strong>
-                  <span>Selecciona los temas de tu asignatura.</span>
-                </div>
-              </div>
-              <div class="ob2-how-item">
-                <div class="ob2-how-num">2</div>
-                <div class="ob2-how-text">
-                  <strong>Responde en voz alta</strong>
-                  <span>La IA te pregunta y evalúa tu respuesta al instante.</span>
-                </div>
-              </div>
-              <div class="ob2-how-item">
-                <div class="ob2-how-num">3</div>
-                <div class="ob2-how-text">
-                  <strong>Domina lo que fallas</strong>
-                  <span>El sistema detecta tus puntos débiles y los repasa hasta que los dominas.</span>
-                </div>
-              </div>
-            </div>
+            <div class="ob2-tutorial-icon">📚</div>
+            <h1 class="ob2-title">Elige qué<br>estudiar</h1>
+            <p class="ob2-sub">Selecciona los temas de tu asignatura.</p>
+          </div>
+          <div class="ob2-footer">
+            <button class="ob2-continue-btn" onclick="obNext()">Continuar</button>
+          </div>
+        </div>
+
+        <!-- PASO 8: Tutorial 2/3 -->
+        <div class="ob2-slide" id="ob-step-8">
+          <div class="ob2-body ob2-body-center">
+            <div class="ob2-tutorial-icon">🎤</div>
+            <h1 class="ob2-title">Responde en<br>voz alta</h1>
+            <p class="ob2-sub">La IA te pregunta y evalúa tu respuesta al instante.</p>
+          </div>
+          <div class="ob2-footer">
+            <button class="ob2-continue-btn" onclick="obNext()">Continuar</button>
+          </div>
+        </div>
+
+        <!-- PASO 9: Tutorial 3/3 -->
+        <div class="ob2-slide" id="ob-step-9">
+          <div class="ob2-body ob2-body-center">
+            <div class="ob2-tutorial-icon">🎯</div>
+            <h1 class="ob2-title">Domina lo<br>que fallas</h1>
+            <p class="ob2-sub">El sistema detecta tus puntos débiles y los repasa hasta que los dominas.</p>
           </div>
           <div class="ob2-footer">
             <button class="ob2-continue-btn" onclick="obFinish()">¡Empezar a estudiar! 🚀</button>
@@ -346,15 +347,7 @@
             window.obNext ? obNext() : null;
           }
           function onboardingFileLoad(event) {
-            const files = event.target.files;
-            if (!files || !files.length) return;
-            document.getElementById('ob-upload-zone').style.display = 'none';
-            document.getElementById('ob-upload-status').style.display = 'block';
-            document.getElementById('ob-upload-filename').innerHTML = Array.from(files).map(f =>
-              '<div class="ob2-file-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg><span class="ob2-file-name">' + f.name + '</span><span class="ob2-file-check">✓</span></div>'
-            ).join('');
-            const procBtn = document.getElementById('ob-step6-upload');
-            if (procBtn) procBtn.onclick = () => _obUploadAndFinish(files);
+            obHandleFiles(event);
           }
         </script>
 

@@ -3821,6 +3821,13 @@ button { touch-action: manipulation; }
 }
 .ob2-file-name { flex: 1; font-size: .86rem; color: rgba(255,255,255,0.85); word-break: break-all; }
 .ob2-file-check { color: #34d399; font-weight: 700; font-size: .90rem; }
+.ob2-file-icon { font-size: .90rem; font-weight: 700; flex-shrink: 0; }
+.ob2-file-ok  { color: #34d399; }
+.ob2-file-err { color: #f87171; }
+.ob2-file-st  { font-size: .78rem; opacity: 0.55; white-space: nowrap; }
+.ob2-file-uploading { border-color: rgba(255,255,255,0.12); }
+.ob2-file-done  { border-color: rgba(52,211,153,0.25); background: rgba(52,211,153,0.05); }
+.ob2-file-error { border-color: rgba(248,113,113,0.25); background: rgba(248,113,113,0.05); }
 
 .ob2-add-more-btn {
   padding: 10px; background: transparent;

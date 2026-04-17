@@ -924,8 +924,11 @@ let _obSubjId = null;
 let _obNivel  = 'bachillerato';
 let _obTiempo = '15';
 let _obMundo  = 'deportes';
+let _obPendingUploads = 0;
+let _obFailedFiles    = []; // [{file, itemId}]
+let _obUploadCount    = 0;
 
-const _OB_TOTAL = 7; // steps 0-7, progress shown from step 1
+const _OB_TOTAL = 9; // steps 0-9, progress shown from step 1
 
 function openOnboarding(name) {
   // Hide all other screens
@@ -945,6 +948,9 @@ function openOnboarding(name) {
   _obNivel  = 'bachillerato';
   _obTiempo = '15';
   _obMundo  = 'deportes';
+  _obPendingUploads = 0;
+  _obFailedFiles    = [];
+  _obUploadCount    = 0;
   _buildObColorPicker();
   _obGoTo(0, false);
 
@@ -1051,31 +1057,111 @@ async function obCreateSubject() {
       method: 'POST',
       body: JSON.stringify({ nombre: name, color: _obColor })
     });
+    if (!s || !s.id) throw new Error('Respuesta inválida del servidor');
     _obSubjId = s.id;
     await loadSubjectsHome();
     goSubject(s.id, s.nombre, s.color);
     _obGoTo(6);
   } catch(e) {
-    // fallback: go to upload step anyway
-    _obGoTo(6);
+    toast('No se pudo crear la asignatura, intenta de nuevo', 'err');
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Continuar'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Crear asignatura →'; }
   }
 }
 
-async function _obUploadAndFinish(files) {
-  if (!_obSubjId) { obNext(); return; }
-  const btn = $('ob-step6-upload');
-  if (btn) { btn.disabled = true; btn.textContent = 'Subiendo...'; }
+const _OB_SPIN = `<svg style="animation:spin .9s linear infinite;flex-shrink:0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
+
+function obHandleFiles(event) {
+  const files = Array.from(event.target.files || []);
+  event.target.value = '';
+  if (!files.length) return;
+
+  const zone = $('ob-upload-zone');
+  const statusArea = $('ob-upload-status');
+  if (zone) zone.style.display = 'none';
+  if (statusArea) statusArea.style.display = 'block';
+
+  files.forEach(file => {
+    if (!file.name.toLowerCase().endsWith('.pdf')) { toast(T('toast_pdf_only'), 'err'); return; }
+    _obUploadSingleFile(file, null);
+  });
+}
+
+async function _obUploadSingleFile(file, existingItemId) {
+  if (!_obSubjId) return;
+  const list = $('ob-upload-filename');
+  if (!list) return;
+
+  const itemId = existingItemId || ('obfile-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7));
+  let item = existingItemId ? $(existingItemId) : null;
+
+  if (!item) {
+    _obUploadCount++;
+    item = document.createElement('div');
+    item.id = itemId;
+    list.appendChild(item);
+  }
+
+  item.className = 'ob2-file-row ob2-file-uploading';
+  item.innerHTML = `<span class="ob2-file-icon">${_OB_SPIN}</span><span class="ob2-file-name">${esc(file.name)}</span><span class="ob2-file-st">Subiendo...</span>`;
+
+  _obPendingUploads++;
+  _obFailedFiles = _obFailedFiles.filter(f => f.itemId !== itemId);
+  _obUpdateTerminarBtn();
+
+  const form = new FormData();
+  form.append('pdf_file', file);
+  form.append('usuario_id', uid);
+  form.append('asignatura_id', _obSubjId);
+
   try {
-    await Promise.all(Array.from(files).map(file => {
-      const fd = new FormData();
-      fd.append('file', file);
-      fd.append('asignatura_id', _obSubjId);
-      return api('/documentos/', { method: 'POST', body: fd, raw: true });
-    }));
-  } catch(e) { /* ignore, go to tutorial anyway */ }
-  obNext(); // show tutorial (step 7)
+    const res = await fetch(`${API}/documento/upload`, {
+      method: 'POST', headers: { Authorization: `Bearer ${token}` }, body: form,
+    });
+    const d = await res.json();
+    if (!res.ok) throw new Error(d.detail || 'Error');
+    item.className = 'ob2-file-row ob2-file-done';
+    item.innerHTML = `<span class="ob2-file-icon ob2-file-ok">✓</span><span class="ob2-file-name">${esc(file.name)}</span>`;
+  } catch(e) {
+    item.className = 'ob2-file-row ob2-file-error';
+    item.innerHTML = `<span class="ob2-file-icon ob2-file-err">✗</span><span class="ob2-file-name">${esc(file.name)}</span><span class="ob2-file-st">Error</span>`;
+    _obFailedFiles.push({ file, itemId });
+  } finally {
+    _obPendingUploads = Math.max(0, _obPendingUploads - 1);
+    if (_obPendingUploads === 0 && _obFailedFiles.length > 0) {
+      const n = _obFailedFiles.length;
+      toast(`${n} archivo${n > 1 ? 's' : ''} no se pudo${n > 1 ? 'ieron' : ''} subir`, 'err');
+    }
+    _obUpdateTerminarBtn();
+  }
+}
+
+function _obUpdateTerminarBtn() {
+  const btn = $('ob-step6-upload');
+  if (!btn) return;
+  if (_obPendingUploads > 0) {
+    btn.disabled = true;
+    btn.textContent = `Subiendo... (${_obPendingUploads})`;
+  } else if (_obFailedFiles.length > 0) {
+    btn.disabled = false;
+    btn.textContent = `Reintentar (${_obFailedFiles.length}) →`;
+  } else if (_obUploadCount > 0) {
+    btn.disabled = false;
+    btn.textContent = 'Terminar →';
+  } else {
+    btn.disabled = true;
+    btn.textContent = 'Procesar →';
+  }
+}
+
+function obTerminarUpload() {
+  if (_obPendingUploads > 0) return;
+  if (_obFailedFiles.length > 0) {
+    const toRetry = [..._obFailedFiles];
+    toRetry.forEach(({ file, itemId }) => _obUploadSingleFile(file, itemId));
+    return;
+  }
+  obNext();
 }
 
 function obFinish() {
