@@ -1060,8 +1060,14 @@ async function obCreateSubject() {
     });
     if (!s || !s.id) throw new Error('Respuesta inválida del servidor');
     _obSubjId = s.id;
-    await loadSubjectsHome();
-    goSubject(s.id, s.nombre, s.color);
+    // Set subject vars so obFinish/enterApp work, but do NOT call goSubject()
+    // (goSubject calls switchView('hub') which would exit onboarding)
+    curSubjectId   = s.id;
+    curSubjectName = s.nombre;
+    if (s.color) { curSubjectColor = s.color; localStorage.setItem('ar_subj_color', s.color); }
+    localStorage.setItem('ar_subj_id',   s.id);
+    localStorage.setItem('ar_subj_name', s.nombre);
+    loadSubjectsHome(); // background refresh, no await
     _obGoTo(6);
   } catch(e) {
     toast('No se pudo crear la asignatura, intenta de nuevo', 'err');
