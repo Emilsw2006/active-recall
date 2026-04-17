@@ -4094,7 +4094,16 @@ async function loadSessions() {
     };
     const todayM = _currentMonday();
 
-    // Build week groups from ALL items first (to populate the select)
+    // Build week options from ALL items (before status filter) so all historical weeks always appear
+    const weekKeysForSelect = [];
+    const _weekKeySet = new Set();
+    allItems.filter(i => i.duration_type !== 'repaso').forEach(item => {
+      const key = _mondayOf(item._date);
+      if (!_weekKeySet.has(key)) { _weekKeySet.add(key); weekKeysForSelect.push(key); }
+    });
+    weekKeysForSelect.sort((a, b) => b.localeCompare(a)); // newest first
+
+    // Build week groups from filtered items only (for rendering)
     const weekOrderAll = []; const weekMapAll = {};
     items.forEach(item => {
       const key = _mondayOf(item._date);
@@ -4102,10 +4111,10 @@ async function loadSessions() {
       weekMapAll[key].push(item);
     });
 
-    // Populate week select and show it
+    // Populate week select with full history; show if more than 1 historical week
     const weekWrap = $('sess-week-wrap');
-    if (weekWrap) weekWrap.style.display = weekOrderAll.length > 1 ? '' : 'none';
-    _populateWeekSelect(weekOrderAll, todayM);
+    if (weekWrap) weekWrap.style.display = weekKeysForSelect.length > 1 ? '' : 'none';
+    _populateWeekSelect(weekKeysForSelect, todayM);
 
     // Apply week filter
     const activeWeek = _sessWeekFilter || 'todas';
