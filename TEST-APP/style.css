@@ -39,6 +39,7 @@ button, a, label, [role="button"] {
 }
 input, select, textarea {
   -webkit-tap-highlight-color: transparent;
+  font-family: inherit;
 }
 button { -webkit-appearance: none; appearance: none; }
 input, textarea { -webkit-appearance: none; appearance: none; }
@@ -1320,7 +1321,8 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   border: 1.5px solid rgba(255,255,255,0.28); border-radius: 12px;
   color: #fff; font-family: 'Inter', sans-serif; font-size: .9rem; outline: none;
 }
-.ajustes-name-input:focus { border-color: rgba(255,255,255,0.55); }
+.ajustes-name-input:focus { border-color: var(--amber); box-shadow: 0 0 0 3px rgba(91,141,238,0.25); }
+#m-name:focus, #search-subj-input:focus { border-color: var(--amber) !important; box-shadow: 0 0 0 3px rgba(91,141,238,0.25); outline: none; }
 .ajustes-save-btn {
   padding: 10px 14px; border-radius: 12px; border: none;
   background: rgba(255,255,255,0.90); color: #1e3a6e;
@@ -3486,8 +3488,8 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   transition: border-color 0.18s, background 0.18s, transform 0.14s, box-shadow 0.18s;
 }
 .wizard-input:focus {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 16px rgba(0,0,0,0.10), 0 0 0 3px rgba(255,255,255,0.12);
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(91,141,238,0.28);
 }
 .wizard-btn-primary {
   box-shadow: 0 6px 24px rgba(255,255,255,0.20);
@@ -3785,7 +3787,7 @@ button { touch-action: manipulation; }
   box-sizing: border-box;
 }
 .ob2-input::placeholder { color: rgba(255,255,255,0.40); }
-.ob2-input:focus { border-color: rgba(255,255,255,0.70); background: rgba(255,255,255,0.16); }
+.ob2-input:focus { border-color: var(--amber); background: rgba(255,255,255,0.16); box-shadow: 0 0 0 3px rgba(91,141,238,0.28); }
 .ob2-input-sm { font-size: .88rem; padding: 12px 16px; margin-top: 4px; }
 
 /* ── Color picker ── */

@@ -996,6 +996,7 @@ function obSelect(key, value, btn) {
     btn.parentElement.querySelectorAll('.ob2-opt, .ob-opt-row').forEach(b => b.classList.remove('active'));
   }
   if (btn) btn.classList.add('active');
+  if (key === 'source' || key === 'nivel') setTimeout(obNext, 250);
 }
 
 function obSelectAnalogy(val, el) {
@@ -1050,7 +1051,7 @@ async function obCreateSubject() {
   if (!name) { nameInput && nameInput.focus(); return; }
 
   const btn = $('ob-step6-next');
-  if (btn) { btn.disabled = true; btn.textContent = 'Creando...'; }
+  if (btn) { btn.disabled = true; btn.textContent = 'Creando...'; btn.style.opacity = '0.35'; }
 
   try {
     const s = await api('/asignaturas/', {
@@ -1064,8 +1065,7 @@ async function obCreateSubject() {
     _obGoTo(6);
   } catch(e) {
     toast('No se pudo crear la asignatura, intenta de nuevo', 'err');
-  } finally {
-    if (btn) { btn.disabled = false; btn.textContent = 'Crear asignatura →'; }
+    if (btn) { btn.disabled = false; btn.textContent = 'Crear asignatura →'; btn.style.opacity = ''; }
   }
 }
 
@@ -1146,6 +1146,7 @@ function _obUpdateTerminarBtn() {
     btn.disabled = false;
     btn.textContent = `Reintentar (${_obFailedFiles.length}) →`;
   } else if (_obUploadCount > 0) {
+    if (_obStep === 6) { setTimeout(obNext, 400); return; }
     btn.disabled = false;
     btn.textContent = 'Terminar →';
   } else {
