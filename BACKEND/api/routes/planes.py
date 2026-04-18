@@ -56,9 +56,9 @@ async def crear_plan(body: CrearPlanRequest):
 
     n_sesiones_fallback = ceil(total_atomos / atomos_por_sesion)
 
-    # Recolectar resultados de diagnóstico
+    # Recolectar resultados de diagnóstico (resultados filtra por atomo_id — no tiene usuario_id)
     atomo_ids = [a["id"] for a in atomos_detalles]
-    resultados_res = db.table("resultados").select("atomo_id, estado").eq("usuario_id", body.usuario_id).in_("atomo_id", atomo_ids).execute()
+    resultados_res = db.table("resultados").select("atomo_id, estado").in_("atomo_id", atomo_ids).execute()
     
     diagnostic_results = {}
     for r in (resultados_res.data or []):
