@@ -1166,29 +1166,31 @@ async function _obUploadSingleFile(file, existingItemId) {
 function _obUpdateTerminarBtn() {
   const btn = $('ob-step6-upload');
   if (!btn) return;
-  if (_obPendingUploads > 0) {
+  if (_obUploadCount === 0) {
     btn.disabled = true;
-    btn.textContent = `Subiendo... (${_obPendingUploads})`;
+    btn.textContent = 'Procesar →';
+  } else if (_obPendingUploads > 0) {
+    // Allow proceeding while uploads are still in flight — they continue in background
+    btn.disabled = false;
+    btn.textContent = 'Continuar →';
   } else if (_obFailedFiles.length > 0) {
     btn.disabled = false;
     btn.textContent = `Reintentar (${_obFailedFiles.length}) →`;
-  } else if (_obUploadCount > 0) {
+  } else {
     if (_obStep === 6) { setTimeout(obNext, 400); return; }
     btn.disabled = false;
     btn.textContent = 'Terminar →';
-  } else {
-    btn.disabled = true;
-    btn.textContent = 'Procesar →';
   }
 }
 
 function obTerminarUpload() {
-  if (_obPendingUploads > 0) return;
-  if (_obFailedFiles.length > 0) {
+  if (_obFailedFiles.length > 0 && _obPendingUploads === 0) {
     const toRetry = [..._obFailedFiles];
     toRetry.forEach(({ file, itemId }) => _obUploadSingleFile(file, itemId));
     return;
   }
+  // Proceed even if uploads are still pending — they finish in background,
+  // and the main app shows "Procesando..." spinner for each doc.
   obNext();
 }
 
