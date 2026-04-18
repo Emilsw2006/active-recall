@@ -952,6 +952,8 @@ function openOnboarding(name) {
   _obFailedFiles    = [];
   _obUploadCount    = 0;
   _buildObColorPicker();
+  const nameInput = $('ob-subj-name');
+  if (nameInput) nameInput.addEventListener('input', obValidateSubjectName);
   _obGoTo(0, false);
 
   // Show via class (CSS controls display; class overrides default none)
@@ -979,6 +981,15 @@ function _obGoTo(step, animate = true) {
   // Back button: disabled on step 0
   const backBtn = $('ob2-back-btn');
   if (backBtn) backBtn.disabled = (step === 0);
+
+  if (step === 5) {
+    const btn = $('ob-step6-next');
+    if (btn) {
+      btn.style.opacity = '';
+      btn.textContent = 'Crear asignatura →';
+    }
+    obValidateSubjectName();
+  }
 }
 
 function obNext() {
@@ -1047,6 +1058,12 @@ function obSelectColor(color, el) {
   _obColor = color;
   document.querySelectorAll('.ob-color-dot').forEach(d => d.classList.remove('active'));
   if (el) el.classList.add('active');
+}
+
+function obValidateSubjectName() {
+  const nameInput = $('ob-subj-name');
+  const btn = $('ob-step6-next');
+  if (btn) btn.disabled = !(nameInput && nameInput.value.trim());
 }
 
 async function obCreateSubject() {
