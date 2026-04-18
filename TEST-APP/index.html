@@ -1233,20 +1233,31 @@
       </button>
     </div>
     <div class="plan-wiz-content">
-      <div class="plan-wiz-question">¿Qué intensidad quieres?</div>
-      <div class="plan-wiz-hint">Controla cuánto estudias cada día</div>
-      <div class="plan-intensity-row" style="margin-top:24px">
+      <div class="plan-wiz-question">¿Cuánto quieres estudiar al día?</div>
+      <div class="plan-intensity-row" style="margin-top:20px">
         <button class="plan-intensity-btn" data-val="rapido" onclick="setPlanIntensity('rapido')">
-          <span class="plan-intensity-name">⚡ Rápido</span>
-          <span class="plan-intensity-desc">Más sesiones al día, repaso en 1 día</span>
+          <div class="plan-int-bars">
+            <span class="pib ph1 plit"></span>
+            <span class="pib ph2"></span>
+            <span class="pib ph3"></span>
+          </div>
+          <span class="plan-int-label">Poco</span>
         </button>
         <button class="plan-intensity-btn active" data-val="equilibrado" onclick="setPlanIntensity('equilibrado')">
-          <span class="plan-intensity-name">⚖️ Equilibrado</span>
-          <span class="plan-intensity-desc">Balance entre carga y retención</span>
+          <div class="plan-int-bars">
+            <span class="pib ph1 plit"></span>
+            <span class="pib ph2 plit"></span>
+            <span class="pib ph3"></span>
+          </div>
+          <span class="plan-int-label">Normal</span>
         </button>
         <button class="plan-intensity-btn" data-val="exhaustivo" onclick="setPlanIntensity('exhaustivo')">
-          <span class="plan-intensity-name">🧠 Exhaustivo</span>
-          <span class="plan-intensity-desc">Más repeticiones, mayor profundidad</span>
+          <div class="plan-int-bars">
+            <span class="pib ph1 plit"></span>
+            <span class="pib ph2 plit"></span>
+            <span class="pib ph3 plit"></span>
+          </div>
+          <span class="plan-int-label">Mucho</span>
         </button>
       </div>
     </div>

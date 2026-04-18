@@ -2468,21 +2468,29 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 
 /* Plan wizard intensity buttons */
 .plan-intensity-row {
-  display: flex; flex-direction: column; gap: 8px; margin-top: 6px;
+  display: flex; flex-direction: row; gap: 10px;
 }
 .plan-intensity-btn {
-  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
-  padding: 11px 14px; border-radius: 14px;
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(255,255,255,0.10);
-  color: rgba(255,255,255,0.50); cursor: pointer; text-align: left;
-  transition: all .16s;
+  flex: 1; display: flex; flex-direction: column; align-items: center; gap: 10px;
+  padding: 16px 8px 14px; border-radius: var(--r-md);
+  background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
+  color: rgba(255,255,255,0.45); cursor: pointer;
+  transition: all .18s var(--ease-out);
 }
 .plan-intensity-btn.active {
-  background: rgba(79,126,255,0.16); border-color: rgba(79,126,255,0.40);
+  background: rgba(255,255,255,0.16); border-color: rgba(255,255,255,0.35);
   color: #fff;
 }
-.plan-intensity-name { font-size: .82rem; font-weight: 700; }
-.plan-intensity-desc { font-size: .70rem; opacity: .65; }
+/* Signal bars */
+.plan-int-bars { display: flex; align-items: flex-end; gap: 4px; height: 22px; }
+.pib { width: 7px; border-radius: 3px; background: rgba(255,255,255,.18); transition: background .18s; }
+.plan-intensity-btn.active .pib { background: rgba(255,255,255,.22); }
+.plan-intensity-btn.active .plit { background: #fff; }
+.plit { background: rgba(255,255,255,.45); }
+.ph1 { height: 8px; }
+.ph2 { height: 14px; }
+.ph3 { height: 21px; }
+.plan-int-label { font-size: .76rem; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 
 /* Plan wizard estimate */
 .plan-wiz-estimate {
