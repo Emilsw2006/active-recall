@@ -227,6 +227,39 @@ def dividir_en_chunks(atomos: List[dict], preguntas_por_sesion: int) -> List[Lis
     return chunks
 
 
+# ── Selección inteligente de átomos ─────────────────────────────────────────
+
+def _seleccionar_por_temas(atomos: List[dict], limite: int) -> List[dict]:
+    """
+    Elige `limite` átomos distribuyendo entre temas en round-robin.
+    Los átomos ya vienen ordenados por prioridad (rojo → nuevo → verde).
+    Así se maximiza la cobertura de contenido en lugar de agotar el primer tema.
+    """
+    if len(atomos) <= limite:
+        return atomos
+
+    by_tema: dict = {}
+    for a in atomos:
+        by_tema.setdefault(a["tema_id"], []).append(a)
+
+    temas = list(by_tema.values())
+    result: List[dict] = []
+    i = 0
+    while len(result) < limite:
+        progreso = False
+        for tema_atoms in temas:
+            if i < len(tema_atoms):
+                result.append(tema_atoms[i])
+                progreso = True
+                if len(result) >= limite:
+                    break
+        if not progreso:
+            break
+        i += 1
+
+    return result
+
+
 # ── Carga de sesión en memoria ───────────────────────────────────────────────
 
 async def cargar_sesion(
@@ -293,6 +326,8 @@ async def cargar_sesion(
     if ids_ya_respondidos:
         logger.info(f"[{sesion_id}] Reanudando — saltando {len(ids_ya_respondidos)} ya respondidos")
 
+    LARGA_MAX = 20  # cap hard para sesión larga
+
     def sort_key(a):
         return (0 if a["id"] in ids_rojos else 1, a["orden"])
 
@@ -302,16 +337,21 @@ async def cargar_sesion(
     if max_atomos:
         limite = min(max_atomos, MAX_PREGUNTAS)
     elif duration_type == "repaso":
-        # Sesión de repaso: usa exactamente n_preguntas si se pasó (ya viene en max_atomos)
-        # Si no, usa el tamaño de bloque estándar (8) o lo disponible
         limite = min(total_disp, MAX_PREGUNTAS)
     elif duration_type == "corta":
         limite = max(5, total_disp // 2)  # mitad del contenido elegido
+    elif duration_type == "larga":
+        limite = min(total_disp, LARGA_MAX)
     else:
-        limite = min(total_disp, MAX_PREGUNTAS)  # todo el contenido (larga, plan, asignatura)
+        limite = min(total_disp, MAX_PREGUNTAS)  # plan, asignatura
 
     logger.info(f"[{sesion_id}] {total_disp} disponibles → límite={limite} ({duration_type})")
-    atomos_ordenados = disponibles[:limite]
+
+    # Para larga con más átomos de los que caben: distribuir entre temas (cobertura máxima)
+    if duration_type == "larga" and total_disp > LARGA_MAX:
+        atomos_ordenados = _seleccionar_por_temas(disponibles, LARGA_MAX)
+    else:
+        atomos_ordenados = disponibles[:limite]
 
     atomos = [
         AtomoSesion(
