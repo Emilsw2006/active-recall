@@ -1077,7 +1077,7 @@ async function obCreateSubject() {
   try {
     const s = await api('/asignaturas/', {
       method: 'POST',
-      body: JSON.stringify({ nombre: name, color: _obColor })
+      body: JSON.stringify({ usuario_id: uid, nombre: name, color: _obColor })
     });
     if (!s || !s.id) throw new Error('Respuesta inválida del servidor');
     _obSubjId = s.id;
