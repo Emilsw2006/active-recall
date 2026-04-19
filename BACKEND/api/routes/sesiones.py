@@ -6,7 +6,7 @@ Endpoints de sesiones:
 - GET  /sesiones/usuario/{usuario_id}  → lista sesiones del usuario (para panel de historial)
 """
 
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Request
@@ -642,5 +642,49 @@ async def finalizar_sesion(sesion_id: str):
         "status": "completada",
     }).eq("id", sesion_id).execute()
 
+    # ── Lazy review session creation ────────────────────────────────────────
+    # Only for plan sessions that are NOT already a review session
+    plan_id   = sesion.get("plan_id")
+    is_review = sesion.get("is_review_session", False)
+    if plan_id and not is_review:
+        review_date = (date.today() + timedelta(days=2)).isoformat()
+        n_rev = sesion.get("n_preguntas") or 10
+        db.table("sesiones").insert({
+            "usuario_id":             sesion["usuario_id"],
+            "asignatura_id":          sesion["asignatura_id"],
+            "temas_elegidos":         sesion["temas_elegidos"],
+            "duration_type":          "plan",
+            "status":                 "por_empezar",
+            "current_question_index": 0,
+            "plan_id":                plan_id,
+            "lang":                   sesion.get("lang", "es"),
+            "tipo_sesion":            "review",
+            "is_review_session":      True,
+            "n_preguntas":            n_rev,
+            "fecha_objetivo":         review_date,
+            "slot":                   "anytime",
+        }).execute()
+        logger.info(f"[{sesion_id}] Review session created for plan {plan_id} at {review_date}")
+
     logger.info(f"[{sesion_id}] Finalizada — {len(skips)} skips guardados")
     return {"ok": True, "skips_guardados": len(skips)}
+
+
+@router.patch("/sesion/{sesion_id}/postpone")
+async def postpone_session(sesion_id: str):
+    """Postpones a session's fecha_objetivo by 1 day (swipe-to-tomorrow)."""
+    db = get_service_client()
+    ses_res = db.table("sesiones").select("id, fecha_objetivo, status").eq("id", sesion_id).execute()
+    if not ses_res.data:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+    sesion = ses_res.data[0]
+    if sesion.get("status") == "completada":
+        raise HTTPException(status_code=400, detail="No se puede postponer una sesión completada")
+    current = sesion.get("fecha_objetivo")
+    if current:
+        new_date = (date.fromisoformat(current) + timedelta(days=1)).isoformat()
+    else:
+        new_date = (date.today() + timedelta(days=1)).isoformat()
+    db.table("sesiones").update({"fecha_objetivo": new_date}).eq("id", sesion_id).execute()
+    logger.info(f"Session {sesion_id} postponed to {new_date}")
+    return {"ok": True, "fecha_objetivo": new_date}

@@ -99,7 +99,11 @@ async def crear_plan(body: CrearPlanRequest):
     # Crear plan
     n_sesiones = 0
     if is_smart_plan:
-        n_sesiones = len(plan_data.get("today", [])) + sum(len(d.get("sessions", [])) for d in plan_data.get("next_days", []))
+        all_gen = list(plan_data.get("today", []))
+        for _d in plan_data.get("next_days", []):
+            all_gen.extend(_d.get("sessions", []))
+        # Count only normal sessions — review sessions are created lazily
+        n_sesiones = sum(1 for s in all_gen if not s.get("is_review_session", False))
     else:
         n_sesiones = n_sesiones_fallback
 
@@ -123,12 +127,15 @@ async def crear_plan(body: CrearPlanRequest):
 
     # Crear sesiones ligadas al plan
     if is_smart_plan:
-        todas_las_sesiones_generadas = plan_data.get("today", [])
+        todas_las_sesiones_generadas = list(plan_data.get("today", []))
         for day in plan_data.get("next_days", []):
             todas_las_sesiones_generadas.extend(day.get("sessions", []))
 
         today = date.today()
         for ss in todas_las_sesiones_generadas:
+            # Skip review sessions — they are created lazily after each normal session completes
+            if ss.get("is_review_session", False):
+                continue
             tipo = ss.get("type", "initial")
             day_offset = ss.get("day_offset", 0)
             fecha_objetivo = (today + timedelta(days=day_offset)).isoformat()

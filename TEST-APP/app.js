@@ -1116,7 +1116,7 @@ async function obCreateSubject() {
   try {
     const s = await api('/asignaturas/', {
       method: 'POST',
-      body: JSON.stringify({ usuario_id: uid, nombre: name, color: _obColor })
+      body: JSON.stringify({ nombre: name, color: _obColor })
     });
     if (!s || !s.id) throw new Error('Respuesta inválida del servidor');
     _obSubjId = s.id;
@@ -4712,6 +4712,7 @@ async function openRevision(sesionId) {
 // ─ Plan detail overlay ─
 
 let _currentPlanDetailId = '';
+let _planDetailSlide = 0;
 
 async function openPlanDetail(planId) {
   _currentPlanDetailId = planId;
@@ -4723,20 +4724,33 @@ async function openPlanDetail(planId) {
   const completadas = p.sesiones_completadas || 0;
   const totales     = p.sesiones_totales || p.total_sesiones || 0;
 
-  const titleEl = $('plan-detail-title');
-  const metaEl  = $('plan-detail-meta');
-  const bodyEl  = $('plan-detail-body');
+  const titleEl     = $('plan-detail-title');
+  const metaEl      = $('plan-detail-meta');
+  const bodyEl      = $('plan-detail-body');
+  const progressBar = $('plan-header-progress-fill');
+
   if (titleEl) titleEl.textContent = p.nombre || '';
+
   if (metaEl) {
     const fechaFmt = fechaExamen
-      ? new Date(fechaExamen + 'T12:00:00').toLocaleDateString('es', { day: 'numeric', month: 'long', year: 'numeric' })
+      ? new Date(fechaExamen + 'T12:00:00').toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
       : '—';
     const daysLeft = fechaExamen
       ? Math.ceil((new Date(fechaExamen + 'T12:00:00') - new Date()) / 86400000)
       : null;
-    const daysStr = daysLeft !== null && daysLeft > 0 ? ` · ${TF('plan_days_left', {n: daysLeft})}` : '';
-    metaEl.textContent = `${T('plan_exam')} ${fechaFmt} · ${completadas}/${totales}${daysStr}`;
+    const daysBadge = daysLeft !== null && daysLeft > 0
+      ? `<span class="plan-meta-days-badge">${daysLeft}d</span>`
+      : '';
+    metaEl.innerHTML = `<span>${T('plan_exam')} ${fechaFmt} · ${completadas}/${totales}</span>${daysBadge}`;
   }
+
+  // Progress bar
+  if (progressBar) {
+    const pct = totales > 0 ? Math.round(completadas / totales * 100) : 0;
+    progressBar.style.width = `${pct}%`;
+  }
+
+  _planDetailSlide = 0;
   if (bodyEl) bodyEl.innerHTML = `<div style="color:rgba(255,255,255,0.45);font-size:.82rem;padding:12px 0">${T('rev_loading')}</div>`;
   overlay.classList.add('open');
 
@@ -4785,7 +4799,7 @@ async function openPlanDetail(planId) {
     };
 
     const renderNormal = (s, highlight) => `
-      <div class="plan-detail-sess${s.status === 'completada' ? ' done' : ''}${highlight ? ' next' : ''}">
+      <div class="plan-detail-sess${s.status === 'completada' ? ' done' : ''}${highlight ? ' next' : ''}" data-sess-id="${s.id}">
         <div class="plan-detail-sess-num">${s.status === 'completada' ? '✓' : s.numero}</div>
         <div class="plan-detail-sess-info">
           <div class="plan-detail-sess-label">${TF('plan_session_n', {n: s.numero})}</div>
@@ -4871,16 +4885,106 @@ async function openPlanDetail(planId) {
     // Show/hide dots based on whether there are proximas
     const dotsEl = $('plan-detail-dots');
     if (dotsEl) dotsEl.style.display = futureSess.length ? 'flex' : 'none';
+    // Attach swipe navigation + swipe-to-tomorrow
+    _attachPlanDetailSwipe();
+    if (bodyEl) _attachSwipeTomorrow(bodyEl);
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = `<div style="color:var(--red);font-size:.82rem;padding:8px">${e.message}</div>`;
   }
 }
 
 function planDetailGoSlide(idx) {
+  _planDetailSlide = idx;
   const track = $('plan-detail-track');
   if (track) track.style.transform = idx === 1 ? 'translateX(-50%)' : 'translateX(0)';
   document.querySelectorAll('.plan-detail-dot').forEach((d, i) => {
     d.classList.toggle('active', i === idx);
+  });
+}
+
+// ── Plan detail: swipe between slides ───────────────────────────────────────
+let _planSwipeAttached = false;
+function _attachPlanDetailSwipe() {
+  if (_planSwipeAttached) return;
+  const viewport = $('plan-detail-viewport');
+  if (!viewport) return;
+  _planSwipeAttached = true;
+
+  let sx = 0, sy = 0, swiping = false, swipeOnCard = false;
+  viewport.addEventListener('touchstart', e => {
+    sx = e.touches[0].clientX;
+    sy = e.touches[0].clientY;
+    swiping = false;
+    swipeOnCard = !!e.target.closest('.plan-detail-sess[data-sess-id]');
+  }, {passive: true});
+  viewport.addEventListener('touchmove', e => {
+    if (swipeOnCard) return;
+    const dx = e.touches[0].clientX - sx;
+    const dy = e.touches[0].clientY - sy;
+    if (!swiping && Math.abs(dy) > Math.abs(dx) + 6) return;
+    swiping = true;
+  }, {passive: true});
+  viewport.addEventListener('touchend', e => {
+    if (!swiping || swipeOnCard) return;
+    const dx = e.changedTouches[0].clientX - sx;
+    const dotsEl = $('plan-detail-dots');
+    const hasSlides = dotsEl && dotsEl.style.display !== 'none';
+    if (hasSlides) {
+      if (dx < -52 && _planDetailSlide < 1) planDetailGoSlide(1);
+      else if (dx > 52 && _planDetailSlide > 0) planDetailGoSlide(0);
+    }
+    swiping = false;
+  }, {passive: true});
+}
+
+// ── Plan detail: swipe-to-tomorrow on session cards ─────────────────────────
+function _attachSwipeTomorrow(container) {
+  const cards = container.querySelectorAll('.plan-detail-sess[data-sess-id]');
+  cards.forEach(card => {
+    if (card.classList.contains('done')) return;
+    let sx = 0, sy = 0, tx = 0, active = false;
+
+    card.addEventListener('touchstart', e => {
+      sx = e.touches[0].clientX;
+      sy = e.touches[0].clientY;
+      active = false; tx = 0;
+      card.style.transition = '';
+    }, {passive: true});
+
+    card.addEventListener('touchmove', e => {
+      const dx = e.touches[0].clientX - sx;
+      const dy = e.touches[0].clientY - sy;
+      if (!active && Math.abs(dy) > Math.abs(dx) + 8) return; // vertical scroll
+      if (dx <= 0) { if (active) { card.style.transform = ''; active = false; } return; }
+      active = true;
+      tx = Math.min(dx, 110);
+      card.style.transform = `translateX(${tx}px)`;
+      const ratio = Math.min(tx / 68, 1);
+      card.style.background = `rgba(52,211,153,${0.07 + ratio * 0.11})`;
+      card.style.borderColor = `rgba(52,211,153,${0.12 + ratio * 0.28})`;
+    }, {passive: true});
+
+    card.addEventListener('touchend', async () => {
+      const threshold = 68;
+      card.style.transition = 'transform .22s var(--ease-out,ease), background .22s, border-color .22s';
+      card.style.transform = '';
+      card.style.background = '';
+      card.style.borderColor = '';
+      if (active && tx >= threshold) {
+        const sessId = card.dataset.sessId;
+        card.style.opacity = '0.45';
+        try {
+          await api(`/sesion/${sessId}/postpone`, {method: 'PATCH'});
+          toast('Movido a mañana ☀️', 'ok');
+          await openPlanDetail(_currentPlanDetailId);
+        } catch(err) {
+          card.style.opacity = '';
+          toast(err.message, 'err');
+        }
+      }
+      setTimeout(() => { card.style.transition = ''; }, 250);
+      active = false; tx = 0;
+    }, {passive: true});
   });
 }
 
