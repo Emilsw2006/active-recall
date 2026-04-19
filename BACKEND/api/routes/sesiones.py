@@ -355,7 +355,11 @@ async def crear_sesion(body: CrearSesionRequest):
         max_atomos=body.max_atomos or body.n_preguntas,
     )
 
-    logger.info(f"Sesión {sesion_id} creada — {len(sesion.atomos)} átomos ({body.duration_type})")
+    # Guardar el total real de átomos para que el historial muestre X/23 correctamente
+    n_real = len(sesion.atomos)
+    db.table("sesiones").update({"n_preguntas": n_real}).eq("id", sesion_id).execute()
+
+    logger.info(f"Sesión {sesion_id} creada — {n_real} átomos ({body.duration_type})")
 
     # Generar título en background
     async def _set_nombre():
