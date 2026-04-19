@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from utils.logger import get_logger
 from utils.supabase_client import get_service_client
@@ -9,9 +9,9 @@ router = APIRouter(prefix="/asignaturas", tags=["asignaturas"])
 
 
 class AsignaturaCreate(BaseModel):
-    usuario_id: str
-    nombre: str
-    color: str | None = None
+    usuario_id: str        = Field(..., max_length=36)
+    nombre: str            = Field(..., min_length=1, max_length=100)
+    color: str | None      = Field(None, max_length=20)
 
 
 @router.get("/{usuario_id}")
@@ -67,8 +67,8 @@ async def crear_asignatura(body: AsignaturaCreate):
 
 
 class AsignaturaUpdate(BaseModel):
-    nombre: str | None = None
-    color: str | None = None
+    nombre: str | None = Field(None, min_length=1, max_length=100)
+    color: str | None  = Field(None, max_length=20)
 
 
 @router.put("/{asignatura_id}")

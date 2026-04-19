@@ -5,11 +5,13 @@ Active Recall Backend — FastAPI
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from postgrest.exceptions import APIError
+
+from utils.rate_limit import RateLimitMiddleware
 
 from api.routes.auth import router as auth_router
 from api.routes.asignaturas import router as asignaturas_router
@@ -58,6 +60,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+app.add_middleware(RateLimitMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -118,21 +121,27 @@ async def tts_preview(voice: str = "ef_dora", lang: str = "es"):
 
 
 @app.get("/auth/update-nombre")
-async def update_nombre_get(usuario_id: str, nombre: str):
+async def update_nombre_get(
+    usuario_id: str = Query(..., max_length=36),
+    nombre: str = Query(..., min_length=1, max_length=100),
+):
     """Actualiza el nombre del usuario."""
     from utils.supabase_client import get_service_client
     db = get_service_client()
-    db.table("usuarios").update({"nombre": nombre}).eq("id", usuario_id).execute()
-    return {"ok": True, "nombre": nombre}
+    db.table("usuarios").update({"nombre": nombre.strip()}).eq("id", usuario_id).execute()
+    return {"ok": True, "nombre": nombre.strip()}
 
 
 @app.get("/auth/update-mundo-analogias")
-async def update_mundo_analogias(usuario_id: str, mundo: str):
+async def update_mundo_analogias(
+    usuario_id: str = Query(..., max_length=36),
+    mundo: str = Query(..., min_length=1, max_length=100),
+):
     """Actualiza el mundo de analogías del usuario."""
     from utils.supabase_client import get_service_client
     db = get_service_client()
-    db.table("usuarios").update({"mundo_analogias": mundo}).eq("id", usuario_id).execute()
-    return {"ok": True, "mundo_analogias": mundo}
+    db.table("usuarios").update({"mundo_analogias": mundo.strip()}).eq("id", usuario_id).execute()
+    return {"ok": True, "mundo_analogias": mundo.strip()}
 
 
 @app.get("/notificaciones/{usuario_id}")

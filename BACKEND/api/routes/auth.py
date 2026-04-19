@@ -4,7 +4,7 @@ El trigger en DB crea el perfil en `usuarios` automáticamente.
 """
 
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from utils.logger import get_logger
 from utils.supabase_client import get_client, get_service_client
@@ -14,25 +14,25 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 class RegisterRequest(BaseModel):
-    nombre: str
+    nombre: str            = Field(..., min_length=1, max_length=100)
     email: EmailStr
-    password: str
-    mundo_analogias: str | None = None
+    password: str          = Field(..., min_length=8, max_length=128)
+    mundo_analogias: str | None = Field(None, max_length=100)
 
 
 class LoginRequest(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=1, max_length=128)
 
 class TokenLoginRequest(BaseModel):
-    access_token: str
+    access_token: str = Field(..., max_length=2048)
 
 class CompleteOnboardingRequest(BaseModel):
-    usuario_id: str
-    nivel: str | None = None
-    sesion_duracion: str | None = None
-    mundo_analogias: str | None = None
-    edad: int | None = None
+    usuario_id: str             = Field(..., max_length=36)
+    nivel: str | None           = Field(None, max_length=50)
+    sesion_duracion: str | None = Field(None, max_length=10)
+    mundo_analogias: str | None = Field(None, max_length=100)
+    edad: int | None            = Field(None, ge=10, le=120)
 
 
 @router.post("/register")

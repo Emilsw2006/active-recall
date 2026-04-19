@@ -11,7 +11,7 @@ from datetime import date, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from utils.logger import get_logger
 from utils.supabase_client import get_service_client
@@ -22,13 +22,13 @@ router = APIRouter(tags=["planes"])
 
 
 class CrearPlanRequest(BaseModel):
-    usuario_id: str
-    asignatura_id: str
-    temas_elegidos: List[str]
-    fecha_examen: str          # ISO date "2026-06-15"
-    atomos_por_sesion: int = 10
-    lang: str = "es"
-    intensity: str = "equilibrado"
+    usuario_id: str        = Field(..., max_length=36)
+    asignatura_id: str     = Field(..., max_length=36)
+    temas_elegidos: List[str] = Field(..., max_length=100)
+    fecha_examen: str      = Field(..., max_length=10, pattern=r'^\d{4}-\d{2}-\d{2}$')
+    atomos_por_sesion: int = Field(10, ge=5, le=20)
+    lang: str              = Field("es", max_length=5)
+    intensity: str         = Field("equilibrado", max_length=20)
 
 
 @router.post("/plan/crear")

@@ -10,7 +10,7 @@ from datetime import datetime
 from typing import List, Literal, Optional
 
 from fastapi import APIRouter, HTTPException, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from utils.logger import get_logger
 from utils.supabase_client import get_service_client
@@ -30,14 +30,14 @@ router = APIRouter(tags=["sesiones"])
 
 
 class CrearSesionRequest(BaseModel):
-    usuario_id: str
-    asignatura_id: str
-    temas_elegidos: List[str]
+    usuario_id: str    = Field(..., max_length=36)
+    asignatura_id: str = Field(..., max_length=36)
+    temas_elegidos: List[str] = Field(..., max_length=100)
     duration_type: Literal["corta", "larga", "test", "repaso"] = "corta"
-    max_atomos: Optional[int] = None  # sobreescribe el límite fijo
-    n_preguntas: Optional[int] = None  # para sesiones test: nº elegido en slider
-    completo: bool = False  # True → estudiar TODOS los átomos, dividir en partes
-    lang: str = "es"
+    max_atomos: Optional[int]  = Field(None, ge=1, le=30)
+    n_preguntas: Optional[int] = Field(None, ge=1, le=50)
+    completo: bool = False
+    lang: str = Field("es", max_length=5)
 
 
 @router.get("/sesiones/usuario/{usuario_id}")

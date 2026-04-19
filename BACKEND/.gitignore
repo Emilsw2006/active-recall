@@ -1,0 +1,29 @@
+# ── Secrets — NEVER commit these ──
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+cert.pem
+key.pem
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Models / large files
+BACKEND/.piper_models/
+*.onnx
+*.pt
+*.bin
+
+# OS
+.DS_Store
+Thumbs.db
