@@ -965,31 +965,62 @@ function openOnboarding(name) {
   });
 }
 
-function _obGoTo(step, animate = true) {
+async function _obGoTo(step, animate = true) {
+  const allSlides = document.querySelectorAll('.ob2-slide');
+  const prevStep  = _obStep;
   _obStep = step;
-  const slides = $('ob-slides');
-  if (slides) {
-    if (!animate) slides.style.transition = 'none';
-    slides.style.transform = `translateX(${-step * 100}%)`;
-    if (!animate) requestAnimationFrame(() => { slides.style.transition = ''; });
-  }
 
-  // Progress bar: step 0 = 0%, step 7 = 100%
+  const prev = allSlides[prevStep];
+  const next = allSlides[step];
+  if (!next) return;
+
+  // Progress bar
   const fill = $('ob-progress-fill');
   if (fill) fill.style.width = step === 0 ? '0%' : `${Math.round((step / _OB_TOTAL) * 100)}%`;
 
-  // Back button: disabled on step 0
+  // Back button
   const backBtn = $('ob2-back-btn');
   if (backBtn) backBtn.disabled = (step === 0);
 
   if (step === 5) {
     const btn = $('ob-step6-next');
-    if (btn) {
-      btn.style.opacity = '';
-      btn.textContent = 'Crear asignatura →';
-    }
+    if (btn) { btn.style.opacity = ''; btn.textContent = 'Crear asignatura →'; }
     obValidateSubjectName();
   }
+
+  // Snap (no animation)
+  if (!animate || prev === next) {
+    allSlides.forEach(s => { s.classList.remove('ob2-slide-active'); s.style.cssText = ''; });
+    next.classList.add('ob2-slide-active');
+    return;
+  }
+
+  const dir = step > prevStep ? 1 : -1; // forward = +1, back = -1
+
+  // — Leaving slide —
+  if (prev && prev.classList.contains('ob2-slide-active')) {
+    prev.style.transition = 'opacity 200ms var(--ease-out), transform 200ms var(--ease-out)';
+    prev.style.opacity    = '0';
+    prev.style.transform  = `translateX(${dir * -24}px)`;
+  }
+
+  // — Entering slide: prepare off-screen —
+  next.style.cssText = `opacity:0;transform:translateX(${dir * 24}px);transition:none;pointer-events:none;`;
+  next.classList.add('ob2-slide-active');
+
+  await new Promise(r => setTimeout(r, 200));
+
+  // Clean up leaving slide
+  if (prev) { prev.classList.remove('ob2-slide-active'); prev.style.cssText = ''; }
+
+  // — Animate in —
+  requestAnimationFrame(() => {
+    next.style.transition    = 'opacity 250ms var(--ease-out), transform 250ms var(--ease-out)';
+    next.style.opacity       = '1';
+    next.style.transform     = 'translateX(0)';
+    next.style.pointerEvents = '';
+    setTimeout(() => { if (next.style.transition) next.style.cssText = ''; }, 260);
+  });
 }
 
 function obNext() {
@@ -1000,13 +1031,21 @@ function obBack() {
   if (_obStep > 0) _obGoTo(_obStep - 1);
 }
 
+function _bloomChip(el) {
+  if (!el || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  el.classList.remove('blooming');
+  el.offsetWidth; // force reflow
+  el.classList.add('blooming');
+  setTimeout(() => el.classList.remove('blooming'), 300);
+}
+
 function obSelect(key, value, btn) {
   if (key === 'nivel') _obNivel = value;
   else if (key === 'tiempo') _obTiempo = value;
   if (btn && btn.parentElement) {
     btn.parentElement.querySelectorAll('.ob2-opt, .ob-opt-row').forEach(b => b.classList.remove('active'));
   }
-  if (btn) btn.classList.add('active');
+  if (btn) { btn.classList.add('active'); _bloomChip(btn); }
   if (key === 'source' || key === 'nivel') {
     const slide = btn ? btn.closest('.ob2-slide') : null;
     const continueBtn = slide ? slide.querySelector('.ob2-continue-btn') : null;
@@ -1017,7 +1056,7 @@ function obSelect(key, value, btn) {
 function obSelectAnalogy(val, el) {
   _obMundo = val;
   document.querySelectorAll('#ob-analogy-grid .ob2-opt, .ob-analogy-chip').forEach(c => c.classList.remove('active'));
-  if (el) el.classList.add('active');
+  if (el) { el.classList.add('active'); _bloomChip(el); }
 }
 
 async function obSaveAnalogyAndNext() {
@@ -2658,8 +2697,29 @@ async function typewriterText(el, texto, durationMs) {
   if (!el || !texto) return;
   el.style.position = '';
   el.innerHTML = '';
-  el.textContent = texto;
   el.classList.remove('typewriting', 'expanded');
+
+  // §2 — qIn entrance animation on question element
+  if (el.id === 'duel-question') {
+    el.classList.remove('q-in');
+    el.offsetWidth; // reflow
+    el.classList.add('q-in');
+  }
+
+  // §2 — stream words at 60ms stagger
+  const words = texto.split(' ');
+  await new Promise(resolve => {
+    let i = 0;
+    _typewriterTimer = setInterval(() => {
+      el.textContent = words.slice(0, ++i).join(' ');
+      if (i >= words.length) {
+        clearInterval(_typewriterTimer);
+        _typewriterTimer = null;
+        resolve();
+      }
+    }, 60);
+  });
+
   _maybeShowExpandBtn(texto);
 }
 
