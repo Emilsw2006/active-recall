@@ -4456,7 +4456,7 @@ async function resumeSessionFromHistory(sesionId, asignaturaId, asignaturaNombre
   const counter = $('duel-counter');
   if (counter) counter.textContent = T('sess_resuming');
   const question = $('duel-question');
-  if (question) question.textContent = T('sess_connecting');
+  if (question) { question.textContent = ''; question.classList.remove('expanded'); }
 
   switchView('duelo');
   connectSessionWS(null);
@@ -4712,7 +4712,6 @@ async function openRevision(sesionId) {
 // ─ Plan detail overlay ─
 
 let _currentPlanDetailId = '';
-let _planDetailSlide = 0;
 
 async function openPlanDetail(planId) {
   _currentPlanDetailId = planId;
@@ -4750,7 +4749,6 @@ async function openPlanDetail(planId) {
     progressBar.style.width = `${pct}%`;
   }
 
-  _planDetailSlide = 0;
   if (bodyEl) bodyEl.innerHTML = `<div style="color:rgba(255,255,255,0.45);font-size:.82rem;padding:12px 0">${T('rev_loading')}</div>`;
   overlay.classList.add('open');
 
@@ -4855,7 +4853,19 @@ async function openPlanDetail(planId) {
       html += todaySess.map((s, i) => renderNormal(s, i === 0 && !pastSess.length)).join('');
     }
 
-    // PRÓXIMAS goes to slide 2 — not here
+    // "Ver próximas" row — opens full-screen proximas overlay
+    if (futureSess.length) {
+      // Store future sessions for the overlay to render
+      _proximasSessions = futureSess;
+      html += `
+        <div class="plan-proximas-row" onclick="openProximas()">
+          <div class="plan-proximas-row-left">
+            <div class="plan-proximas-row-label">Próximas sesiones</div>
+            <div class="plan-proximas-row-sub">${futureSess.length} sesiones programadas</div>
+          </div>
+          <div class="plan-proximas-row-arrow">›</div>
+        </div>`;
+    }
 
     if (done.length) {
       const toggleId = `plan-done-${planId}`;
@@ -4868,73 +4878,75 @@ async function openPlanDetail(planId) {
     }
 
     bodyEl.innerHTML = html;
-    // Populate slide 2: PRÓXIMAS
-    const proximasEl = $('plan-detail-proximas');
-    if (proximasEl) {
-      if (futureSess.length) {
-        proximasEl.innerHTML = `
-          <div class="plan-detail-section-title" style="padding-top:4px">PRÓXIMAS</div>
-          <div class="plan-proximas-scroll">${futureSess.map(renderProximaCard).join('')}</div>
-          ${done.length ? `<div class="plan-detail-section-title" style="margin-top:16px">COMPLETADAS (${done.length})</div>${done.map(s => renderNormal(s,false)).join('')}` : ''}`;
-      } else {
-        proximasEl.innerHTML = `<div style="color:rgba(255,255,255,0.35);font-size:.82rem;padding:20px 4px">Sin sesiones próximas</div>`;
-      }
-    }
-    // Reset to slide 0 on open
-    planDetailGoSlide(0);
-    // Show/hide dots based on whether there are proximas
-    const dotsEl = $('plan-detail-dots');
-    if (dotsEl) dotsEl.style.display = futureSess.length ? 'flex' : 'none';
-    // Attach swipe navigation + swipe-to-tomorrow
-    _attachPlanDetailSwipe();
     if (bodyEl) _attachSwipeTomorrow(bodyEl);
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = `<div style="color:var(--red);font-size:.82rem;padding:8px">${e.message}</div>`;
   }
 }
 
-function planDetailGoSlide(idx) {
-  _planDetailSlide = idx;
-  const track = $('plan-detail-track');
-  if (track) track.style.transform = idx === 1 ? 'translateX(-50%)' : 'translateX(0)';
-  document.querySelectorAll('.plan-detail-dot').forEach((d, i) => {
-    d.classList.toggle('active', i === idx);
+// ── Próximas full-screen overlay ─────────────────────────────────────────────
+let _proximasSessions = [];
+
+function openProximas() {
+  const overlay = $('proximas-overlay');
+  const bodyEl  = $('proximas-body');
+  if (!overlay || !bodyEl) return;
+
+  const nDefault = (_planCache[_currentPlanDetailId] || {}).atomos_por_sesion || 10;
+  const today = _localDateStr();
+
+  const _tipoLabel = s => {
+    if (s.is_review_session) return '↺ Repaso';
+    const tipo = s.tipo_sesion || 'initial';
+    if (tipo === 'reinforcement') return '⟳ Refuerzo';
+    return '● Estudio';
+  };
+
+  const _dayLabel = fechaStr => {
+    if (!fechaStr) return '';
+    const tom = new Date(); tom.setDate(tom.getDate() + 1);
+    const tomStr = `${tom.getFullYear()}-${String(tom.getMonth()+1).padStart(2,'0')}-${String(tom.getDate()).padStart(2,'0')}`;
+    if (fechaStr === today)   return 'Hoy';
+    if (fechaStr === tomStr)  return 'Mañana';
+    const d = new Date(fechaStr + 'T12:00:00');
+    return d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'short' });
+  };
+
+  // Group by date
+  const byDate = {};
+  _proximasSessions.forEach(s => {
+    const key = s.fecha_objetivo || 'sin-fecha';
+    if (!byDate[key]) byDate[key] = [];
+    byDate[key].push(s);
   });
+
+  let html = '';
+  Object.keys(byDate).sort().forEach(dateKey => {
+    const label = dateKey === 'sin-fecha' ? 'Sin fecha' : _dayLabel(dateKey);
+    html += `<div class="plan-detail-section-title" style="padding-top:4px">${label.toUpperCase()}</div>`;
+    byDate[dateKey].forEach(s => {
+      const nQ = s.n_preguntas || nDefault;
+      const isRev = s.is_review_session;
+      html += `
+        <div class="plan-detail-sess${isRev ? ' review' : ''}" data-sess-id="${s.id}">
+          <div class="plan-detail-sess-num" style="${isRev ? 'font-size:.85rem' : ''}">${isRev ? '↺' : s.numero}</div>
+          <div class="plan-detail-sess-info">
+            <div class="plan-detail-sess-label">${_tipoLabel(s)}</div>
+            <div class="plan-detail-sess-status">${nQ} preguntas</div>
+          </div>
+          <button class="plan-detail-sess-btn plan-detail-sess-btn-ghost" onclick="closeProximas();startPlanSession('${s.id}')">Empezar</button>
+        </div>`;
+    });
+  });
+
+  bodyEl.innerHTML = html || `<div style="color:rgba(255,255,255,0.35);font-size:.82rem;padding:20px 4px">Sin sesiones próximas</div>`;
+  _attachSwipeTomorrow(bodyEl);
+  overlay.classList.add('open');
 }
 
-// ── Plan detail: swipe between slides ───────────────────────────────────────
-let _planSwipeAttached = false;
-function _attachPlanDetailSwipe() {
-  if (_planSwipeAttached) return;
-  const viewport = $('plan-detail-viewport');
-  if (!viewport) return;
-  _planSwipeAttached = true;
-
-  let sx = 0, sy = 0, swiping = false, swipeOnCard = false;
-  viewport.addEventListener('touchstart', e => {
-    sx = e.touches[0].clientX;
-    sy = e.touches[0].clientY;
-    swiping = false;
-    swipeOnCard = !!e.target.closest('.plan-detail-sess[data-sess-id]');
-  }, {passive: true});
-  viewport.addEventListener('touchmove', e => {
-    if (swipeOnCard) return;
-    const dx = e.touches[0].clientX - sx;
-    const dy = e.touches[0].clientY - sy;
-    if (!swiping && Math.abs(dy) > Math.abs(dx) + 6) return;
-    swiping = true;
-  }, {passive: true});
-  viewport.addEventListener('touchend', e => {
-    if (!swiping || swipeOnCard) return;
-    const dx = e.changedTouches[0].clientX - sx;
-    const dotsEl = $('plan-detail-dots');
-    const hasSlides = dotsEl && dotsEl.style.display !== 'none';
-    if (hasSlides) {
-      if (dx < -52 && _planDetailSlide < 1) planDetailGoSlide(1);
-      else if (dx > 52 && _planDetailSlide > 0) planDetailGoSlide(0);
-    }
-    swiping = false;
-  }, {passive: true});
+function closeProximas() {
+  const overlay = $('proximas-overlay');
+  if (overlay) overlay.classList.remove('open');
 }
 
 // ── Plan detail: swipe-to-tomorrow on session cards ─────────────────────────
@@ -4999,6 +5011,7 @@ function togglePlanDone(id, titleEl) {
 function closePlanDetail() {
   const overlay = $('plan-detail-overlay');
   if (overlay) overlay.classList.remove('open');
+  closeProximas();
 }
 
 async function startPlanSession(sesionId, planIdOverride) {
@@ -5048,7 +5061,7 @@ async function repetirSesion(sesionId) {
       const counter = $('duel-counter');
       if (counter) counter.textContent = TF('label_question_counter', {n: 1, total: '—'});
       const question = $('duel-question');
-      if (question) question.textContent = T('sess_starting');
+      if (question) { question.textContent = ''; question.classList.remove('expanded'); }
       switchView('duelo');
       connectSessionWS(res.n_atomos);
     }
