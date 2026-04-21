@@ -5639,45 +5639,77 @@ button { touch-action: manipulation; }
 .practica-gen-nav {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  padding: 10px 16px calc(max(env(safe-area-inset-bottom, 12px), 12px) + 8px);
+  gap: 10px;
+  padding: 12px 16px calc(max(env(safe-area-inset-bottom, 12px), 12px) + 6px);
   flex-shrink: 0;
   border-top: 1px solid var(--border);
 }
-.practica-gen-nav-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 1.5px solid var(--border);
-  background: var(--glass, rgba(255,255,255,0.06));
+
+/* ── Loading screen ── */
+.practica-gen-loading {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  padding: 40px 24px;
+  text-align: center;
+}
+.practica-gen-loading-icon {
+  font-size: 3rem;
+  animation: gen-pulse 1.5s ease-in-out infinite;
+}
+@keyframes gen-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50%       { transform: scale(1.18); opacity: 0.7; }
+}
+.practica-gen-loading-text {
+  font-size: 1.1rem;
+  font-weight: 700;
   color: var(--txt);
-  font-size: 1.25rem;
+}
+.practica-gen-loading-sub {
+  font-size: 0.82rem;
+  color: var(--txt-dim);
+  max-width: 240px;
+}
+
+/* ── Timer in header ── */
+.practica-gen-timer {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--accent, #4f7eff);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ── Solving state ── */
+.practica-gen-solving-info {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 32px 16px 16px;
+  text-align: center;
+}
+.practica-gen-solving-icon {
+  font-size: 2.5rem;
+}
+.practica-gen-solving-sub {
+  font-size: 0.82rem;
+  color: var(--txt-dim);
+}
+.practica-gen-reread-btn {
+  display: block;
+  margin: 0 auto;
+  padding: 10px 20px;
+  border-radius: 20px;
+  border: 1.5px solid var(--border);
+  background: transparent;
+  color: var(--txt);
+  font-size: 0.85rem;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: background var(--dur-fast, 0.15s) ease;
-  flex-shrink: 0;
+  transition: background var(--dur-fast) ease;
 }
-.practica-gen-nav-btn:active { background: rgba(255,255,255,0.14); }
-.practica-gen-nav-btn:disabled { opacity: 0.28; cursor: default; pointer-events: none; }
-.practica-gen-dots {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-  max-width: 60%;
-}
-.practica-gen-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--border, rgba(255,255,255,0.18));
-  transition: background 0.2s, transform 0.2s;
-  flex-shrink: 0;
-}
-.practica-gen-dot.active {
-  background: var(--accent, #4f7eff);
-  transform: scale(1.25);
-}
+.practica-gen-reread-btn:active { background: rgba(255,255,255,0.08); }

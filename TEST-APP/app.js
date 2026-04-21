@@ -1779,12 +1779,9 @@ async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
 
     _renderSubtemaPanel(formulas, procedimientos, ejemplos, bodyEl);
 
-    // If no stored examples + practica/mixta subject → generate one on the fly
+    // If no stored examples and we have a tema ID → AI-generate one on the fly
     if (!ejemplos.length && temaId) {
-      const tipo = _subjData[curSubjectId]?.tipo;
-      if (tipo === 'practica' || tipo === 'mixta') {
-        _generateSubtemaEjemplo(temaId, bodyEl);
-      }
+      _generateSubtemaEjemplo(temaId, bodyEl);
     }
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = `<div class="practica-empty" style="color:var(--red)">${e.message}</div>`;
@@ -2485,21 +2482,32 @@ function lobbyOpenPractica() {
 }
 
 // ════════════════════════════════════════════════════════════════════
-// PRÁCTICA — AI-generated exercise swipe viewer
+// PRÁCTICA — AI-generated exercise session (state machine)
+// States: 'loading' | 'enunciado' | 'resolviendo' | 'resultado' | 'fin'
 // ════════════════════════════════════════════════════════════════════
 
-let _practicaPages     = [];
-let _practicaPageIdx   = 0;
-let _practicaGenObs    = null;
+let _genEjercicios    = [];
+let _genIdx           = 0;
+let _genState         = 'loading';
+let _genTimerSecs     = 0;
+let _genTimerInterval = null;
 
 /** Called from startSessionFlow when modeSelector === 'practica'. */
 async function startPracticaFlow(selected) {
   const n = sessDurationType === 'larga' ? 5 : 3;
-  toast(T('sess_starting'), 'info');
 
-  let data;
+  const overlay = document.getElementById('practica-sesion-overlay');
+  if (!overlay) return;
+
+  // Show loading screen immediately
+  _genEjercicios = []; _genIdx = 0; _genState = 'loading';
+  _genTimerSecs  = 0;  _stopGenTimer();
+  overlay.innerHTML = '<div class="practica-gen-wrap" id="practica-gen-wrap"></div>';
+  overlay.classList.add('open');
+  _practicaRender();
+
   try {
-    data = await api('/practico/generar', {
+    const data = await api('/practico/generar', {
       method: 'POST',
       body: JSON.stringify({
         asignatura_id: curSubjectId,
@@ -2508,192 +2516,243 @@ async function startPracticaFlow(selected) {
         lang: currentLang,
       }),
     });
+    _genEjercicios = data.ejercicios || [];
   } catch(e) {
+    overlay.classList.remove('open');
     toast(e.message, 'err');
     return;
   }
 
-  const ejercicios = data.ejercicios || [];
-  if (!ejercicios.length) {
+  if (!_genEjercicios.length) {
+    overlay.classList.remove('open');
     toast(T('practica_empty'), 'err');
     return;
   }
 
-  const pages = _buildPracticaPages(ejercicios);
-  _openPracticaGenOverlay(pages);
+  _genIdx   = 0;
+  _genState = 'enunciado';
+  _practicaRender();
 }
 
-/** Converts AI exercises into a flat array of swipeable pages. */
-function _buildPracticaPages(ejercicios) {
-  const pages  = [];
-  const total  = ejercicios.length;
+function _practicaRender() {
+  const wrap = document.getElementById('practica-gen-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = '';
 
-  for (let i = 0; i < ejercicios.length; i++) {
-    const ej = ejercicios[i];
-    const n  = i + 1;
-
-    // Exercise cover page
-    pages.push({ type: 'exercise', n, total, titulo: ej.titulo, enunciado: ej.enunciado || [] });
-
-    // One page per solution step
-    const steps     = (ej.solucion || []).filter(s => s.type === 'step');
-    const stepTotal = steps.length;
-    for (let j = 0; j < steps.length; j++) {
-      pages.push({ type: 'step', n, stepN: j + 1, stepTotal, content: steps[j].content || [] });
-    }
+  // ── LOADING ──
+  if (_genState === 'loading') {
+    wrap.innerHTML = `
+      <div class="practica-gen-loading">
+        <div class="practica-gen-loading-icon">✨</div>
+        <div class="practica-gen-loading-text">Generando ejercicios...</div>
+        <div class="practica-gen-loading-sub">La IA está creando ejercicios personalizados a partir de tus apuntes</div>
+      </div>`;
+    return;
   }
 
-  // Final "fin" page
-  pages.push({ type: 'fin', total });
-  return pages;
-}
-
-/** Renders the swipe overlay and populates pages. */
-function _openPracticaGenOverlay(pages) {
-  _practicaPages   = pages;
-  _practicaPageIdx = 0;
-
-  const overlay = document.getElementById('practica-sesion-overlay');
-  if (!overlay) return;
-
-  // Build dots: one per exercise + one for "fin"
-  const nEx   = pages.filter(p => p.type === 'exercise').length;
-  let dotsHtml = '';
-  for (let i = 0; i <= nEx; i++) {
-    dotsHtml += `<span class="practica-gen-dot${i === 0 ? ' active' : ''}"></span>`;
-  }
-
-  overlay.innerHTML = `
-    <div class="practica-gen-wrap">
+  // ── FIN ──
+  if (_genState === 'fin') {
+    const total = _genEjercicios.length;
+    wrap.innerHTML = `
       <div class="practica-gen-header">
         <button class="practica-back-btn" onclick="closePracticaGen()">‹</button>
-        <span class="practica-gen-label" id="practica-gen-label"></span>
+        <span class="practica-gen-label">Sesión completada</span>
       </div>
-      <div class="practica-gen-track" id="practica-gen-track"></div>
-      <div class="practica-gen-nav">
-        <button class="practica-gen-nav-btn" id="practica-gen-prev" onclick="_practicaGenNav(-1)">‹</button>
-        <div class="practica-gen-dots" id="practica-gen-dots">${dotsHtml}</div>
-        <button class="practica-gen-nav-btn" id="practica-gen-next" onclick="_practicaGenNav(1)">›</button>
-      </div>
-    </div>
-  `;
-
-  const track = document.getElementById('practica-gen-track');
-
-  for (const page of pages) {
-    const div = document.createElement('div');
-    div.className = 'practica-gen-page';
-
-    if (page.type === 'exercise') {
-      const typeEl = document.createElement('div');
-      typeEl.className = 'practica-gen-type-label';
-      typeEl.textContent = `Ejercicio ${page.n} de ${page.total}`;
-      div.appendChild(typeEl);
-
-      if (page.titulo) {
-        const titleEl = document.createElement('div');
-        titleEl.className = 'practica-gen-title';
-        titleEl.textContent = page.titulo;
-        div.appendChild(titleEl);
-      }
-
-      if (page.enunciado && page.enunciado.length) {
-        renderBlocks(page.enunciado, div);
-      }
-
-      const hintEl = document.createElement('div');
-      hintEl.className = 'practica-gen-hint';
-      hintEl.textContent = '→ Desliza para ver la solución';
-      div.appendChild(hintEl);
-
-    } else if (page.type === 'step') {
-      const typeEl = document.createElement('div');
-      typeEl.className = 'practica-gen-type-label';
-      typeEl.textContent = `Ejercicio ${page.n} · Paso ${page.stepN} de ${page.stepTotal}`;
-      div.appendChild(typeEl);
-
-      if (page.content && page.content.length) {
-        renderBlocks(page.content, div);
-      }
-
-    } else if (page.type === 'fin') {
-      div.classList.add('practica-gen-fin-page');
-      const finEl = document.createElement('div');
-      finEl.className = 'practica-gen-fin';
-      finEl.innerHTML = `
-        <div class="practica-gen-fin-emoji">🎉</div>
-        <div class="practica-gen-title">¡${page.total} ejercicio${page.total > 1 ? 's' : ''} completado${page.total > 1 ? 's' : ''}!</div>
-        <button class="ob2-btn" onclick="closePracticaGen()">Cerrar</button>
-      `;
-      div.appendChild(finEl);
-    }
-
-    track.appendChild(div);
+      <div class="practica-gen-page practica-gen-fin-page">
+        <div class="practica-gen-fin">
+          <div class="practica-gen-fin-emoji">🎉</div>
+          <div class="practica-gen-title">¡${total} ejercicio${total > 1 ? 's' : ''} completado${total > 1 ? 's' : ''}!</div>
+          <button class="ob2-btn" style="margin-top:8px" onclick="closePracticaGen()">Cerrar</button>
+        </div>
+      </div>`;
+    return;
   }
 
-  // IntersectionObserver to update header on swipe
-  if (_practicaGenObs) _practicaGenObs.disconnect();
-  _practicaGenObs = new IntersectionObserver((entries) => {
-    for (const entry of entries) {
-      if (entry.isIntersecting) {
-        const idx = Array.from(track.children).indexOf(entry.target);
-        if (idx >= 0 && idx !== _practicaPageIdx) {
-          _practicaPageIdx = idx;
-          _updatePracticaGenUI();
-        }
-      }
-    }
-  }, { root: track, threshold: 0.5 });
-  Array.from(track.children).forEach(c => _practicaGenObs.observe(c));
+  const ej    = _genEjercicios[_genIdx];
+  const total = _genEjercicios.length;
+  const n     = _genIdx + 1;
 
-  _updatePracticaGenUI();
+  // Header
+  const hdr = document.createElement('div');
+  hdr.className = 'practica-gen-header';
+  const backBtn = document.createElement('button');
+  backBtn.className = 'practica-back-btn'; backBtn.textContent = '‹';
+  backBtn.onclick = closePracticaGen;
+  hdr.appendChild(backBtn);
+  const lbl = document.createElement('span');
+  lbl.className = 'practica-gen-label';
+  lbl.textContent = `Ejercicio ${n}/${total}`;
+  hdr.appendChild(lbl);
+  if (_genState === 'resolviendo') {
+    const timerEl = document.createElement('span');
+    timerEl.className = 'practica-gen-timer'; timerEl.id = 'practica-gen-timer';
+    timerEl.textContent = `⏱ ${_fmtTime(_genTimerSecs)}`;
+    hdr.appendChild(timerEl);
+  }
+  wrap.appendChild(hdr);
+
+  // Page body
+  const pageEl = document.createElement('div');
+  pageEl.className = 'practica-gen-page';
+  wrap.appendChild(pageEl);
+
+  // Action bar
+  const actEl = document.createElement('div');
+  actEl.className = 'practica-gen-nav';
+  wrap.appendChild(actEl);
+
+  // ── ENUNCIADO ──
+  if (_genState === 'enunciado') {
+    const typeEl = document.createElement('div');
+    typeEl.className = 'practica-gen-type-label';
+    typeEl.textContent = `Ejercicio ${n} de ${total}`;
+    pageEl.appendChild(typeEl);
+
+    if (ej.titulo) {
+      const titleEl = document.createElement('div');
+      titleEl.className = 'practica-gen-title';
+      titleEl.textContent = ej.titulo;
+      pageEl.appendChild(titleEl);
+    }
+    if (ej.dades && ej.dades.length) {
+      pageEl.insertAdjacentHTML('beforeend', _renderDadesTable(ej.dades));
+    }
+    if (ej.enunciado && ej.enunciado.length) {
+      renderBlocks(ej.enunciado, pageEl);
+    }
+
+    const btn = document.createElement('button');
+    btn.className = 'practica-action-btn practica-action-primary';
+    btn.textContent = 'Empezar →';
+    btn.onclick = () => {
+      _genTimerSecs = 0; _genState = 'resolviendo';
+      _practicaRender(); _startGenTimer();
+    };
+    actEl.appendChild(btn);
+
+  // ── RESOLVIENDO ──
+  } else if (_genState === 'resolviendo') {
+    const infoEl = document.createElement('div');
+    infoEl.className = 'practica-gen-solving-info';
+    infoEl.innerHTML = `
+      <div class="practica-gen-solving-icon">🧠</div>
+      <div class="practica-gen-title" style="text-align:center">Resuelve el ejercicio</div>
+      <div class="practica-gen-solving-sub">Cuando termines, pulsa Finalizado</div>`;
+    pageEl.appendChild(infoEl);
+
+    const rereadBtn = document.createElement('button');
+    rereadBtn.className = 'practica-gen-reread-btn';
+    rereadBtn.textContent = '📖 Volver a leer el ejercicio';
+    rereadBtn.onclick = () => { _stopGenTimer(); _genState = 'enunciado'; _practicaRender(); };
+    pageEl.appendChild(rereadBtn);
+
+    const btn = document.createElement('button');
+    btn.className = 'practica-action-btn practica-action-primary';
+    btn.textContent = '✓ Finalizado';
+    btn.onclick = () => { _stopGenTimer(); _genState = 'resultado'; _practicaRender(); };
+    actEl.appendChild(btn);
+
+  // ── RESULTADO ──
+  } else if (_genState === 'resultado') {
+    const typeEl = document.createElement('div');
+    typeEl.className = 'practica-gen-type-label';
+    typeEl.textContent = 'Solución final';
+    pageEl.appendChild(typeEl);
+
+    // Show last step as the definitive answer
+    const steps = (ej.solucion || []).filter(s => s.type === 'step');
+    if (steps.length) {
+      const last = steps[steps.length - 1];
+      if (last.content) renderBlocks(last.content, pageEl);
+    } else if (ej.solucion && ej.solucion.length) {
+      renderBlocks(ej.solucion, pageEl);
+    }
+
+    // Record result
+    _recordPracticaGen(ej);
+
+    // "Ver pasos" button
+    const btnPasos = document.createElement('button');
+    btnPasos.className = 'practica-action-btn';
+    btnPasos.style.cssText = 'flex:1;background:rgba(255,255,255,.07);border:1.5px solid var(--border);color:var(--txt);border-radius:14px';
+    btnPasos.textContent = '📋 Ver pasos';
+    btnPasos.onclick = () => _openGenAllSteps(ej);
+    actEl.appendChild(btnPasos);
+
+    // "Siguiente" / "Finalizar"
+    const isLast = _genIdx >= _genEjercicios.length - 1;
+    const btnNext = document.createElement('button');
+    btnNext.className = 'practica-action-btn practica-action-primary';
+    btnNext.style.flex = '1';
+    btnNext.textContent = isLast ? '🎉 Finalizar' : 'Siguiente →';
+    btnNext.onclick = () => {
+      if (isLast) { _genState = 'fin'; }
+      else        { _genIdx++;  _genState = 'enunciado'; }
+      _practicaRender();
+    };
+    actEl.appendChild(btnNext);
+  }
+}
+
+function _startGenTimer() {
+  if (_genTimerInterval) clearInterval(_genTimerInterval);
+  _genTimerInterval = setInterval(() => {
+    _genTimerSecs++;
+    const el = document.getElementById('practica-gen-timer');
+    if (el) el.textContent = `⏱ ${_fmtTime(_genTimerSecs)}`;
+  }, 1000);
+}
+
+function _stopGenTimer() {
+  if (_genTimerInterval) { clearInterval(_genTimerInterval); _genTimerInterval = null; }
+}
+
+/** Open existing step overlay showing all steps of a generated exercise. */
+function _openGenAllSteps(ej) {
+  const overlay = document.getElementById('practica-step-overlay');
+  if (!overlay) return;
+
+  const titleEl = document.getElementById('practica-step-title');
+  const subEl   = document.getElementById('practica-step-sub');
+  if (titleEl) titleEl.textContent = ej.titulo || 'Pasos de la solución';
+  if (subEl)   subEl.textContent   = '';
+
+  const solucion    = ej.solucion || [];
+  const stepBlocks  = solucion.filter(b => b.type === 'step');
+  const otherBlocks = solucion.filter(b => b.type !== 'step');
+
+  _stepViewerSteps = [];
+  _stepViewerSteps.push({ label: 'Enunciado', blocks: ej.enunciado || [], dades: ej.dades || [] });
+  if (stepBlocks.length) {
+    for (const s of stepBlocks) {
+      _stepViewerSteps.push({ label: `Paso ${s.n}`, blocks: s.content || [] });
+    }
+    if (otherBlocks.length) {
+      _stepViewerSteps.push({ label: 'Solución', blocks: otherBlocks });
+    }
+  } else if (solucion.length) {
+    _stepViewerSteps.push({ label: 'Solución', blocks: solucion });
+  }
+
+  _stepViewerIdx = 0;
+  _renderStepViewer();
   overlay.classList.add('open');
 }
 
-function _practicaGenNav(dir) {
-  const track = document.getElementById('practica-gen-track');
-  if (!track) return;
-  const newIdx = Math.max(0, Math.min(_practicaPages.length - 1, _practicaPageIdx + dir));
-  const pageEl = track.children[newIdx];
-  if (pageEl) pageEl.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' });
-  _practicaPageIdx = newIdx;
-  _updatePracticaGenUI();
-}
-
-function _updatePracticaGenUI() {
-  const page  = _practicaPages[_practicaPageIdx];
-  const label = document.getElementById('practica-gen-label');
-  if (label && page) {
-    if (page.type === 'exercise') {
-      label.textContent = `Ejercicio ${page.n}/${page.total}`;
-    } else if (page.type === 'step') {
-      label.textContent = `Ej. ${page.n} · Paso ${page.stepN}/${page.stepTotal}`;
-    } else {
-      label.textContent = 'Fin';
-    }
-  }
-
-  const prev = document.getElementById('practica-gen-prev');
-  const next = document.getElementById('practica-gen-next');
-  if (prev) prev.disabled = _practicaPageIdx === 0;
-  if (next) next.disabled = _practicaPageIdx === _practicaPages.length - 1;
-
-  // Dots: active dot corresponds to exercise number (or last dot for fin)
-  const dotsEl = document.getElementById('practica-gen-dots');
-  if (dotsEl && page) {
-    let dotIdx = page.type === 'fin'
-      ? dotsEl.children.length - 1
-      : (page.n || 1) - 1;
-    Array.from(dotsEl.children).forEach((d, i) => d.classList.toggle('active', i === dotIdx));
-  }
+function _recordPracticaGen(ej) {
+  const uid = localStorage.getItem('ar_u');
+  if (!uid || !ej?.id) return;
+  api('/practico/sesion/resultado', {
+    method: 'POST',
+    body: JSON.stringify({ usuario_id: uid, ejercicio_id: ej.id, correcto: true }),
+  }).catch(() => {});
 }
 
 function closePracticaGen() {
-  if (_practicaGenObs) { _practicaGenObs.disconnect(); _practicaGenObs = null; }
+  _stopGenTimer();
   const overlay = document.getElementById('practica-sesion-overlay');
   if (overlay) overlay.classList.remove('open');
-  _practicaPages   = [];
-  _practicaPageIdx = 0;
+  _genEjercicios = []; _genIdx = 0;
 }
 
 /** Inicia la siguiente parte de una sesión multi-parte. */

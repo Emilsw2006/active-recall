@@ -230,7 +230,37 @@ async def generar_ejercicios(body: GenerarBody):
         logger.warning(f"[generar] Gemini error: {e}")
         return {"ejercicios": [], "error": str(e)}
 
-    return {"ejercicios": ejercicios}
+    if not ejercicios:
+        return {"ejercicios": []}
+
+    # Persist generated exercises so results can be recorded by ID
+    rows = [
+        {
+            "asignatura_id": body.asignatura_id,
+            "documento_id":  None,
+            "tema":          "",
+            "tipo":          "generado",
+            "tipo_contenido": "ejercicio",
+            "titulo":        ej.get("titulo", ""),
+            "dificultad":    1,
+            "dades":         ej.get("dades", []),
+            "enunciado":     ej.get("enunciado", []),
+            "solucion":      ej.get("solucion", []),
+        }
+        for ej in ejercicios
+        if ej.get("titulo") or ej.get("enunciado")
+    ]
+    saved = ejercicios  # fallback: return without IDs if insert fails
+    if rows:
+        try:
+            res_ins = db.table("ejercicios").insert(rows).execute()
+            if res_ins.data:
+                saved = res_ins.data
+                logger.info(f"[generar] Saved {len(saved)} exercises to DB")
+        except Exception as e_save:
+            logger.warning(f"[generar] DB save failed (returning without IDs): {e_save}")
+
+    return {"ejercicios": saved}
 
 
 # ──────────────────────────────────────────────
