@@ -1713,16 +1713,28 @@ async function loadDocTemas(docId) {
 async function _checkPracticaSection(docId) {
   const section = document.getElementById(`practica-section-${docId}`);
   if (!section) return;
-  // Find asignatura_id from the doc card (stored as data attribute or derive from curSubjectId)
   const asigId = curSubjectId;
   if (!asigId) return;
+
+  // Always show for practica/mixta subjects — extraction may not have run yet
+  const subj = _subjData.find(s => s.id === asigId);
+  const tipo = (subj && subj.tipo) || 'teorica';
+  if (tipo === 'practica' || tipo === 'mixta') {
+    section.style.display = 'block';
+    return;
+  }
+
+  // For teorica subjects: only show if exercises actually exist (doc-level first, then asig-level)
   try {
-    const ejercicios = await api(`/practico/ejercicios?asignatura_id=${asigId}&documento_id=${docId}&limit=1`);
-    if (ejercicios && ejercicios.length > 0) {
-      section.style.display = 'block';
+    let url = `/practico/ejercicios?asignatura_id=${asigId}&documento_id=${docId}&limit=1`;
+    let ejercicios = await api(url);
+    if (!ejercicios || !ejercicios.length) {
+      // fallback: maybe exercises exist for the subject but without a documento_id match
+      ejercicios = await api(`/practico/ejercicios?asignatura_id=${asigId}&limit=1`);
     }
+    if (ejercicios && ejercicios.length > 0) section.style.display = 'block';
   } catch(e) {
-    // non-fatal — practical section stays hidden
+    // non-fatal
   }
 }
 
@@ -2261,8 +2273,8 @@ function startSessionFlow() {
 
 /** Abre la sesión de práctica desde el lobby (botón PRACTICAR). */
 function lobbyOpenPractica() {
-  // openPracticaSesion works with curSubjectId — no documento_id needed for a global session
-  if (typeof openPracticaSesion === 'function') openPracticaSesion();
+  // No documento_id — search all exercises across the whole subject
+  openPracticaSesion(null, curSubjectId);
 }
 
 /** Inicia la siguiente parte de una sesión multi-parte. */
@@ -5555,8 +5567,8 @@ const _TIPO_CONTENIDO_META = {
 let _practicaFilter = { tipoContenido: null, tipo: null };
 
 async function openPracticaDict(docId, asigId) {
-  _practicaDocId   = docId;
-  _practicaAsigId  = asigId;
+  _practicaDocId   = docId  || null;
+  _practicaAsigId  = asigId || curSubjectId;
   _practicaFilter  = { tipoContenido: null, tipo: null };
 
   const overlay = document.getElementById('practica-dict-overlay');
@@ -5571,10 +5583,14 @@ async function openPracticaDict(docId, asigId) {
   if (listEl) listEl.innerHTML = `<div class="practica-empty">${T('empty_loading')}</div>`;
   overlay.classList.add('open');
 
+  const aid = _practicaAsigId;
+  const did = _practicaDocId;
+  const docParam = did ? `&documento_id=${did}` : '';
+
   try {
     const [contenidos, formulas] = await Promise.all([
-      api(`/practico/ejercicios?asignatura_id=${asigId}&documento_id=${docId}`),
-      api(`/practico/formulas?asignatura_id=${asigId}&documento_id=${docId}`),
+      api(`/practico/ejercicios?asignatura_id=${aid}${docParam}`),
+      api(`/practico/formulas?asignatura_id=${aid}${docParam}`),
     ]);
     _practicaEjercicios = contenidos || [];
     _practicaFormulas   = formulas   || [];
@@ -5845,8 +5861,8 @@ function closePracticaStep() {
 // ════════════════════════════════════════════════════════════════════
 
 async function openPracticaSesion(docId, asigId) {
-  _practicaDocId  = docId;
-  _practicaAsigId = asigId;
+  _practicaDocId  = docId  || null;
+  _practicaAsigId = asigId || curSubjectId;
   _sesIdx     = 0;
   _sesCorrect = 0;
   _sesWrong   = 0;
@@ -5864,10 +5880,16 @@ async function openPracticaSesion(docId, asigId) {
 
   overlay.classList.add('open');
 
+  const _sesAsigId = _practicaAsigId;
+  const _sesDocId  = _practicaDocId;
   try {
     const data = await api(`/practico/sesion/start`, {
       method: 'POST',
-      body: JSON.stringify({ asignatura_id: asigId, documento_id: docId, n: 10 }),
+      body: JSON.stringify({
+        asignatura_id: _sesAsigId,
+        ...(_sesDocId ? { documento_id: _sesDocId } : {}),
+        n: 10
+      }),
     });
     _sesEjercicios = data.ejercicios || [];
     _practicaFormulas = data.formulas || [];
