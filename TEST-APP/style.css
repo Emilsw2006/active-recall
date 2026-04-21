@@ -5421,3 +5421,68 @@ button { touch-action: manipulation; }
   border-top: 1px solid rgba(255,255,255,0.07);
   padding-top: 10px;
 }
+
+/* ─────────────────────────────────────────
+   Onboarding: tipo-selector cards
+───────────────────────────────────────── */
+.ob2-options-tipo {
+  gap: 12px;
+}
+.ob2-opt-tipo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+}
+.ob2-opt-tipo-icon {
+  font-size: 1.6rem;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.ob2-opt-tipo-name {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  display: block;
+}
+.ob2-opt-tipo-desc {
+  font-size: 0.78rem;
+  color: rgba(255,255,255,0.55);
+  display: block;
+  margin-top: 2px;
+  font-weight: 400;
+}
+.ob2-opt-tipo .ob2-opt-tipo-name,
+.ob2-opt-tipo .ob2-opt-tipo-desc {
+  flex: 1;
+}
+.ob2-opt-tipo-text {
+  display: flex;
+  flex-direction: column;
+}
+/* Active state override for tipo cards */
+.ob2-opt-tipo.active .ob2-opt-tipo-desc {
+  color: rgba(255,255,255,0.75);
+}
+
+/* ─────────────────────────────────────────
+   Lobby: dual-button footer (EMPEZAR + PRACTICAR)
+───────────────────────────────────────── */
+#lobby-start-footer {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.lobby-start-btn--practica {
+  background: rgba(255,255,255,0.12) !important;
+  color: rgba(255,255,255,0.90) !important;
+  border: 1.5px solid rgba(255,255,255,0.22) !important;
+  box-shadow: none !important;
+}
+.lobby-start-btn--practica:hover {
+  background: rgba(255,255,255,0.18) !important;
+  transform: translateY(-1px) !important;
+}
+.lobby-start-btn--practica::before {
+  display: none !important;
+}

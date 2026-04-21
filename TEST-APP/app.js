@@ -797,12 +797,20 @@ function lobbyGoStep(step) {
     backBtn.style.visibility = step === 0 ? 'hidden' : 'visible';
   }
 
-  // On step 2: toggle dur vs nPreguntas sections based on mode
+  // On step 1: toggle dur vs nPreguntas sections based on mode
   if (step === 1) {
     const durSec = document.getElementById('lob-dur-section');
     const testSec = document.getElementById('lob-test-n-section');
     if (durSec) durSec.style.display = modeSelector === 'voz' ? '' : 'none';
     if (testSec) testSec.style.display = modeSelector === 'test' ? '' : 'none';
+  }
+
+  // On step 2 (topics): show "Practicar" button only for practica/mixta subjects
+  if (step === 2) {
+    const subj = _subjData.find(s => s.id === curSubjectId);
+    const tipo = (subj && subj.tipo) || 'teorica';
+    const pracBtn = document.getElementById('lobby-practicar-btn');
+    if (pracBtn) pracBtn.style.display = (tipo === 'practica' || tipo === 'mixta') ? '' : 'none';
   }
 
   // Scroll step body to top when navigating
@@ -965,7 +973,8 @@ let _obPendingUploads = 0;
 let _obFailedFiles    = []; // [{file, itemId}]
 let _obUploadCount    = 0;
 
-const _OB_TOTAL = 9; // steps 0-9, progress shown from step 1
+const _OB_TOTAL = 10; // steps 0-10 (added tipo step between 5 and upload), progress shown from step 1
+let _obTipo = '';
 
 function openOnboarding(name) {
   // Hide all other screens
@@ -1020,9 +1029,14 @@ async function _obGoTo(step, animate = true) {
   if (backBtn) backBtn.disabled = (step === 0);
 
   if (step === 5) {
-    const btn = $('ob-step6-next');
-    if (btn) { btn.style.opacity = ''; btn.textContent = 'Crear asignatura →'; }
+    const btn = $('ob-step5-next');
+    if (btn) { btn.style.opacity = ''; btn.textContent = 'Continuar →'; }
     obValidateSubjectName();
+  }
+  if (step === 6) {
+    // Tipo step: restore button state (user may be going back)
+    const btn = $('ob-tipo-next');
+    if (btn) { btn.style.opacity = ''; btn.textContent = 'Crear asignatura →'; btn.disabled = !_obTipo; }
   }
 
   // Snap (no animation)
@@ -1138,7 +1152,7 @@ function obSelectColor(color, el) {
 
 function obValidateSubjectName() {
   const nameInput = $('ob-subj-name');
-  const btn = $('ob-step6-next');
+  const btn = $('ob-step5-next');
   if (btn) btn.disabled = !(nameInput && nameInput.value.trim());
 }
 
@@ -1147,13 +1161,13 @@ async function obCreateSubject() {
   const name = nameInput ? nameInput.value.trim() : '';
   if (!name) { nameInput && nameInput.focus(); return; }
 
-  const btn = $('ob-step6-next');
+  const btn = $('ob-tipo-next');
   if (btn) { btn.disabled = true; btn.textContent = 'Creando...'; btn.style.opacity = '0.35'; }
 
   try {
     const s = await api('/asignaturas/', {
       method: 'POST',
-      body: JSON.stringify({ usuario_id: uid, nombre: name, color: _obColor })
+      body: JSON.stringify({ usuario_id: uid, nombre: name, color: _obColor, tipo: _obTipo || 'mixta' })
     });
     if (!s || !s.id) throw new Error('Respuesta inválida del servidor');
     _obSubjId = s.id;
@@ -1165,11 +1179,19 @@ async function obCreateSubject() {
     localStorage.setItem('ar_subj_id',   s.id);
     localStorage.setItem('ar_subj_name', s.nombre);
     loadSubjectsHome(); // background refresh, no await
-    _obGoTo(6);
+    _obGoTo(7); // step 7 = upload (was step 6 before tipo step was added)
   } catch(e) {
     toast('No se pudo crear la asignatura, intenta de nuevo', 'err');
     if (btn) { btn.disabled = false; btn.textContent = 'Crear asignatura →'; btn.style.opacity = ''; }
   }
+}
+
+function obSelectTipo(tipo, el) {
+  _obTipo = tipo;
+  document.querySelectorAll('#ob-tipo-opts .ob2-opt').forEach(b => b.classList.remove('active'));
+  if (el) el.classList.add('active');
+  const btn = $('ob-tipo-next');
+  if (btn) btn.disabled = false;
 }
 
 const _OB_SPIN = `<svg style="animation:spin .9s linear infinite;flex-shrink:0" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>`;
@@ -1253,7 +1275,7 @@ function _obUpdateTerminarBtn() {
     btn.disabled = false;
     btn.textContent = `Reintentar (${_obFailedFiles.length}) →`;
   } else {
-    if (_obStep === 6) { setTimeout(obNext, 400); return; }
+    if (_obStep === 7) { setTimeout(obNext, 400); return; } // step 7 = upload step
     btn.disabled = false;
     btn.textContent = 'Terminar →';
   }
@@ -2235,6 +2257,12 @@ function startSessionFlow() {
       connectSessionWS(res.n_atomos);
     }
   }).catch(e => toast(e.message, 'err'));
+}
+
+/** Abre la sesión de práctica desde el lobby (botón PRACTICAR). */
+function lobbyOpenPractica() {
+  // openPracticaSesion works with curSubjectId — no documento_id needed for a global session
+  if (typeof openPracticaSesion === 'function') openPracticaSesion();
 }
 
 /** Inicia la siguiente parte de una sesión multi-parte. */

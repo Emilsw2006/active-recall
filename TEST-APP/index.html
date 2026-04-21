@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=43" />
+<link rel="stylesheet" href="style.css?v=44" />
 <!-- KaTeX — LaTeX rendering (no build step required) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
@@ -277,16 +277,45 @@
             <p class="ob2-sub">Empieza con la materia en la que más necesitas avanzar.</p>
             <input class="ob2-input" id="ob-subj-name" type="text"
               placeholder="Ej: Historia Medieval, Cálculo II..." maxlength="40"
-              onkeydown="if(event.key==='Enter')obCreateSubject()"/>
+              onkeydown="if(event.key==='Enter'&&!$('ob-step5-next').disabled)obNext()"/>
             <div class="ob2-color-label">Color del tema</div>
             <div class="ob-color-row" id="ob-color-picker"></div>
           </div>
           <div class="ob2-footer">
-            <button class="ob2-continue-btn" id="ob-step6-next" onclick="obCreateSubject()" disabled>Crear asignatura →</button>
+            <button class="ob2-continue-btn" id="ob-step5-next" onclick="obNext()" disabled>Continuar →</button>
           </div>
         </div>
 
-        <!-- PASO 6: Subir apuntes -->
+        <!-- PASO 6: Tipo de asignatura -->
+        <div class="ob2-slide" id="ob-step-6-tipo">
+          <div class="ob2-body">
+            <div class="ob2-badge">Tipo de asignatura</div>
+            <h1 class="ob2-title">¿Cómo es<br>esta asignatura?</h1>
+            <p class="ob2-sub">Así ajustamos el módulo de práctica.</p>
+            <div class="ob2-options ob2-options-tipo" id="ob-tipo-opts">
+              <button class="ob2-opt ob2-opt-tipo" onclick="obSelectTipo('teorica',this)">
+                <span class="ob2-opt-tipo-icon">📖</span>
+                <span class="ob2-opt-tipo-name">Teórica</span>
+                <span class="ob2-opt-tipo-desc">Teoría, conceptos y memoria</span>
+              </button>
+              <button class="ob2-opt ob2-opt-tipo" onclick="obSelectTipo('mixta',this)">
+                <span class="ob2-opt-tipo-icon">⚗️</span>
+                <span class="ob2-opt-tipo-name">Mixta</span>
+                <span class="ob2-opt-tipo-desc">Teoría y ejercicios prácticos</span>
+              </button>
+              <button class="ob2-opt ob2-opt-tipo" onclick="obSelectTipo('practica',this)">
+                <span class="ob2-opt-tipo-icon">🔢</span>
+                <span class="ob2-opt-tipo-name">Práctica</span>
+                <span class="ob2-opt-tipo-desc">Problemas, fórmulas y cálculo</span>
+              </button>
+            </div>
+          </div>
+          <div class="ob2-footer">
+            <button class="ob2-continue-btn" id="ob-tipo-next" onclick="obCreateSubject()" disabled>Crear asignatura →</button>
+          </div>
+        </div>
+
+        <!-- PASO 7: Subir apuntes -->
         <div class="ob2-slide" id="ob-step-6">
           <div class="ob2-body">
             <div class="ob2-badge">Tus apuntes</div>
@@ -588,7 +617,8 @@
                   <div class="empty-state" style="padding:20px">Cargando temas...</div>
                 </div>
               </div>
-              <div class="lobby-onb-footer">
+              <div class="lobby-onb-footer" id="lobby-start-footer">
+                <button id="lobby-practicar-btn" class="lobby-start-btn lobby-start-btn--practica" onclick="lobbyOpenPractica()" style="display:none">PRACTICAR 🧩</button>
                 <button class="lobby-start-btn" onclick="startSessionFlow()">EMPEZAR &rarr;</button>
               </div>
             </div>
@@ -1403,7 +1433,7 @@
 
 </div>
 
-<script src="app.js?v=38"></script>
+<script src="app.js?v=39"></script>
 <script>
 // goNotif, _notifIdx, _onNotifScroll are defined in app.js (scroll-snap based)
 // Auto-advance every 5s
