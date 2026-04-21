@@ -1684,10 +1684,11 @@ async function loadDocTemas(docId) {
         ${hasSubtemas ? `
         <div class="doc-tema-body" id="tema-body-${t.id}" style="display:none">
           ${subtemas.map(st => `
-            <div class="doc-subtema-item">
+            <div class="doc-subtema-item" onclick="openSubtemaPanel(${JSON.stringify(st.titulo)},${JSON.stringify(t.titulo)});event.stopPropagation()">
               <div class="doc-subtema-dot"></div>
               <span class="doc-subtema-title">${esc(st.titulo)}</span>
               <span class="doc-subtema-count">${st.n_atomos}</span>
+              <svg class="doc-subtema-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
             </div>`).join('')}
         </div>` : ''}
       </div>`;
@@ -1723,6 +1724,120 @@ async function _checkPracticaSection(docId) {
     if (ejercicios && ejercicios.length > 0) section.style.display = 'block';
   } catch(e) {
     // non-fatal
+  }
+}
+
+// ── Subtema ejemplo panel ────────────────────────────────────────────
+async function openSubtemaPanel(subtemaTitle, temaTitle) {
+  const panel = document.getElementById('subtema-ejemplo-panel');
+  if (!panel) return;
+  const titleEl = document.getElementById('sep-title');
+  const bodyEl  = document.getElementById('sep-body');
+  if (titleEl) titleEl.textContent = subtemaTitle;
+  if (bodyEl)  bodyEl.innerHTML    = `<div class="practica-empty">Cargando...</div>`;
+  panel.classList.add('open');
+
+  const asigId = curSubjectId;
+  if (!asigId) return;
+
+  try {
+    // Fetch ALL formulas + exercises for the subject in parallel; filter client-side
+    const [allFormulas, allEjercicios] = await Promise.all([
+      api(`/practico/formulas?asignatura_id=${asigId}`).catch(() => []),
+      api(`/practico/ejercicios?asignatura_id=${asigId}`).catch(() => []),
+    ]);
+
+    // Filter formulas: prefer tema match, fallback all
+    const tLower = (temaTitle || '').toLowerCase();
+    const sLower = (subtemaTitle || '').toLowerCase();
+    let formulas = (allFormulas || []).filter(f => {
+      const ft = (f.tema || '').toLowerCase();
+      return ft.includes(tLower.split(' ')[0]) || tLower.includes((ft || '').split(' ')[0]);
+    });
+    if (!formulas.length) formulas = (allFormulas || []).slice(0, 5);
+
+    // Find best-matching exercise: prefer tipo/tema match
+    const scoreFn = (e) => {
+      const et = (e.tipo || '').toLowerCase();
+      const em = (e.tema || '').toLowerCase();
+      if (et === sLower || et.includes(sLower.split(' ')[0])) return 3;
+      if (em.includes(tLower.split(' ')[0]) || tLower.includes(em.split(' ')[0])) return 2;
+      return 0;
+    };
+    const sorted = (allEjercicios || []).slice().sort((a, b) => scoreFn(b) - scoreFn(a));
+    const ejercicio = sorted[0] || null;
+
+    _renderSubtemaPanel(formulas, ejercicio, bodyEl);
+  } catch(e) {
+    if (bodyEl) bodyEl.innerHTML = `<div class="practica-empty" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+function closeSubtemaPanel() {
+  const panel = document.getElementById('subtema-ejemplo-panel');
+  if (panel) panel.classList.remove('open');
+}
+
+function _renderSubtemaPanel(formulas, ejercicio, bodyEl) {
+  bodyEl.innerHTML = '';
+
+  // ── Formulas ──
+  if (formulas && formulas.length) {
+    const sec = document.createElement('div');
+    sec.className = 'sep-section';
+    const h = document.createElement('div');
+    h.className = 'sep-section-label';
+    h.textContent = 'Fórmulas';
+    sec.appendChild(h);
+    for (const f of formulas) {
+      renderBlocks([{ type: 'formula_box', nombre: f.nombre, latex: f.latex, variables: f.variables }], sec);
+    }
+    bodyEl.appendChild(sec);
+  }
+
+  // ── Example exercise ──
+  if (ejercicio) {
+    const sec = document.createElement('div');
+    sec.className = 'sep-section';
+
+    const h = document.createElement('div');
+    h.className = 'sep-section-label';
+    h.textContent = ejercicio.titulo || 'Ejemplo';
+    sec.appendChild(h);
+
+    // Dades table
+    if (ejercicio.dades && ejercicio.dades.length) {
+      sec.insertAdjacentHTML('beforeend', _renderDadesTable(ejercicio.dades));
+    }
+
+    // Enunciado
+    if (ejercicio.enunciado && ejercicio.enunciado.length) {
+      const el = document.createElement('div');
+      el.className = 'sep-sub-label';
+      el.textContent = 'Enunciado';
+      sec.appendChild(el);
+      renderBlocks(ejercicio.enunciado, sec);
+    }
+
+    // Solution steps
+    if (ejercicio.solucion && ejercicio.solucion.length) {
+      const el = document.createElement('div');
+      el.className = 'sep-sub-label';
+      el.textContent = 'Solución paso a paso';
+      sec.appendChild(el);
+      renderBlocks(ejercicio.solucion, sec);
+    }
+
+    bodyEl.appendChild(sec);
+  }
+
+  if (!formulas?.length && !ejercicio) {
+    bodyEl.innerHTML = `<div class="practica-empty">
+      Aún no hay ejercicios para este tema.<br>
+      <span style="font-size:.8rem;opacity:.6;display:block;margin-top:6px">
+        Sube un PDF para que la IA los extraiga automáticamente.
+      </span>
+    </div>`;
   }
 }
 

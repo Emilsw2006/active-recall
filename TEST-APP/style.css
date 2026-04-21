@@ -874,15 +874,7 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   box-shadow: 0 8px 28px rgba(0,0,0,0.18);
 }
 .lobby-mode-card:active { transform: scale(0.97); }
-.lobby-mode-card--practica {
-  background: linear-gradient(135deg, rgba(79,126,255,0.14), rgba(167,139,250,0.14));
-  border-color: rgba(79,126,255,0.35);
-}
-.lobby-mode-card--practica:hover,
-.lobby-mode-card--practica.active {
-  background: linear-gradient(135deg, rgba(79,126,255,0.28), rgba(167,139,250,0.28));
-  border-color: rgba(79,126,255,0.65);
-}
+/* Práctica card — same white glass as the others, no special color */
 .lmc-icon {
   opacity: .85; margin-bottom: 6px;
 }
@@ -1149,14 +1141,18 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 
 /* Subtema improvements */
 .doc-subtema-item {
-  display: flex; align-items: flex-start; gap: 8px;
-  padding: 7px 0; border-bottom: 1px solid rgba(255,255,255,0.05);
+  display: flex; align-items: center; gap: 8px;
+  padding: 9px 6px; border-bottom: 1px solid rgba(255,255,255,0.05);
+  cursor: pointer; border-radius: 8px; margin: 0 -6px;
+  transition: background 0.15s;
+  -webkit-tap-highlight-color: transparent;
 }
 .doc-subtema-item:last-child { border-bottom: none; }
+.doc-subtema-item:hover { background: rgba(255,255,255,0.06); }
+.doc-subtema-item:active { background: rgba(255,255,255,0.1); }
 .doc-subtema-dot {
   width: 5px; height: 5px; border-radius: 50%;
   background: rgba(255,255,255,0.20); flex-shrink: 0;
-  margin-top: 6px;
 }
 .doc-subtema-title {
   font-size: .78rem; color: var(--txt2); flex: 1; line-height: 1.4;
@@ -1164,7 +1160,10 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 .doc-subtema-count {
   font-size: .68rem; color: var(--txt3); flex-shrink: 0;
   background: rgba(255,255,255,0.07); border-radius: 99px;
-  padding: 1px 7px; margin-top: 1px;
+  padding: 1px 7px;
+}
+.doc-subtema-arrow {
+  opacity: 0.3; flex-shrink: 0;
 }
 
 .doc-status-processing { font-size: .78rem; color: var(--yellow); display: flex; align-items: center; gap: 4px; }
@@ -5494,4 +5493,67 @@ button { touch-action: manipulation; }
 }
 .lobby-start-btn--practica::before {
   display: none !important;
+}
+
+/* ─────────────────────────────────────────
+   Subtema ejemplo panel (formulas + exercise)
+───────────────────────────────────────── */
+.sep-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1800;
+  background: var(--bg, #0d0d1a);
+  display: flex;
+  flex-direction: column;
+  transform: translateX(100%);
+  transition: transform 280ms cubic-bezier(0.32, 0.72, 0, 1);
+  overscroll-behavior: contain;
+}
+.sep-overlay.open {
+  transform: translateX(0);
+}
+.sep-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  padding-top: calc(16px + env(safe-area-inset-top, 0px));
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  flex-shrink: 0;
+}
+.sep-title {
+  flex: 1;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  text-align: center;
+}
+.sep-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 24px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.sep-section {
+  margin-bottom: 12px;
+}
+.sep-section-label {
+  font-size: 0.72rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--accent, #4f7eff);
+  margin-bottom: 10px;
+  padding-left: 2px;
+}
+.sep-sub-label {
+  font-size: 0.76rem;
+  font-weight: 700;
+  color: rgba(255,255,255,0.5);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 14px 0 8px;
+  padding-left: 2px;
 }
