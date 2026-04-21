@@ -5,10 +5,12 @@ Routes:
   GET  /practico/ejercicios          — list exercises (filterable)
   GET  /practico/ejercicio/{id}      — single exercise with full blocks
   GET  /practico/formulas            — list formulas
+  POST /practico/generar             — AI-generate exercises from topic atoms (no DB write)
   POST /practico/sesion/start        — start a practice session (returns shuffled exercises)
   POST /practico/sesion/resultado    — record per-exercise correctness
 """
 
+import json
 import random
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -35,7 +37,7 @@ async def listar_ejercicios(
     db = get_service_client()
     q = (
         db.table("ejercicios")
-        .select("id, tema, tipo, tipo_contenido, titulo, dificultad, enunciado, dades, created_at")
+        .select("id, tema, tipo, tipo_contenido, titulo, dificultad, enunciado, solucion, dades, created_at")
         .eq("asignatura_id", asignatura_id)
         .order("tipo_contenido")   # concepto → ejercicio → procedimiento (alphabetical groups)
         .order("created_at")
@@ -95,6 +97,139 @@ async def listar_formulas(
 
     res = q.execute()
     return res.data or []
+
+
+# ──────────────────────────────────────────────
+# POST /practico/generar
+# ──────────────────────────────────────────────
+
+PROMPT_GENERAR = """
+Eres un profesor experto. Basándote ÚNICAMENTE en el siguiente contenido de los apuntes,
+crea exactamente {n} ejercicios originales y resueltos.
+
+CONOCIMIENTO DISPONIBLE:
+{contexto}
+
+FÓRMULAS DE REFERENCIA:
+{formulas}
+
+Devuelve SOLO el siguiente JSON sin texto adicional, sin markdown, sin ```json:
+
+{{
+  "ejercicios": [
+    {{
+      "titulo": "string — título corto descriptivo del ejercicio",
+      "enunciado": [
+        {{ "type": "text", "content": "enunciado del ejercicio con datos concretos" }},
+        {{ "type": "math", "latex": "expresión LaTeX SIN delimitadores $ ni $$" }}
+      ],
+      "solucion": [
+        {{
+          "type": "step",
+          "n": 1,
+          "content": [
+            {{ "type": "text", "content": "explicación del paso" }},
+            {{ "type": "math", "latex": "expresión LaTeX SIN delimitadores $ ni $$" }}
+          ]
+        }}
+      ]
+    }}
+  ]
+}}
+
+REGLAS:
+- Crea exactamente {n} ejercicios DISTINTOS y originales basados en el contenido dado.
+- Cada ejercicio debe tener datos numéricos concretos y ser resoluble.
+- La solución debe tener entre 2 y 5 pasos claros y numerados.
+- LaTeX: escribe SOLO el contenido matemático, SIN $ ni $$.
+- Idioma de los textos: {lang}.
+- NO inventes conceptos fuera del contenido dado.
+""".strip()
+
+
+class GenerarBody(BaseModel):
+    asignatura_id: str
+    temas_ids: list[str]
+    n: int = 3
+    lang: str = "es"
+
+
+@router.post("/generar")
+async def generar_ejercicios(body: GenerarBody):
+    """
+    AI-generates N original exercises from the atoms of the selected subtemas.
+    No DB persistence — pure on-demand generation.
+    """
+    from core.practical_extractor import _client
+    from config import settings
+    from google.genai import types as gtypes
+
+    db = get_service_client()
+    n = max(1, min(10, body.n))
+
+    # 1. Fetch atoms for the given subtema IDs
+    atomos_rows: list[dict] = []
+    if body.temas_ids:
+        res = (
+            db.table("atomos")
+            .select("pregunta, respuesta, subtema_id")
+            .in_("subtema_id", body.temas_ids)
+            .limit(80)
+            .execute()
+        )
+        atomos_rows = res.data or []
+
+    if not atomos_rows:
+        return {"ejercicios": [], "error": "No hay contenido para los temas seleccionados"}
+
+    contexto = "\n\n".join(
+        f"P: {a['pregunta']}\nR: {a['respuesta']}"
+        for a in atomos_rows
+        if a.get("pregunta") and a.get("respuesta")
+    )
+
+    # 2. Fetch formulas for context
+    fres = (
+        db.table("formulas_tema")
+        .select("nombre, latex")
+        .eq("asignatura_id", body.asignatura_id)
+        .limit(20)
+        .execute()
+    )
+    formulas_ctx = "\n".join(
+        f"- {f['nombre']}: {f['latex']}"
+        for f in (fres.data or [])
+        if f.get("latex")
+    ) or "Ninguna disponible"
+
+    # 3. Build prompt and call Gemini
+    prompt = PROMPT_GENERAR.format(
+        n=n,
+        contexto=contexto[:8000],
+        formulas=formulas_ctx[:2000],
+        lang=body.lang,
+    )
+
+    try:
+        response = _client.models.generate_content(
+            model=settings.gemini_model,
+            contents=[prompt],
+            config=gtypes.GenerateContentConfig(
+                temperature=0.4,
+                response_mime_type="application/json",
+            ),
+        )
+        raw = response.text.strip()
+        parsed = json.loads(raw)
+        if isinstance(parsed, list):
+            parsed = parsed[0] if parsed else {}
+        ejercicios = parsed.get("ejercicios", []) or []
+        logger.info(f"[generar] Generated {len(ejercicios)} exercises for asignatura {body.asignatura_id}")
+    except Exception as e:
+        logger.warning(f"[generar] Gemini error: {e}")
+        return {"ejercicios": [], "error": str(e)}
+
+    return {"ejercicios": ejercicios}
 
 
 # ──────────────────────────────────────────────
