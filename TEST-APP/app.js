@@ -1153,7 +1153,7 @@ async function obCreateSubject() {
   try {
     const s = await api('/asignaturas/', {
       method: 'POST',
-      body: JSON.stringify({ nombre: name, color: _obColor })
+      body: JSON.stringify({ usuario_id: uid, nombre: name, color: _obColor })
     });
     if (!s || !s.id) throw new Error('Respuesta inválida del servidor');
     _obSubjId = s.id;
@@ -6015,7 +6015,7 @@ function _renderSesState() {
 function _recordResult(correcto) {
   if (correcto) _sesCorrect++; else _sesWrong++;
   // Fire-and-forget API call
-  const uid = localStorage.getItem('ar_uid');
+  const uid = localStorage.getItem('ar_u');
   const ej  = _sesEjercicios[_sesIdx];
   if (uid && ej) {
     api('/practico/sesion/resultado', {
