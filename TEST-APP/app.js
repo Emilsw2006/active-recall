@@ -1771,9 +1771,15 @@ async function openSubtemaPanel(subtemaTitle, temaTitle) {
       .filter(e => e.tipo_contenido === 'procedimiento')
       .sort((a, b) => scoreFn(b) - scoreFn(a));
 
-    const ejemplos = (allEjercicios || [])
-      .filter(e => e.tipo_contenido === 'ejercicio')
-      .sort((a, b) => scoreFn(b) - scoreFn(a));
+    // Prefer tipo_contenido='ejercicio', fallback to any scored match, then any entry
+    const sorted = (allEjercicios || []).slice().sort((a, b) => {
+      const ta = a.tipo_contenido === 'ejercicio' ? 1 : 0;
+      const tb = b.tipo_contenido === 'ejercicio' ? 1 : 0;
+      if (tb !== ta) return tb - ta;          // ejercicio-type first
+      return scoreFn(b) - scoreFn(a);         // then by tema relevance
+    });
+    // Exclude procedimientos (already shown above)
+    const ejemplos = sorted.filter(e => e.tipo_contenido !== 'procedimiento');
 
     _renderSubtemaPanel(formulas, procedimientos, ejemplos, bodyEl);
   } catch(e) {

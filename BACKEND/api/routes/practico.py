@@ -172,7 +172,7 @@ async def generar_ejercicios(body: GenerarBody):
     if body.temas_ids:
         res = (
             db.table("atomos")
-            .select("pregunta, respuesta, subtema_id")
+            .select("titulo_corto, texto_completo, subtema_id")
             .in_("subtema_id", body.temas_ids)
             .limit(80)
             .execute()
@@ -183,9 +183,9 @@ async def generar_ejercicios(body: GenerarBody):
         return {"ejercicios": [], "error": "No hay contenido para los temas seleccionados"}
 
     contexto = "\n\n".join(
-        f"P: {a['pregunta']}\nR: {a['respuesta']}"
+        f"Concepto: {a.get('titulo_corto', '')}\n{a.get('texto_completo', '')}"
         for a in atomos_rows
-        if a.get("pregunta") and a.get("respuesta")
+        if a.get("titulo_corto") or a.get("texto_completo")
     )
 
     # 2. Fetch formulas for context
