@@ -167,13 +167,14 @@ async def generar_ejercicios(body: GenerarBody):
     db = get_service_client()
     n = max(1, min(10, body.n))
 
-    # 1. Fetch atoms for the given subtema IDs
+    # 1. Fetch atoms for the given tema IDs
+    # (temas_ids are IDs from the `temas` table; atomos has a direct tema_id FK)
     atomos_rows: list[dict] = []
     if body.temas_ids:
         res = (
             db.table("atomos")
-            .select("titulo_corto, texto_completo, subtema_id")
-            .in_("subtema_id", body.temas_ids)
+            .select("titulo_corto, texto_completo, tema_id")
+            .in_("tema_id", body.temas_ids)
             .limit(80)
             .execute()
         )

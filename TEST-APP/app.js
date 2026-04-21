@@ -1684,7 +1684,7 @@ async function loadDocTemas(docId) {
         ${hasSubtemas ? `
         <div class="doc-tema-body" id="tema-body-${t.id}" style="display:none">
           ${subtemas.map(st => `
-            <div class="doc-subtema-item" onclick="openSubtemaPanel(${JSON.stringify(st.titulo)},${JSON.stringify(t.titulo)});event.stopPropagation()">
+            <div class="doc-subtema-item" onclick="openSubtemaPanel(${JSON.stringify(st.titulo)},${JSON.stringify(t.titulo)},${JSON.stringify(t.id)});event.stopPropagation()">
               <div class="doc-subtema-dot"></div>
               <span class="doc-subtema-title">${esc(st.titulo)}</span>
               <span class="doc-subtema-count">${st.n_atomos}</span>
@@ -1728,7 +1728,7 @@ async function _checkPracticaSection(docId) {
 }
 
 // ── Subtema ejemplo panel ────────────────────────────────────────────
-async function openSubtemaPanel(subtemaTitle, temaTitle) {
+async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
   const panel = document.getElementById('subtema-ejemplo-panel');
   if (!panel) return;
   const titleEl = document.getElementById('sep-title');
@@ -1741,7 +1741,6 @@ async function openSubtemaPanel(subtemaTitle, temaTitle) {
   if (!asigId) return;
 
   try {
-    // Fetch ALL formulas + exercises for the subject in parallel; filter client-side
     const [allFormulas, allEjercicios] = await Promise.all([
       api(`/practico/formulas?asignatura_id=${asigId}`).catch(() => []),
       api(`/practico/ejercicios?asignatura_id=${asigId}`).catch(() => []),
@@ -1757,7 +1756,7 @@ async function openSubtemaPanel(subtemaTitle, temaTitle) {
     });
     if (!formulas.length) formulas = (allFormulas || []).slice(0, 5);
 
-    // Relevance scoring for exercises
+    // Relevance scoring
     const scoreFn = (e) => {
       const et = (e.tipo || '').toLowerCase();
       const em = (e.tema || '').toLowerCase();
@@ -1766,24 +1765,81 @@ async function openSubtemaPanel(subtemaTitle, temaTitle) {
       return 0;
     };
 
-    // Separate by tipo_contenido and sort by relevance
     const procedimientos = (allEjercicios || [])
       .filter(e => e.tipo_contenido === 'procedimiento')
       .sort((a, b) => scoreFn(b) - scoreFn(a));
 
-    // Prefer tipo_contenido='ejercicio', fallback to any scored match, then any entry
     const sorted = (allEjercicios || []).slice().sort((a, b) => {
       const ta = a.tipo_contenido === 'ejercicio' ? 1 : 0;
       const tb = b.tipo_contenido === 'ejercicio' ? 1 : 0;
-      if (tb !== ta) return tb - ta;          // ejercicio-type first
-      return scoreFn(b) - scoreFn(a);         // then by tema relevance
+      if (tb !== ta) return tb - ta;
+      return scoreFn(b) - scoreFn(a);
     });
-    // Exclude procedimientos (already shown above)
     const ejemplos = sorted.filter(e => e.tipo_contenido !== 'procedimiento');
 
     _renderSubtemaPanel(formulas, procedimientos, ejemplos, bodyEl);
+
+    // If no stored examples + practica/mixta subject → generate one on the fly
+    if (!ejemplos.length && temaId) {
+      const tipo = _subjData[curSubjectId]?.tipo;
+      if (tipo === 'practica' || tipo === 'mixta') {
+        _generateSubtemaEjemplo(temaId, bodyEl);
+      }
+    }
   } catch(e) {
     if (bodyEl) bodyEl.innerHTML = `<div class="practica-empty" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+/** AI-generates one exercise for a subtema panel when no stored example exists. */
+async function _generateSubtemaEjemplo(temaId, bodyEl) {
+  // Add the section with a loading state
+  const sec = document.createElement('div');
+  sec.className = 'sep-section';
+  const h = document.createElement('div');
+  h.className = 'sep-section-label';
+  h.textContent = 'Ejemplo resuelto';
+  sec.appendChild(h);
+  const loadEl = document.createElement('div');
+  loadEl.className = 'practica-empty';
+  loadEl.style.fontSize = '.82rem';
+  loadEl.textContent = '✨ Generando ejemplo con IA...';
+  sec.appendChild(loadEl);
+  bodyEl.appendChild(sec);
+
+  try {
+    const data = await api('/practico/generar', {
+      method: 'POST',
+      body: JSON.stringify({
+        asignatura_id: curSubjectId,
+        temas_ids: [temaId],
+        n: 1,
+        lang: currentLang,
+      }),
+    });
+    loadEl.remove();
+    const ejercicios = data.ejercicios || [];
+    if (!ejercicios.length) {
+      sec.innerHTML += `<div class="practica-empty" style="font-size:.82rem">No hay suficiente contenido para generar un ejemplo.</div>`;
+      return;
+    }
+    const ej = ejercicios[0];
+    if (ej.titulo) {
+      const sub = document.createElement('div');
+      sub.className = 'sep-sub-label';
+      sub.textContent = ej.titulo;
+      sec.appendChild(sub);
+    }
+    if (ej.enunciado?.length) renderBlocks(ej.enunciado, sec);
+    if (ej.solucion?.length) {
+      const stepLbl = document.createElement('div');
+      stepLbl.className = 'sep-sub-label';
+      stepLbl.textContent = 'Solución paso a paso';
+      sec.appendChild(stepLbl);
+      renderBlocks(ej.solucion, sec);
+    }
+  } catch(e) {
+    loadEl.textContent = 'Error generando el ejemplo.';
   }
 }
 
