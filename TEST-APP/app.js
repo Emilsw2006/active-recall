@@ -797,20 +797,20 @@ function lobbyGoStep(step) {
     backBtn.style.visibility = step === 0 ? 'hidden' : 'visible';
   }
 
+  // On step 0: show Práctica card only for practica/mixta subjects
+  if (step === 0) {
+    const subj = _subjData.find(s => s.id === curSubjectId);
+    const tipo = (subj && subj.tipo) || 'teorica';
+    const pracCard = document.getElementById('lcard-practica');
+    if (pracCard) pracCard.style.display = (tipo === 'practica' || tipo === 'mixta') ? '' : 'none';
+  }
+
   // On step 1: toggle dur vs nPreguntas sections based on mode
   if (step === 1) {
     const durSec = document.getElementById('lob-dur-section');
     const testSec = document.getElementById('lob-test-n-section');
     if (durSec) durSec.style.display = modeSelector === 'voz' ? '' : 'none';
     if (testSec) testSec.style.display = modeSelector === 'test' ? '' : 'none';
-  }
-
-  // On step 2 (topics): show "Practicar" button only for practica/mixta subjects
-  if (step === 2) {
-    const subj = _subjData.find(s => s.id === curSubjectId);
-    const tipo = (subj && subj.tipo) || 'teorica';
-    const pracBtn = document.getElementById('lobby-practicar-btn');
-    if (pracBtn) pracBtn.style.display = (tipo === 'practica' || tipo === 'mixta') ? '' : 'none';
   }
 
   // Scroll step body to top when navigating
@@ -822,9 +822,14 @@ function lobbyGoStep(step) {
 }
 
 function setStudyMode(mode) {
+  // Práctica: open practice session overlay immediately, don't navigate lobby steps
+  if (mode === 'practica') {
+    openPracticaSesion(null, curSubjectId);
+    return;
+  }
   modeSelector = mode;
   // Update mode card highlight
-  ['lcard-voz', 'lcard-test'].forEach(id => {
+  ['lcard-voz', 'lcard-test', 'lcard-practica'].forEach(id => {
     const el = document.getElementById(id);
     if (el) el.classList.remove('active');
   });
@@ -1581,22 +1586,6 @@ async function loadDocs() {
       const bodyHtml = isProc
         ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:.82rem;color:var(--txt2)">${SPIN_ICON} ${T('mat_extracting')}</div>`
         : `<div class="doc-temas-list" id="doc-temas-${d.id}"><div class="atom-loading">${T('mat_opening')}</div></div>
-           <div class="practica-section" id="practica-section-${d.id}" style="display:none">
-             <button class="practica-toggle-btn" onclick="event.stopPropagation()">
-               <span class="practica-toggle-label">⚗️ ${T('practica_ver')}</span>
-               <span class="practica-toggle-arrow">›</span>
-             </button>
-             <div class="practica-mode-row">
-               <button class="practica-mode-btn" onclick="openPracticaDict('${d.id}','${d.asignatura_id}');event.stopPropagation()">
-                 <span class="practica-mode-icon">📖</span>
-                 <span class="practica-mode-label">${T('practica_dict')}</span>
-               </button>
-               <button class="practica-mode-btn" onclick="openPracticaSesion('${d.id}','${d.asignatura_id}');event.stopPropagation()">
-                 <span class="practica-mode-icon">⏱️</span>
-                 <span class="practica-mode-label">${T('practica_sesion')}</span>
-               </button>
-             </div>
-           </div>
            <div class="doc-card-actions" style="margin-top:10px">
              <button class="doc-btn danger" onclick="deleteDocument('${d.id}');event.stopPropagation()">${T('mat_delete_doc')}</button>
            </div>`;
@@ -1703,8 +1692,7 @@ async function loadDocTemas(docId) {
         </div>` : ''}
       </div>`;
     }).join('');
-    // Check if practical content exists for this document (non-blocking)
-    _checkPracticaSection(docId).catch(() => {});
+    // (practical content accessible via Práctica mode in lobby)
   } catch(e) {
     container.innerHTML = `<div class="atom-loading" style="color:var(--red)">${e.message}</div>`;
   }

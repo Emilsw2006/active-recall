@@ -874,6 +874,15 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   box-shadow: 0 8px 28px rgba(0,0,0,0.18);
 }
 .lobby-mode-card:active { transform: scale(0.97); }
+.lobby-mode-card--practica {
+  background: linear-gradient(135deg, rgba(79,126,255,0.14), rgba(167,139,250,0.14));
+  border-color: rgba(79,126,255,0.35);
+}
+.lobby-mode-card--practica:hover,
+.lobby-mode-card--practica.active {
+  background: linear-gradient(135deg, rgba(79,126,255,0.28), rgba(167,139,250,0.28));
+  border-color: rgba(79,126,255,0.65);
+}
 .lmc-icon {
   opacity: .85; margin-bottom: 6px;
 }

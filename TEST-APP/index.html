@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=44" />
+<link rel="stylesheet" href="style.css?v=45" />
 <!-- KaTeX — LaTeX rendering (no build step required) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
@@ -542,6 +542,13 @@
               <div class="lobby-onb-body">
                 <p class="lobby-onb-label">Como quieres estudiar?</p>
                 <div class="lobby-mode-cards">
+                  <button class="lobby-mode-card lobby-mode-card--practica" id="lcard-practica" onclick="setStudyMode('practica')" style="display:none">
+                    <div class="lmc-icon">
+                      <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 20h20"/><path d="M6 20V10l6-6 6 6v10"/><path d="M10 20v-5h4v5"/></svg>
+                    </div>
+                    <span class="lmc-name">Práctica</span>
+                    <span class="lmc-desc">Ejercicios, fórmulas y pasos</span>
+                  </button>
                   <button class="lobby-mode-card" id="lcard-voz" onclick="setStudyMode('voz'); lobbyGoStep(1)">
                     <div class="lmc-icon">
                       <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
@@ -617,8 +624,7 @@
                   <div class="empty-state" style="padding:20px">Cargando temas...</div>
                 </div>
               </div>
-              <div class="lobby-onb-footer" id="lobby-start-footer">
-                <button id="lobby-practicar-btn" class="lobby-start-btn lobby-start-btn--practica" onclick="lobbyOpenPractica()" style="display:none">PRACTICAR 🧩</button>
+              <div class="lobby-onb-footer">
                 <button class="lobby-start-btn" onclick="startSessionFlow()">EMPEZAR &rarr;</button>
               </div>
             </div>
@@ -1433,7 +1439,7 @@
 
 </div>
 
-<script src="app.js?v=40"></script>
+<script src="app.js?v=41"></script>
 <script>
 // goNotif, _notifIdx, _onNotifScroll are defined in app.js (scroll-snap based)
 // Auto-advance every 5s
