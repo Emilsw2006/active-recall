@@ -1775,7 +1775,7 @@ async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
       if (tb !== ta) return tb - ta;
       return scoreFn(b) - scoreFn(a);
     });
-    const ejemplos = sorted.filter(e => e.tipo_contenido !== 'procedimiento');
+    const ejemplos = sorted.filter(e => e.tipo_contenido === 'ejercicio');
 
     _renderSubtemaPanel(formulas, procedimientos, ejemplos, bodyEl);
 
@@ -1812,6 +1812,7 @@ async function _generateSubtemaEjemplo(temaId, bodyEl) {
         temas_ids: [temaId],
         n: 1,
         lang: currentLang,
+        usuario_id: uid || undefined,
       }),
     });
     loadEl.remove();
@@ -2514,6 +2515,7 @@ async function startPracticaFlow(selected) {
         temas_ids: selected.map(t => t.id),
         n,
         lang: currentLang,
+        usuario_id: uid || undefined,
       }),
     });
     _genEjercicios = data.ejercicios || [];

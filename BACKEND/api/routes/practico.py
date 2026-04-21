@@ -104,23 +104,44 @@ async def listar_formulas(
 # ──────────────────────────────────────────────
 
 PROMPT_GENERAR = """
-Eres un profesor experto. Basándote ÚNICAMENTE en el siguiente contenido de los apuntes,
-crea exactamente {n} ejercicios originales y resueltos.
+Eres un profesor experto que genera ejercicios de práctica personalizados.
 
-CONOCIMIENTO DISPONIBLE:
+CONOCIMIENTO DISPONIBLE (usa ÚNICAMENTE este contenido):
 {contexto}
 
 FÓRMULAS DE REFERENCIA:
 {formulas}
 
+HISTORIAL (ejercicios ya realizados por el estudiante — NO repitas estos títulos ni estos tipos):
+{historial}
+
+INSTRUCCIONES — sigue estas 3 fases ANTES de escribir el JSON:
+
+FASE 1 — IDENTIFICAR TIPOS:
+Analiza el conocimiento disponible e identifica 3-5 tipos distintos de ejercicios posibles
+(ejemplos: "cinemática uniforme", "caída libre", "trabajo y energía", "cálculo de derivadas",
+"integración por partes", "probabilidad condicional", etc.).
+
+FASE 2 — ELEGIR TIPOS NUEVOS:
+De los tipos identificados, descarta los que ya aparecen en el historial.
+Prioriza los que el estudiante NO ha practicado todavía.
+
+FASE 3 — GENERAR EJERCICIOS:
+Crea exactamente {n} ejercicios distintos usando los tipos elegidos en la Fase 2.
+
 Devuelve SOLO el siguiente JSON sin texto adicional, sin markdown, sin ```json:
 
 {{
+  "tipos_identificados": ["tipo1", "tipo2", "..."],
   "ejercicios": [
     {{
-      "titulo": "string — título corto descriptivo del ejercicio",
+      "titulo": "string — título corto descriptivo que indique el tipo de ejercicio",
+      "dades": [
+        {{ "symbol": "v₀", "value": "15", "unit": "m/s" }},
+        {{ "symbol": "a", "value": "9.8", "unit": "m/s²" }}
+      ],
       "enunciado": [
-        {{ "type": "text", "content": "enunciado del ejercicio con datos concretos" }},
+        {{ "type": "text", "content": "Enunciado claro con los valores de dades ya mencionados." }},
         {{ "type": "math", "latex": "expresión LaTeX SIN delimitadores $ ni $$" }}
       ],
       "solucion": [
@@ -128,8 +149,16 @@ Devuelve SOLO el siguiente JSON sin texto adicional, sin markdown, sin ```json:
           "type": "step",
           "n": 1,
           "content": [
-            {{ "type": "text", "content": "explicación del paso" }},
-            {{ "type": "math", "latex": "expresión LaTeX SIN delimitadores $ ni $$" }}
+            {{ "type": "text", "content": "Identificamos los datos: v₀ = 15 m/s, a = 9.8 m/s²" }},
+            {{ "type": "math", "latex": "v = v_0 + a \\cdot t" }}
+          ]
+        }},
+        {{
+          "type": "step",
+          "n": 2,
+          "content": [
+            {{ "type": "text", "content": "Sustituimos y calculamos..." }},
+            {{ "type": "math", "latex": "v = 15 + 9.8 \\cdot 2 = 34.6 \\text{{ m/s}}" }}
           ]
         }}
       ]
@@ -137,13 +166,19 @@ Devuelve SOLO el siguiente JSON sin texto adicional, sin markdown, sin ```json:
   ]
 }}
 
-REGLAS:
-- Crea exactamente {n} ejercicios DISTINTOS y originales basados en el contenido dado.
-- Cada ejercicio debe tener datos numéricos concretos y ser resoluble.
-- La solución debe tener entre 2 y 5 pasos claros y numerados.
+REGLAS CRÍTICAS:
+- dades: tabla de datos iniciales del ejercicio. OBLIGATORIO para ejercicios numéricos.
+  Cada entry tiene symbol (nombre de variable), value (número), unit (unidades).
+  Si el ejercicio es teórico/conceptual, dades puede ser [].
+- enunciado: SOLO bloques "text" y "math". PROHIBIDO: chart, img_desc, table, vector, number_line.
+- solucion: SOLO bloques "step". Cada step tiene "content" con bloques "text" y "math" ÚNICAMENTE.
+  Los pasos deben referenciar los valores de dades explícitamente.
+  Entre 3 y 6 pasos por ejercicio. Solución completa y detallada.
 - LaTeX: escribe SOLO el contenido matemático, SIN $ ni $$.
+  Correcto: "F = ma". Incorrecto: "$F = ma$"
 - Idioma de los textos: {lang}.
-- NO inventes conceptos fuera del contenido dado.
+- NO inventes conceptos fuera del conocimiento disponible.
+- Los {n} ejercicios deben ser DISTINTOS entre sí (tipos diferentes, datos diferentes).
 """.strip()
 
 
@@ -152,13 +187,15 @@ class GenerarBody(BaseModel):
     temas_ids: list[str]
     n: int = 3
     lang: str = "es"
+    usuario_id: str | None = None
 
 
 @router.post("/generar")
 async def generar_ejercicios(body: GenerarBody):
     """
     AI-generates N original exercises from the atoms of the selected subtemas.
-    No DB persistence — pure on-demand generation.
+    Uses practice history to avoid repetition.
+    Persists generated exercises to DB so results can be tracked.
     """
     from core.practical_extractor import _client
     from config import settings
@@ -203,11 +240,36 @@ async def generar_ejercicios(body: GenerarBody):
         if f.get("latex")
     ) or "Ninguna disponible"
 
-    # 3. Build prompt and call Gemini
+    # 3. Fetch practice history to avoid repeating exercise types
+    historial_ctx = "Ninguno (primera sesión)"
+    if body.usuario_id:
+        try:
+            hist_res = (
+                db.table("practica_resultados")
+                .select("ejercicio_id, ejercicios!inner(titulo, asignatura_id)")
+                .eq("usuario_id", body.usuario_id)
+                .eq("ejercicios.asignatura_id", body.asignatura_id)
+                .order("created_at", desc=True)
+                .limit(30)
+                .execute()
+            )
+            hist_rows = hist_res.data or []
+            seen_titles = list({
+                r["ejercicios"]["titulo"]
+                for r in hist_rows
+                if r.get("ejercicios") and r["ejercicios"].get("titulo")
+            })
+            if seen_titles:
+                historial_ctx = "\n".join(f"- {t}" for t in seen_titles[:30])
+        except Exception as e_hist:
+            logger.warning(f"[generar] History fetch failed (non-fatal): {e_hist}")
+
+    # 4. Build prompt and call Gemini
     prompt = PROMPT_GENERAR.format(
         n=n,
         contexto=contexto[:8000],
         formulas=formulas_ctx[:2000],
+        historial=historial_ctx,
         lang=body.lang,
     )
 
@@ -225,7 +287,11 @@ async def generar_ejercicios(body: GenerarBody):
         if isinstance(parsed, list):
             parsed = parsed[0] if parsed else {}
         ejercicios = parsed.get("ejercicios", []) or []
-        logger.info(f"[generar] Generated {len(ejercicios)} exercises for asignatura {body.asignatura_id}")
+        tipos = parsed.get("tipos_identificados", [])
+        logger.info(
+            f"[generar] Generated {len(ejercicios)} exercises for asignatura {body.asignatura_id} "
+            f"(tipos: {tipos})"
+        )
     except Exception as e:
         logger.warning(f"[generar] Gemini error: {e}")
         return {"ejercicios": [], "error": str(e)}

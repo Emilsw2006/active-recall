@@ -5589,8 +5589,8 @@ button { touch-action: manipulation; }
 }
 .practica-gen-track::-webkit-scrollbar { display: none; }
 .practica-gen-page {
-  flex: 0 0 100%;
-  scroll-snap-align: start;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding: 20px 18px 24px;
   box-sizing: border-box;
