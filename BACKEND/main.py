@@ -21,6 +21,7 @@ from api.routes.sesiones import router as sesiones_router
 from api.routes.flashcards import router as flashcards_router
 from api.routes.planes import router as planes_router
 from api.routes.tests import router as tests_router
+from api.routes.practico import router as practico_router
 from api.websocket import router as ws_router
 from utils.logger import get_logger
 
@@ -89,6 +90,7 @@ app.include_router(sesiones_router)
 app.include_router(flashcards_router)
 app.include_router(planes_router)
 app.include_router(tests_router)
+app.include_router(practico_router)
 app.include_router(ws_router)
 
 

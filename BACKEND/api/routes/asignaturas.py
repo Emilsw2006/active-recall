@@ -12,6 +12,7 @@ class AsignaturaCreate(BaseModel):
     usuario_id: str        = Field(..., max_length=36)
     nombre: str            = Field(..., min_length=1, max_length=100)
     color: str | None      = Field(None, max_length=20)
+    tipo: str | None       = Field(None, pattern="^(teorica|practica|mixta)$")
 
 
 @router.get("/{usuario_id}")
@@ -51,15 +52,17 @@ async def crear_asignatura(body: AsignaturaCreate):
     if not u.data:
         raise HTTPException(status_code=404, detail="Usuario no encontrado")
 
+    row = {
+        "usuario_id": body.usuario_id,
+        "nombre": body.nombre,
+        "color": body.color,
+    }
+    if body.tipo:
+        row["tipo"] = body.tipo
+
     res = (
         db.table("asignaturas")
-        .insert(
-            {
-                "usuario_id": body.usuario_id,
-                "nombre": body.nombre,
-                "color": body.color,
-            }
-        )
+        .insert(row)
         .execute()
     )
     logger.info(f"Asignatura creada: {res.data[0]['id']} para usuario {body.usuario_id}")
@@ -69,6 +72,7 @@ async def crear_asignatura(body: AsignaturaCreate):
 class AsignaturaUpdate(BaseModel):
     nombre: str | None = Field(None, min_length=1, max_length=100)
     color: str | None  = Field(None, max_length=20)
+    tipo: str | None   = Field(None, pattern="^(teorica|practica|mixta)$")
 
 
 @router.put("/{asignatura_id}")

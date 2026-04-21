@@ -350,7 +350,7 @@ async function _buildSmartNotifs() {
   try {
     const [sessions, docs] = await Promise.allSettled([
       api(`/sesiones/usuario/${uid}`),
-      curSubjectId ? api(`/documentos/${curSubjectId}`) : Promise.resolve([])
+      curSubjectId ? api(`/documentos/asignatura/${curSubjectId}`) : Promise.resolve([])
     ]);
 
     const allSessions = sessions.status === 'fulfilled' ? (sessions.value || []) : [];
@@ -584,7 +584,44 @@ function openAjustesModal() {
   document.querySelectorAll('.lang-btn').forEach(btn => {
     btn.classList.toggle('active', btn.dataset.lang === currentLang);
   });
+  // Subject tipo picker — show only if a subject is selected
+  const tipoSection = $('ajustes-tipo-section');
+  if (tipoSection) {
+    if (curSubjectId) {
+      tipoSection.style.display = 'block';
+      // Read tipo from _subjData
+      const subj = _subjData.find(s => s.id === curSubjectId);
+      const currentTipo = (subj && subj.tipo) || 'teorica';
+      _updateTipoBtns(currentTipo);
+    } else {
+      tipoSection.style.display = 'none';
+    }
+  }
   $('modal-ajustes').classList.add('open');
+}
+
+function _updateTipoBtns(tipo) {
+  ['teorica','practica','mixta'].forEach(t => {
+    const btn = $(`tipo-btn-${t}`);
+    if (btn) btn.classList.toggle('active', t === tipo);
+  });
+}
+
+async function setSubjectTipo(tipo) {
+  if (!curSubjectId) return;
+  _updateTipoBtns(tipo);
+  // Optimistic update in local cache
+  const subj = _subjData.find(s => s.id === curSubjectId);
+  if (subj) subj.tipo = tipo;
+  try {
+    await api(`/asignaturas/${curSubjectId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ tipo }),
+    });
+    toast(`${tipo === 'teorica' ? '📖' : tipo === 'practica' ? '🔢' : '⚗️'} ${T('tipo_' + tipo)}`, 'ok');
+  } catch(e) {
+    toast(e.message, 'err');
+  }
 }
 
 // ── Header language flag pill ──
@@ -1522,6 +1559,22 @@ async function loadDocs() {
       const bodyHtml = isProc
         ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:.82rem;color:var(--txt2)">${SPIN_ICON} ${T('mat_extracting')}</div>`
         : `<div class="doc-temas-list" id="doc-temas-${d.id}"><div class="atom-loading">${T('mat_opening')}</div></div>
+           <div class="practica-section" id="practica-section-${d.id}" style="display:none">
+             <button class="practica-toggle-btn" onclick="event.stopPropagation()">
+               <span class="practica-toggle-label">⚗️ ${T('practica_ver')}</span>
+               <span class="practica-toggle-arrow">›</span>
+             </button>
+             <div class="practica-mode-row">
+               <button class="practica-mode-btn" onclick="openPracticaDict('${d.id}','${d.asignatura_id}');event.stopPropagation()">
+                 <span class="practica-mode-icon">📖</span>
+                 <span class="practica-mode-label">${T('practica_dict')}</span>
+               </button>
+               <button class="practica-mode-btn" onclick="openPracticaSesion('${d.id}','${d.asignatura_id}');event.stopPropagation()">
+                 <span class="practica-mode-icon">⏱️</span>
+                 <span class="practica-mode-label">${T('practica_sesion')}</span>
+               </button>
+             </div>
+           </div>
            <div class="doc-card-actions" style="margin-top:10px">
              <button class="doc-btn danger" onclick="deleteDocument('${d.id}');event.stopPropagation()">${T('mat_delete_doc')}</button>
            </div>`;
@@ -1628,8 +1681,26 @@ async function loadDocTemas(docId) {
         </div>` : ''}
       </div>`;
     }).join('');
+    // Check if practical content exists for this document (non-blocking)
+    _checkPracticaSection(docId).catch(() => {});
   } catch(e) {
     container.innerHTML = `<div class="atom-loading" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+async function _checkPracticaSection(docId) {
+  const section = document.getElementById(`practica-section-${docId}`);
+  if (!section) return;
+  // Find asignatura_id from the doc card (stored as data attribute or derive from curSubjectId)
+  const asigId = curSubjectId;
+  if (!asigId) return;
+  try {
+    const ejercicios = await api(`/practico/ejercicios?asignatura_id=${asigId}&documento_id=${docId}&limit=1`);
+    if (ejercicios && ejercicios.length > 0) {
+      section.style.display = 'block';
+    }
+  } catch(e) {
+    // non-fatal — practical section stays hidden
   }
 }
 
@@ -5136,3 +5207,724 @@ if (token && uid) {
     }
   });
 }
+
+// ════════════════════════════════════════════════════════════════════
+// PRACTICAL MODULE  (Mode A: Dictionary | Mode B: Practice Session)
+// ════════════════════════════════════════════════════════════════════
+
+// ── State ──────────────────────────────────────────────────────────
+let _practicaDocId       = null;
+let _practicaAsigId      = null;
+let _practicaEjercicios  = [];  // full list for current dict/session
+let _practicaFormulas    = [];
+let _practicaFilterTipo  = null;   // active tipo filter (null = all)
+let _stepViewerSteps     = [];     // current step cards data
+let _stepViewerIdx       = 0;
+// Session (Mode B)
+let _sesEjercicios       = [];  // shuffled list for current session
+let _sesIdx              = 0;
+let _sesState            = 'dades'; // 'dades' | 'pregunta' | 'resultat'
+let _sesCorrect          = 0;
+let _sesWrong            = 0;
+let _sesTimerInterval    = null;
+let _sesTimerLeft        = 0;
+const SES_TIMER_SECS     = 180;   // default 3 min per exercise
+
+// ── KaTeX helper ───────────────────────────────────────────────────
+function _katexRender(latex, el, displayMode = false) {
+  if (typeof katex === 'undefined') {
+    el.textContent = latex;
+    return;
+  }
+  try {
+    el.innerHTML = katex.renderToString(latex, { displayMode, throwOnError: false });
+  } catch(e) {
+    el.textContent = latex;
+  }
+}
+
+// ── Block renderer (Server-Driven UI) ──────────────────────────────
+function renderBlocks(blocks, container) {
+  if (!blocks || !blocks.length) return;
+  for (const blk of blocks) {
+    const el = document.createElement('div');
+    switch (blk.type) {
+      case 'text': {
+        el.className = 'block-text';
+        el.textContent = blk.content || '';
+        break;
+      }
+      case 'math': {
+        el.className = 'block-math';
+        _katexRender(blk.latex || '', el, true);
+        break;
+      }
+      case 'img_desc': {
+        el.className = 'block-img-desc';
+        el.textContent = '🖼 ' + (blk.description || '');
+        break;
+      }
+      case 'table': {
+        el.className = 'block-table-wrap';
+        const tbl = document.createElement('table');
+        tbl.className = 'block-table';
+        if (blk.headers && blk.headers.length) {
+          const tr = document.createElement('tr');
+          for (const h of blk.headers) {
+            const th = document.createElement('th');
+            th.textContent = h;
+            tr.appendChild(th);
+          }
+          tbl.appendChild(tr);
+        }
+        for (const row of (blk.rows || [])) {
+          const tr = document.createElement('tr');
+          for (const cell of row) {
+            const td = document.createElement('td');
+            td.textContent = cell;
+            tr.appendChild(td);
+          }
+          tbl.appendChild(tr);
+        }
+        el.appendChild(tbl);
+        break;
+      }
+      case 'step': {
+        el.className = 'step-card';
+        const lbl = document.createElement('div');
+        lbl.className = 'step-label';
+        lbl.textContent = `${T('practica_step')} ${blk.n}`;
+        el.appendChild(lbl);
+        renderBlocks(blk.content || [], el);
+        break;
+      }
+      default: {
+        el.className = 'block-text';
+        el.textContent = JSON.stringify(blk);
+      }
+    }
+    container.appendChild(el);
+  }
+}
+
+// ── Dades table renderer ────────────────────────────────────────────
+function _renderDadesTable(dades) {
+  if (!dades || !dades.length) return '<p style="color:var(--txt-dim);font-size:.84rem">—</p>';
+  let html = '<table class="dades-table"><tr><th>Símbolo</th><th>Valor</th><th>Unidad</th></tr>';
+  for (const d of dades) {
+    html += `<tr>
+      <td class="dades-symbol">${esc(d.symbol || '')}</td>
+      <td class="dades-value">${esc(d.value || '')}</td>
+      <td class="dades-unit">${esc(d.unit || '')}</td>
+    </tr>`;
+  }
+  html += '</table>';
+  return html;
+}
+
+// ── Enunciado text preview (first TextBlock) ───────────────────────
+function _previewEnunciado(blocks) {
+  if (!blocks || !blocks.length) return '—';
+  const txt = blocks.find(b => b.type === 'text');
+  return txt ? txt.content.slice(0, 120) + (txt.content.length > 120 ? '…' : '') : '—';
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MODE A — DICTIONARY
+// ════════════════════════════════════════════════════════════════════
+
+// Content-type metadata: icon, label key, accent color
+const _TIPO_CONTENIDO_META = {
+  ejercicio:     { icon: '🔢', labelKey: 'tc_ejercicio',     color: 'var(--accent)' },
+  procedimiento: { icon: '📐', labelKey: 'tc_procedimiento', color: '#a78bfa' },
+  concepto:      { icon: '💡', labelKey: 'tc_concepto',      color: '#34d399' },
+};
+
+// Active filter state: { tipoContenido: null|string, tipo: null|string }
+let _practicaFilter = { tipoContenido: null, tipo: null };
+
+async function openPracticaDict(docId, asigId) {
+  _practicaDocId   = docId;
+  _practicaAsigId  = asigId;
+  _practicaFilter  = { tipoContenido: null, tipo: null };
+
+  const overlay = document.getElementById('practica-dict-overlay');
+  if (!overlay) return;
+
+  const titleEl = document.getElementById('practica-dict-title');
+  const subEl   = document.getElementById('practica-dict-sub');
+  if (titleEl) titleEl.textContent = T('practica_dict');
+  if (subEl)   subEl.textContent   = '';
+
+  const listEl = document.getElementById('practica-dict-list');
+  if (listEl) listEl.innerHTML = `<div class="practica-empty">${T('empty_loading')}</div>`;
+  overlay.classList.add('open');
+
+  try {
+    const [contenidos, formulas] = await Promise.all([
+      api(`/practico/ejercicios?asignatura_id=${asigId}&documento_id=${docId}`),
+      api(`/practico/formulas?asignatura_id=${asigId}&documento_id=${docId}`),
+    ]);
+    _practicaEjercicios = contenidos || [];
+    _practicaFormulas   = formulas   || [];
+  } catch(e) {
+    _practicaEjercicios = [];
+    _practicaFormulas   = [];
+  }
+
+  _buildDictFilters();
+  _renderDictList();
+}
+
+function _buildDictFilters() {
+  const filtersEl = document.getElementById('practica-dict-filters');
+  if (!filtersEl) return;
+
+  // Row 1: content-type pills
+  const tiposContenido = [...new Set(_practicaEjercicios.map(e => e.tipo_contenido).filter(Boolean))];
+  // Row 2: thematic tipo chips (only if ≤8 unique)
+  const tematicos = [...new Set(_practicaEjercicios.map(e => e.tipo).filter(Boolean))];
+
+  let html = '';
+
+  // Content-type pills
+  for (const tc of tiposContenido) {
+    const meta = _TIPO_CONTENIDO_META[tc] || { icon: '📄', labelKey: tc, color: 'var(--accent)' };
+    const label = T(meta.labelKey) || tc;
+    const active = _practicaFilter.tipoContenido === tc;
+    html += `<button class="practica-chip practica-chip-tc${active ? ' active' : ''}"
+      style="${active ? `background:${meta.color};border-color:${meta.color}` : ''}"
+      onclick="setDictFilterTC('${tc}')">${meta.icon} ${esc(label)}</button>`;
+  }
+
+  // Thematic tipo chips
+  if (tematicos.length > 0 && tematicos.length <= 10) {
+    for (const t of tematicos) {
+      const active = _practicaFilter.tipo === t;
+      html += `<button class="practica-chip${active ? ' active' : ''}"
+        onclick="setDictFilterTipo('${esc(t)}')">${esc(t)}</button>`;
+    }
+  }
+
+  filtersEl.innerHTML = html;
+}
+
+function setDictFilterTC(tc) {
+  _practicaFilter.tipoContenido = _practicaFilter.tipoContenido === tc ? null : tc;
+  _buildDictFilters();
+  _renderDictList();
+}
+
+function setDictFilterTipo(tipo) {
+  _practicaFilter.tipo = _practicaFilter.tipo === tipo ? null : tipo;
+  _buildDictFilters();
+  _renderDictList();
+}
+
+// Keep old name for backward compat (called from CSS chips)
+function setPracticaFilter(tipo) { setDictFilterTipo(tipo); }
+
+function _renderDictList() {
+  const listEl = document.getElementById('practica-dict-list');
+  if (!listEl) return;
+
+  let filtered = _practicaEjercicios;
+  if (_practicaFilter.tipoContenido) filtered = filtered.filter(e => e.tipo_contenido === _practicaFilter.tipoContenido);
+  if (_practicaFilter.tipo)          filtered = filtered.filter(e => e.tipo === _practicaFilter.tipo);
+
+  if (!filtered.length) {
+    listEl.innerHTML = `<div class="practica-empty">${T('practica_empty')}</div>`;
+    return;
+  }
+
+  // Group by tipo_contenido for visual separation
+  const groups = {};
+  for (const c of filtered) {
+    const tc = c.tipo_contenido || 'ejercicio';
+    if (!groups[tc]) groups[tc] = [];
+    groups[tc].push(c);
+  }
+
+  listEl.innerHTML = '';
+
+  // Render in order: concepto → procedimiento → ejercicio
+  for (const tc of ['concepto', 'procedimiento', 'ejercicio']) {
+    if (!groups[tc] || !groups[tc].length) continue;
+    const meta = _TIPO_CONTENIDO_META[tc] || { icon: '📄', labelKey: tc, color: 'var(--accent)' };
+
+    // Section header
+    const hdr = document.createElement('div');
+    hdr.className = 'dict-section-header';
+    hdr.style.cssText = `color:${meta.color}`;
+    hdr.textContent = `${meta.icon} ${T(meta.labelKey) || tc}`;
+    listEl.appendChild(hdr);
+
+    for (const c of groups[tc]) {
+      const card = document.createElement('div');
+      card.className = `practica-exercise-card practica-card-${tc}`;
+
+      const difDots = tc === 'ejercicio'
+        ? `<span class="exercise-dif-dots">${[1,2,3].map(n =>
+            `<span class="exercise-dif-dot${n <= (c.dificultad || 1) ? ' filled' : ''}"></span>`).join('')}</span>`
+        : '';
+
+      // Title: prefer explicit titulo, fallback to first text block preview
+      const displayTitle = c.titulo && c.titulo.trim()
+        ? esc(c.titulo)
+        : esc(_previewEnunciado(c.enunciado));
+
+      const tipoChip = c.tipo
+        ? `<span class="exercise-tipo-chip" style="background:rgba(255,255,255,0.06);color:var(--txt-dim)">${esc(c.tipo)}</span>`
+        : '';
+
+      card.innerHTML = `
+        <div class="exercise-meta-row">
+          ${tipoChip}
+          ${difDots}
+        </div>
+        <div class="exercise-enunciado-preview" style="font-weight:${c.titulo ? '600' : '400'};color:var(--txt)">${displayTitle}</div>
+        <button class="exercise-solucion-btn" onclick="openStepViewer('${c.id}');event.stopPropagation()">
+          ${tc === 'ejercicio' ? T('practica_ver_sol') : (tc === 'procedimiento' ? '📐 Ver pasos' : '💡 Ver explicación')}
+        </button>
+      `;
+      card.onclick = () => openStepViewer(c.id);
+      listEl.appendChild(card);
+    }
+  }
+}
+
+function closePracticaDict() {
+  const overlay = document.getElementById('practica-dict-overlay');
+  if (overlay) overlay.classList.remove('open');
+  closePracticaStep();
+}
+
+// ── Step Viewer ─────────────────────────────────────────────────────
+function openStepViewer(ejercicioId) {
+  const ej = _practicaEjercicios.find(e => e.id === ejercicioId);
+  if (!ej) return;
+
+  const overlay = document.getElementById('practica-step-overlay');
+  if (!overlay) return;
+
+  // Title / subtitle
+  const titleEl = document.getElementById('practica-step-title');
+  const subEl   = document.getElementById('practica-step-sub');
+  if (titleEl) titleEl.textContent = ej.tipo ? esc(ej.tipo) : T('practica_ver_sol');
+  if (subEl)   subEl.textContent   = ej.tema ? esc(ej.tema) : '';
+
+  // Build steps: slide 0 = enunciado, then each step block
+  const solucion = ej.solucion || [];
+  const stepBlocks = solucion.filter(b => b.type === 'step');
+  const otherBlocks = solucion.filter(b => b.type !== 'step');
+
+  _stepViewerSteps = [];
+
+  // Slide 0: enunciado + dades
+  _stepViewerSteps.push({ label: 'Enunciado', blocks: ej.enunciado || [], dades: ej.dades || [] });
+
+  // Remaining steps from solucion
+  if (stepBlocks.length) {
+    for (const s of stepBlocks) {
+      _stepViewerSteps.push({ label: `${T('practica_step')} ${s.n}`, blocks: s.content || [] });
+    }
+    if (otherBlocks.length) {
+      _stepViewerSteps.push({ label: 'Solución', blocks: otherBlocks });
+    }
+  } else if (solucion.length) {
+    _stepViewerSteps.push({ label: 'Solución', blocks: solucion });
+  }
+
+  _stepViewerIdx = 0;
+  _renderStepViewer();
+  overlay.classList.add('open');
+}
+
+function _renderStepViewer() {
+  const track = document.getElementById('step-viewer-track');
+  const counter = document.getElementById('step-counter');
+  if (!track) return;
+
+  track.innerHTML = '';
+  for (let i = 0; i < _stepViewerSteps.length; i++) {
+    const s = _stepViewerSteps[i];
+    const card = document.createElement('div');
+    card.className = 'step-card';
+    card.style.flex = '0 0 100%';
+    card.style.scrollSnapAlign = 'start';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'step-label';
+    lbl.textContent = s.label;
+    card.appendChild(lbl);
+
+    // Dades table (only for enunciado slide)
+    if (s.dades && s.dades.length) {
+      const dadesWrap = document.createElement('div');
+      dadesWrap.innerHTML = _renderDadesTable(s.dades);
+      card.appendChild(dadesWrap);
+    }
+
+    renderBlocks(s.blocks, card);
+    track.appendChild(card);
+  }
+
+  // Scroll to current
+  _scrollToStep(_stepViewerIdx);
+
+  if (counter) {
+    counter.textContent = `${T('practica_step')} ${_stepViewerIdx + 1} ${T('practica_of')} ${_stepViewerSteps.length}`;
+  }
+
+  // Update nav buttons
+  const prev = document.getElementById('step-prev-btn');
+  const next = document.getElementById('step-next-btn');
+  if (prev) prev.textContent = _stepViewerIdx === 0 ? '✕' : '←';
+  if (next) {
+    const isLast = _stepViewerIdx === _stepViewerSteps.length - 1;
+    next.textContent = isLast ? T('practica_siguiente') + ' ›' : '→';
+    next.className = `step-nav-btn${isLast ? ' primary' : ''}`;
+  }
+}
+
+function _scrollToStep(idx) {
+  const track = document.getElementById('step-viewer-track');
+  if (!track) return;
+  const card = track.children[idx];
+  if (card) card.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'start' });
+}
+
+function stepViewerNav(dir) {
+  const newIdx = _stepViewerIdx + dir;
+  if (newIdx < 0) {
+    closePracticaStep();
+    return;
+  }
+  if (newIdx >= _stepViewerSteps.length) {
+    closePracticaStep();
+    return;
+  }
+  _stepViewerIdx = newIdx;
+  _scrollToStep(_stepViewerIdx);
+
+  const counter = document.getElementById('step-counter');
+  if (counter) {
+    counter.textContent = `${T('practica_step')} ${_stepViewerIdx + 1} ${T('practica_of')} ${_stepViewerSteps.length}`;
+  }
+
+  const prev = document.getElementById('step-prev-btn');
+  const next = document.getElementById('step-next-btn');
+  if (prev) prev.textContent = _stepViewerIdx === 0 ? '✕' : '←';
+  if (next) {
+    const isLast = _stepViewerIdx === _stepViewerSteps.length - 1;
+    next.textContent = isLast ? T('practica_siguiente') + ' ›' : '→';
+    next.className = `step-nav-btn${isLast ? ' primary' : ''}`;
+  }
+}
+
+function closePracticaStep() {
+  const overlay = document.getElementById('practica-step-overlay');
+  if (overlay) overlay.classList.remove('open');
+  _stepViewerSteps = [];
+  _stepViewerIdx   = 0;
+}
+
+// ════════════════════════════════════════════════════════════════════
+// MODE B — PRACTICE SESSION
+// ════════════════════════════════════════════════════════════════════
+
+async function openPracticaSesion(docId, asigId) {
+  _practicaDocId  = docId;
+  _practicaAsigId = asigId;
+  _sesIdx     = 0;
+  _sesCorrect = 0;
+  _sesWrong   = 0;
+  _sesState   = 'dades';
+  _stopSesTimer();
+
+  const overlay = document.getElementById('practica-sesion-overlay');
+  if (!overlay) return;
+
+  const titleEl = document.getElementById('practica-ses-title');
+  if (titleEl) titleEl.textContent = T('practica_sesion');
+
+  const bodyEl = document.getElementById('practica-ses-body');
+  if (bodyEl) bodyEl.innerHTML = `<div class="practica-empty">${T('empty_loading')}</div>`;
+
+  overlay.classList.add('open');
+
+  try {
+    const data = await api(`/practico/sesion/start`, {
+      method: 'POST',
+      body: JSON.stringify({ asignatura_id: asigId, documento_id: docId, n: 10 }),
+    });
+    _sesEjercicios = data.ejercicios || [];
+    _practicaFormulas = data.formulas || [];
+  } catch(e) {
+    _sesEjercicios    = [];
+    _practicaFormulas = [];
+  }
+
+  if (!_sesEjercicios.length) {
+    if (bodyEl) bodyEl.innerHTML = `<div class="practica-empty">${T('practica_empty')}</div>`;
+    const actEl = document.getElementById('practica-ses-actions');
+    if (actEl) actEl.innerHTML = '';
+    return;
+  }
+
+  _renderSesProgress();
+  _renderSesState();
+}
+
+function closePracticaSesion() {
+  _stopSesTimer();
+  const overlay = document.getElementById('practica-sesion-overlay');
+  if (overlay) overlay.classList.remove('open');
+  closeDadesModal();
+}
+
+function _renderSesProgress() {
+  const fill = document.getElementById('practica-ses-progress');
+  const cnt  = document.getElementById('practica-ses-count');
+  const pct  = _sesEjercicios.length ? Math.round(_sesIdx / _sesEjercicios.length * 100) : 0;
+  if (fill) fill.style.width = pct + '%';
+  if (cnt)  cnt.textContent  = `${_sesIdx}/${_sesEjercicios.length}`;
+  const subEl = document.getElementById('practica-ses-sub');
+  if (subEl) {
+    const n = _sesEjercicios.length;
+    subEl.textContent = `${n} ${n === 1 ? T('practica_ejerc') : T('practica_ejercs')}`;
+  }
+}
+
+function _renderSesState() {
+  const bodyEl  = document.getElementById('practica-ses-body');
+  const actEl   = document.getElementById('practica-ses-actions');
+  if (!bodyEl || !actEl) return;
+
+  if (_sesIdx >= _sesEjercicios.length) {
+    _renderSesResultado();
+    return;
+  }
+
+  const ej = _sesEjercicios[_sesIdx];
+
+  bodyEl.innerHTML = '';
+  actEl.innerHTML  = '';
+
+  if (_sesState === 'dades') {
+    // State: DADES — show given data + formula chips
+    const lbl = document.createElement('div');
+    lbl.className = 'practica-state-label';
+    lbl.textContent = T('practica_dades');
+    bodyEl.appendChild(lbl);
+
+    const dadesWrap = document.createElement('div');
+    dadesWrap.innerHTML = _renderDadesTable(ej.dades || []);
+    bodyEl.appendChild(dadesWrap);
+
+    // Formula chips
+    if (_practicaFormulas.length) {
+      const strip = document.createElement('div');
+      strip.className = 'formula-chips-strip';
+      strip.innerHTML = `<span style="font-size:.75rem;color:var(--txt-dim);align-self:center">${T('practica_formulas')}:</span>`;
+      for (const f of _practicaFormulas) {
+        const chip = document.createElement('button');
+        chip.className = 'formula-chip';
+        chip.textContent = f.nombre || f.latex.slice(0, 12) + '…';
+        chip.onclick = () => openFormulaModal(f);
+        strip.appendChild(chip);
+      }
+      bodyEl.appendChild(strip);
+    }
+
+    // Action
+    const btn = document.createElement('button');
+    btn.className = 'practica-action-btn practica-action-primary';
+    btn.textContent = T('practica_comenzar');
+    btn.onclick = () => { _sesState = 'pregunta'; _renderSesState(); };
+    actEl.appendChild(btn);
+
+  } else if (_sesState === 'pregunta') {
+    // State: PREGUNTA — show question + timer
+    _stopSesTimer();
+    _sesTimerLeft = SES_TIMER_SECS;
+
+    // Timer
+    const timerWrap = document.createElement('div');
+    timerWrap.className = 'timer-wrap';
+    timerWrap.innerHTML = `
+      <svg class="timer-ring-svg" width="40" height="40" viewBox="0 0 40 40">
+        <circle class="timer-ring-bg" cx="20" cy="20" r="17" stroke-width="3"/>
+        <circle class="timer-ring-arc" id="ses-timer-arc" cx="20" cy="20" r="17"
+          stroke-width="3"
+          stroke-dasharray="${2 * Math.PI * 17}"
+          stroke-dashoffset="0"/>
+      </svg>
+      <span class="timer-text" id="ses-timer-text">${_fmtTime(_sesTimerLeft)}</span>
+    `;
+    bodyEl.appendChild(timerWrap);
+
+    const lbl = document.createElement('div');
+    lbl.className = 'practica-state-label';
+    lbl.textContent = 'Enunciado';
+    bodyEl.appendChild(lbl);
+
+    renderBlocks(ej.enunciado || [], bodyEl);
+
+    // Start timer
+    const arc = document.getElementById('ses-timer-arc');
+    const txt = document.getElementById('ses-timer-text');
+    const circ = 2 * Math.PI * 17;
+    _sesTimerInterval = setInterval(() => {
+      _sesTimerLeft--;
+      if (txt) txt.textContent = _fmtTime(_sesTimerLeft);
+      if (arc) {
+        const pct = _sesTimerLeft / SES_TIMER_SECS;
+        arc.style.strokeDashoffset = circ * (1 - pct);
+        if (_sesTimerLeft <= 30)  arc.classList.add('warn');
+        if (_sesTimerLeft <= 0)   { arc.classList.add('out'); _stopSesTimer(); }
+      }
+    }, 1000);
+
+    // Data popup button (floating)
+    const dataBtn = document.createElement('button');
+    dataBtn.className = 'data-popup-btn';
+    dataBtn.id = 'ses-data-popup-btn';
+    dataBtn.innerHTML = `📊 ${T('practica_dades')}`;
+    dataBtn.onclick = openDadesModal;
+    document.body.appendChild(dataBtn);
+
+    // Action
+    const btn = document.createElement('button');
+    btn.className = 'practica-action-btn practica-action-primary';
+    btn.textContent = T('practica_resultado');
+    btn.onclick = () => { _stopSesTimer(); _sesState = 'resultat'; _renderSesState(); };
+    actEl.appendChild(btn);
+
+  } else if (_sesState === 'resultat') {
+    // State: RESULTAT — show solution + thumb buttons
+    _stopSesTimer();
+    _removeSesDataBtn();
+
+    const lbl = document.createElement('div');
+    lbl.className = 'practica-state-label';
+    lbl.textContent = 'Solución';
+    bodyEl.appendChild(lbl);
+
+    renderBlocks(ej.solucion || [], bodyEl);
+
+    // Correct / Wrong buttons
+    const btnOk  = document.createElement('button');
+    btnOk.className  = 'practica-action-btn practica-action-correct';
+    btnOk.textContent = '✓ ' + T('practica_correcto');
+    btnOk.onclick = () => _recordResult(true);
+
+    const btnErr = document.createElement('button');
+    btnErr.className  = 'practica-action-btn practica-action-wrong';
+    btnErr.textContent = '✗ ' + T('practica_incorrecto');
+    btnErr.onclick = () => _recordResult(false);
+
+    actEl.appendChild(btnErr);
+    actEl.appendChild(btnOk);
+  }
+}
+
+function _recordResult(correcto) {
+  if (correcto) _sesCorrect++; else _sesWrong++;
+  // Fire-and-forget API call
+  const uid = localStorage.getItem('ar_uid');
+  const ej  = _sesEjercicios[_sesIdx];
+  if (uid && ej) {
+    api('/practico/sesion/resultado', {
+      method: 'POST',
+      body: JSON.stringify({ usuario_id: uid, ejercicio_id: ej.id, correcto }),
+    }).catch(() => {});
+  }
+  _sesIdx++;
+  _sesState = 'dades';
+  _renderSesProgress();
+  _renderSesState();
+}
+
+function _renderSesResultado() {
+  const bodyEl = document.getElementById('practica-ses-body');
+  const actEl  = document.getElementById('practica-ses-actions');
+  if (!bodyEl || !actEl) return;
+
+  bodyEl.innerHTML = `
+    <div class="practica-state-label" style="text-align:center;margin-top:20px">${T('practica_sesion_fin')}</div>
+    <div class="resultado-score-row">
+      <div class="resultado-score-box correct">
+        <div class="resultado-score-n">${_sesCorrect}</div>
+        <div class="resultado-score-label">${T('practica_correcto')}</div>
+      </div>
+      <div class="resultado-score-box wrong">
+        <div class="resultado-score-n">${_sesWrong}</div>
+        <div class="resultado-score-label">${T('practica_incorrecto')}</div>
+      </div>
+    </div>
+  `;
+
+  const btn = document.createElement('button');
+  btn.className = 'practica-action-btn practica-action-primary';
+  btn.textContent = T('practica_reiniciar');
+  btn.onclick = () => openPracticaSesion(_practicaDocId, _practicaAsigId);
+  actEl.innerHTML = '';
+  actEl.appendChild(btn);
+}
+
+function _stopSesTimer() {
+  if (_sesTimerInterval) { clearInterval(_sesTimerInterval); _sesTimerInterval = null; }
+  _removeSesDataBtn();
+}
+
+function _removeSesDataBtn() {
+  const btn = document.getElementById('ses-data-popup-btn');
+  if (btn) btn.remove();
+}
+
+function _fmtTime(secs) {
+  const s = Math.max(0, secs);
+  return `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+}
+
+// ── Dades modal (tap Data button during PREGUNTA) ───────────────────
+function openDadesModal() {
+  const ej = _sesEjercicios[_sesIdx];
+  if (!ej) return;
+  const content = document.getElementById('dades-modal-content');
+  if (content) content.innerHTML = _renderDadesTable(ej.dades || []);
+  const bd = document.getElementById('dades-modal-backdrop');
+  if (bd) bd.classList.add('open');
+}
+
+function closeDadesModal(e) {
+  const bd = document.getElementById('dades-modal-backdrop');
+  if (bd) bd.classList.remove('open');
+}
+
+// ── Formula detail modal ────────────────────────────────────────────
+function openFormulaModal(formula) {
+  const nameEl = document.getElementById('formula-modal-name');
+  const mathEl = document.getElementById('formula-modal-math');
+  const varsEl = document.getElementById('formula-modal-vars');
+  if (nameEl) nameEl.textContent = formula.nombre || '';
+  if (mathEl) _katexRender(formula.latex || '', mathEl, true);
+  if (varsEl) {
+    varsEl.innerHTML = (formula.variables || []).map(v =>
+      `<div class="formula-var-row">
+        <span class="formula-var-sym">${esc(v.symbol)}</span>
+        <span class="formula-var-desc">${esc(v.description)}</span>
+      </div>`
+    ).join('');
+  }
+  const bd = document.getElementById('formula-modal-backdrop');
+  if (bd) bd.classList.add('open');
+}
+
+function closeFormulaModal(e) {
+  const bd = document.getElementById('formula-modal-backdrop');
+  if (bd) bd.classList.remove('open');
+}
+
+// end of practical module

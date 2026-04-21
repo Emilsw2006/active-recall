@@ -334,6 +334,37 @@ const TRANSLATIONS = {
     test_n_questions_label: 'Número de preguntas',
     test_paused_title: 'Test pausado',
     test_resume: 'Continuar',
+
+    // Subject tipo
+    settings_subject_tipo: 'Tipo de asignatura',
+    tipo_teorica:  'Teórica',
+    tipo_practica: 'Práctica',
+    tipo_mixta:    'Mixta',
+
+    // Practical module — content types
+    tc_ejercicio:        'Ejercicios',
+    tc_procedimiento:    'Procedimientos',
+    tc_concepto:         'Conceptos',
+
+    // Practical module
+    practica_ver:        'Práctica',
+    practica_dict:       'Diccionario',
+    practica_sesion:     'Practicar',
+    practica_dades:      'Datos',
+    practica_comenzar:   'Comenzar',
+    practica_resultado:  'Ver resultado',
+    practica_siguiente:  'Siguiente',
+    practica_correcto:   '¡Correcto!',
+    practica_incorrecto: 'Incorrecto',
+    practica_empty:      'Aún no hay ejercicios para este tema',
+    practica_ejerc:      'ejercicio',
+    practica_ejercs:     'ejercicios',
+    practica_formulas:   'Fórmulas',
+    practica_step:       'Paso',
+    practica_of:         'de',
+    practica_ver_sol:    'Ver solución',
+    practica_sesion_fin: 'Sesión completada',
+    practica_reiniciar:  'Repetir',
   },
 
   /* ─────────────────── ENGLISH ─────────────────── */
@@ -640,6 +671,37 @@ const TRANSLATIONS = {
     test_n_questions_label: 'Number of questions',
     test_paused_title: 'Test paused',
     test_resume: 'Resume',
+
+    // Subject tipo
+    settings_subject_tipo: 'Subject type',
+    tipo_teorica:  'Theory',
+    tipo_practica: 'Practice',
+    tipo_mixta:    'Mixed',
+
+    // Practical module — content types
+    tc_ejercicio:        'Exercises',
+    tc_procedimiento:    'Procedures',
+    tc_concepto:         'Concepts',
+
+    // Practical module
+    practica_ver:        'Practice',
+    practica_dict:       'Dictionary',
+    practica_sesion:     'Practice',
+    practica_dades:      'Given data',
+    practica_comenzar:   'Start',
+    practica_resultado:  'See result',
+    practica_siguiente:  'Next',
+    practica_correcto:   'Correct!',
+    practica_incorrecto: 'Incorrect',
+    practica_empty:      'No exercises yet for this topic',
+    practica_ejerc:      'exercise',
+    practica_ejercs:     'exercises',
+    practica_formulas:   'Formulas',
+    practica_step:       'Step',
+    practica_of:         'of',
+    practica_ver_sol:    'View solution',
+    practica_sesion_fin: 'Session complete',
+    practica_reiniciar:  'Retry',
   },
 
   /* ─────────────────── DEUTSCH ─────────────────── */
@@ -946,6 +1008,37 @@ const TRANSLATIONS = {
     test_n_questions_label: 'Anzahl der Fragen',
     test_paused_title: 'Test pausiert',
     test_resume: 'Weiter',
+
+    // Subject tipo
+    settings_subject_tipo: 'Fachtyp',
+    tipo_teorica:  'Theoretisch',
+    tipo_practica: 'Praktisch',
+    tipo_mixta:    'Gemischt',
+
+    // Practical module — content types
+    tc_ejercicio:        'Aufgaben',
+    tc_procedimiento:    'Vorgehen',
+    tc_concepto:         'Konzepte',
+
+    // Practical module
+    practica_ver:        'Praktisch',
+    practica_dict:       'Wörterbuch',
+    practica_sesion:     'Üben',
+    practica_dades:      'Gegebene Daten',
+    practica_comenzar:   'Starten',
+    practica_resultado:  'Ergebnis',
+    practica_siguiente:  'Weiter',
+    practica_correcto:   'Richtig!',
+    practica_incorrecto: 'Falsch',
+    practica_empty:      'Noch keine Aufgaben für dieses Thema',
+    practica_ejerc:      'Aufgabe',
+    practica_ejercs:     'Aufgaben',
+    practica_formulas:   'Formeln',
+    practica_step:       'Schritt',
+    practica_of:         'von',
+    practica_ver_sol:    'Lösung anzeigen',
+    practica_sesion_fin: 'Sitzung abgeschlossen',
+    practica_reiniciar:  'Wiederholen',
   },
 };
 

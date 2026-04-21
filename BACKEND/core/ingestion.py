@@ -149,7 +149,22 @@ async def procesar_pdf(
         )
         logger.info(f"[{documento_id}] Dedup: {dedup['nuevos']} únicos, {dedup['duplicados']} duplicados")
 
-        # 5. Marcar documento como listo
+        # 5. Practical extraction (non-fatal — runs in parallel with theory pipeline)
+        try:
+            from core.practical_extractor import extract_practical_content
+            practico = await extract_practical_content(
+                pdf_bytes=pdf_bytes,
+                asignatura_id=asignatura_id,
+                documento_id=documento_id,
+            )
+            logger.info(
+                f"[{documento_id}] Practical: {practico['formulas']} formulas, "
+                f"{practico['ejercicios']} ejercicios"
+            )
+        except Exception as e:
+            logger.warning(f"[{documento_id}] Practical extraction failed (non-fatal): {e}")
+
+        # 6. Marcar documento como listo
         db.table("documentos").update({"estado": "listo"}).eq("id", documento_id).execute()
 
         duracion = (datetime.now() - inicio).total_seconds()
