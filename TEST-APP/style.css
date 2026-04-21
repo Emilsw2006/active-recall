@@ -5331,3 +5331,93 @@ button { touch-action: manipulation; }
   text-transform: uppercase;
   letter-spacing: .04em;
 }
+
+/* ─────────────────────────────────────────
+   Chart block
+───────────────────────────────────────── */
+.block-chart-wrap {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 18px;
+  padding: 16px 16px 12px;
+  margin: 10px 0;
+  position: relative;
+}
+.block-chart-title {
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--txt-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  text-align: center;
+  margin-bottom: 10px;
+}
+.block-chart-canvas {
+  display: block;
+  width: 100% !important;
+  height: 220px !important;
+  border-radius: 10px;
+}
+
+/* ─────────────────────────────────────────
+   Formula box block
+───────────────────────────────────────── */
+.block-formula-box {
+  background: linear-gradient(135deg,
+    rgba(79,126,255,0.09) 0%,
+    rgba(167,139,250,0.09) 100%);
+  border: 1px solid rgba(79,126,255,0.22);
+  border-radius: 20px;
+  padding: 20px 20px 16px;
+  margin: 10px 0;
+  text-align: center;
+}
+.formula-box-title {
+  font-size: 0.74rem;
+  font-weight: 800;
+  color: var(--accent, #4f7eff);
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  margin-bottom: 14px;
+}
+.formula-box-math {
+  padding: 10px 0 16px;
+  overflow-x: auto;
+  font-size: 1.15rem;
+}
+.formula-box-math .katex-display {
+  margin: 0;
+}
+.formula-box-vars {
+  text-align: left;
+  border-top: 1px solid rgba(255,255,255,0.09);
+  padding-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.formula-box-var-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.formula-box-var-sym {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.83rem;
+  color: var(--accent, #4f7eff);
+  min-width: 30px;
+  flex-shrink: 0;
+}
+.formula-box-var-desc {
+  font-size: 0.81rem;
+  color: var(--txt-dim);
+  line-height: 1.4;
+}
+.formula-box-nota {
+  margin-top: 12px;
+  font-size: 0.76rem;
+  color: var(--txt-dim);
+  font-style: italic;
+  border-top: 1px solid rgba(255,255,255,0.07);
+  padding-top: 10px;
+}

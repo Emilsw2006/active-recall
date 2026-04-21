@@ -5298,6 +5298,58 @@ function renderBlocks(blocks, container) {
         renderBlocks(blk.content || [], el);
         break;
       }
+      case 'formula_box': {
+        el.className = 'block-formula-box';
+        if (blk.nombre) {
+          const nameEl = document.createElement('div');
+          nameEl.className = 'formula-box-title';
+          nameEl.textContent = blk.nombre;
+          el.appendChild(nameEl);
+        }
+        const fbMath = document.createElement('div');
+        fbMath.className = 'formula-box-math';
+        _katexRender(blk.latex || '', fbMath, true);
+        el.appendChild(fbMath);
+        const fbVars = blk.variables || [];
+        if (fbVars.length) {
+          const varsEl = document.createElement('div');
+          varsEl.className = 'formula-box-vars';
+          varsEl.innerHTML = fbVars.map(v =>
+            `<div class="formula-box-var-row">
+              <span class="formula-box-var-sym">${esc(v.symbol || '')}</span>
+              <span class="formula-box-var-desc">${esc(v.description || '')}</span>
+            </div>`
+          ).join('');
+          el.appendChild(varsEl);
+        }
+        if (blk.nota) {
+          const notaEl = document.createElement('div');
+          notaEl.className = 'formula-box-nota';
+          notaEl.textContent = blk.nota;
+          el.appendChild(notaEl);
+        }
+        break;
+      }
+      case 'chart': {
+        el.className = 'block-chart-wrap';
+        if (blk.title) {
+          const titleEl = document.createElement('div');
+          titleEl.className = 'block-chart-title';
+          titleEl.textContent = blk.title;
+          el.appendChild(titleEl);
+        }
+        const chartCanvas = document.createElement('canvas');
+        chartCanvas.className = 'block-chart-canvas';
+        el.appendChild(chartCanvas);
+        const ct = blk.chart_type || 'line';
+        // Defer until element is in DOM so offsetWidth is valid
+        requestAnimationFrame(() => {
+          if (ct === 'vector') _renderVectorChart(blk, chartCanvas);
+          else if (ct === 'number_line') _renderNumberLine(blk, chartCanvas);
+          else _renderChartJs(blk, chartCanvas, ct);
+        });
+        break;
+      }
       default: {
         el.className = 'block-text';
         el.textContent = JSON.stringify(blk);
@@ -5305,6 +5357,137 @@ function renderBlocks(blocks, container) {
     }
     container.appendChild(el);
   }
+}
+
+// ── Chart renderers ─────────────────────────────────────────────────
+const _CHART_PALETTE = ['#4f7eff','#4dd68a','#ff5c5c','#e8a030','#a78bfa','#f472b6','#38bdf8'];
+
+function _renderChartJs(blk, canvas, chartType) {
+  if (typeof Chart === 'undefined') {
+    canvas.insertAdjacentHTML('afterend',
+      '<p style="color:var(--txt-dim);text-align:center;padding:16px;font-size:.82rem">📊 Chart.js not loaded</p>');
+    canvas.remove();
+    return;
+  }
+  const type = chartType === 'bar' ? 'bar' : chartType === 'scatter' ? 'scatter' : 'line';
+  const datasets = (blk.datasets || []).map((ds, i) => {
+    const color = ds.color || _CHART_PALETTE[i % _CHART_PALETTE.length];
+    if (type === 'scatter') {
+      return { label: ds.label || '', data: ds.data || [],
+        backgroundColor: color + 'cc', pointRadius: 7, pointHoverRadius: 9 };
+    }
+    return {
+      label: ds.label || '', data: ds.data || [],
+      borderColor: color, backgroundColor: color + '22',
+      tension: type === 'line' ? 0.4 : 0,
+      fill: type === 'line', borderWidth: 2.5, pointRadius: 4,
+    };
+  });
+  new Chart(canvas, {
+    type,
+    data: { labels: blk.labels || [], datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: 'rgba(255,255,255,0.75)', font: { family: 'Inter', size: 11 } } },
+        tooltip: { mode: 'index', intersect: false },
+      },
+      scales: {
+        x: {
+          title: { display: !!blk.x_label, text: blk.x_label || '', color: 'rgba(255,255,255,0.5)', font:{size:11} },
+          ticks: { color: 'rgba(255,255,255,0.5)', font:{size:11} },
+          grid: { color: 'rgba(255,255,255,0.07)' },
+        },
+        y: {
+          title: { display: !!blk.y_label, text: blk.y_label || '', color: 'rgba(255,255,255,0.5)', font:{size:11} },
+          ticks: { color: 'rgba(255,255,255,0.5)', font:{size:11} },
+          grid: { color: 'rgba(255,255,255,0.07)' },
+        },
+      },
+    },
+  });
+}
+
+function _renderVectorChart(blk, canvas) {
+  const vectors = blk.vectors || [];
+  const W = canvas.parentElement?.offsetWidth || 300;
+  const H = 240;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const cx = W / 2, cy = H / 2;
+
+  // Find scale from max vector magnitude
+  let maxMag = 1;
+  for (const v of vectors) maxMag = Math.max(maxMag, Math.hypot(v.dx || 0, v.dy || 0));
+  const scale = Math.min(W, H) * 0.38 / maxMag;
+
+  // Axes
+  ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(0, cy); ctx.lineTo(W, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, 0); ctx.lineTo(cx, H); ctx.stroke();
+  ctx.fillStyle = 'rgba(255,255,255,0.35)';
+  ctx.font = '11px Inter';
+  ctx.fillText('x', W - 14, cy - 6);
+  ctx.fillText('y', cx + 6, 14);
+
+  vectors.forEach((v, i) => {
+    const color = v.color || _CHART_PALETTE[i % _CHART_PALETTE.length];
+    const x2 = cx + (v.dx || 0) * scale;
+    const y2 = cy - (v.dy || 0) * scale;
+    _drawArrow(ctx, cx, cy, x2, y2, color);
+    if (v.label) {
+      ctx.fillStyle = color;
+      ctx.font = 'bold 13px Inter';
+      ctx.fillText(v.label, x2 + 8, y2 - 8);
+    }
+  });
+}
+
+function _drawArrow(ctx, x1, y1, x2, y2, color) {
+  const angle = Math.atan2(y2 - y1, x2 - x1);
+  const head = 14;
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = 2.5;
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - head * Math.cos(angle - Math.PI/6), y2 - head * Math.sin(angle - Math.PI/6));
+  ctx.lineTo(x2 - head * Math.cos(angle + Math.PI/6), y2 - head * Math.sin(angle + Math.PI/6));
+  ctx.closePath(); ctx.fill();
+}
+
+function _renderNumberLine(blk, canvas) {
+  const min = blk.min ?? 0, max = blk.max ?? 10;
+  const marks = blk.marks || [];
+  const W = canvas.parentElement?.offsetWidth || 300;
+  const H = 90;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext('2d');
+  const pad = 44, y = H / 2, range = max - min || 1;
+
+  ctx.strokeStyle = 'rgba(255,255,255,0.45)';
+  ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(pad, y); ctx.lineTo(W - pad, y); ctx.stroke();
+
+  // End arrows
+  ctx.fillStyle = 'rgba(255,255,255,0.45)';
+  ctx.beginPath(); ctx.moveTo(W - pad + 10, y);
+  ctx.lineTo(W - pad, y - 5); ctx.lineTo(W - pad, y + 5); ctx.fill();
+
+  // Min / max tick labels
+  ctx.fillStyle = 'rgba(255,255,255,0.5)';
+  ctx.font = '11px Inter'; ctx.textAlign = 'center';
+  ctx.fillText(min, pad, y + 22); ctx.fillText(max, W - pad, y + 22);
+
+  marks.forEach((m, i) => {
+    const x = pad + ((m.value - min) / range) * (W - 2 * pad);
+    const color = m.color || _CHART_PALETTE[i % _CHART_PALETTE.length];
+    ctx.strokeStyle = color; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.moveTo(x, y - 14); ctx.lineTo(x, y + 14); ctx.stroke();
+    ctx.fillStyle = color;
+    ctx.font = 'bold 12px Inter'; ctx.textAlign = 'center';
+    ctx.fillText(m.label ?? m.value, x, y - 20);
+  });
 }
 
 // ── Dades table renderer ────────────────────────────────────────────

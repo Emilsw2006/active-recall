@@ -9,11 +9,22 @@ Content types (tipo_contenido):
   concepto      — Theory concept with embedded formulas and explanations
 
 Block types (Server-Driven UI):
-  TextBlock      { "type": "text",     "content": str }
-  MathBlock      { "type": "math",     "latex": str }
-  TableBlock     { "type": "table",    "headers": [], "rows": [[]] }
-  ImageDescBlock { "type": "img_desc", "description": str }
-  StepBlock      { "type": "step",     "n": int, "content": [Block] }
+  TextBlock      { "type": "text",        "content": str }
+  MathBlock      { "type": "math",        "latex": str }
+  TableBlock     { "type": "table",       "headers": [], "rows": [[]] }
+  ImageDescBlock { "type": "img_desc",    "description": str }
+  StepBlock      { "type": "step",        "n": int, "content": [Block] }
+  FormulaBoxBlock{ "type": "formula_box", "nombre": str, "latex": str,
+                   "variables": [{"symbol":str,"description":str}], "nota": str }
+  ChartBlock     { "type": "chart",       "chart_type": "line|bar|scatter|vector|number_line",
+                   "title": str, ...chart-type-specific fields }
+
+Chart-type-specific fields:
+  line/bar  : "labels":["0","1",...], "datasets":[{"label":str,"data":[...],"color":"#hex"}],
+              "x_label":str, "y_label":str
+  scatter   : "datasets":[{"label":str,"data":[{"x":n,"y":n}...],"color":"#hex"}]
+  vector    : "vectors":[{"dx":n,"dy":n,"label":str,"color":"#hex"}]
+  number_line: "min":n,"max":n,"marks":[{"value":n,"label":str,"color":"#hex"}]
 """
 
 import json
@@ -65,7 +76,7 @@ Devuelve SOLO el siguiente JSON sin texto adicional, sin markdown, sin ```json:
         { "symbol": "string", "value": "string", "unit": "string" }
       ],
       "enunciado": [
-        { "type": "text | math | img_desc | table", "content": "...", "latex": "...", "description": "..." }
+        { "type": "text | math | img_desc | table | formula_box | chart", "content": "...", "latex": "...", "description": "..." }
       ],
       "solucion": [
         {
@@ -92,9 +103,22 @@ TIPOS DE CONTENIDO — cuándo usar cada uno:
                     Ejemplos: qué es la entropía, definición de derivada, propiedades de los
                     vectores, qué es la impedancia. "dades" estará vacío [].
 
+BLOQUES ENRIQUECIDOS — úsalos cuando aporten valor visual:
+- formula_box: para fórmulas importantes con explicación de variables. Ejemplo:
+  { "type": "formula_box", "nombre": "Segunda ley de Newton", "latex": "F = ma",
+    "variables": [{"symbol":"F","description":"Fuerza en Newtons"},{"symbol":"m","description":"Masa en kg"},{"symbol":"a","description":"Aceleración en m/s²"}],
+    "nota": "Válida para masa constante" }
+- chart: SOLO cuando hay datos numéricos que se benefician de una representación visual. Tipos:
+  * "line"  — series temporales o funciones: usa "labels" (eje X) + "datasets":[{"label","data":[],"color"}] + "x_label","y_label"
+  * "bar"   — comparaciones: igual que line
+  * "scatter" — nube de puntos: "datasets":[{"label","data":[{"x":1,"y":2},...]}]
+  * "vector" — diagrama vectorial 2D: "vectors":[{"dx":3,"dy":4,"label":"F","color":"#4f7eff"}]
+  * "number_line" — recta numérica: "min":0,"max":10,"marks":[{"value":3,"label":"a"}]
+  NO inventes datos. Solo usa chart si el documento tiene datos reales que graficar.
+
 REGLAS CRÍTICAS:
 - LaTeX: escribe SOLO el contenido, sin $ ni $$. Correcto: "F = ma". Incorrecto: "$F = ma$"
-- Para imágenes o diagramas: { "type": "img_desc", "description": "descripción textual detallada" }
+- Para imágenes o diagramas sin datos numéricos: { "type": "img_desc", "description": "descripción textual detallada" }
 - dificultad: 1 (básico), 2 (intermedio), 3 (avanzado)
 - Cubre TODO el documento. No omitas ningún ejercicio, procedimiento ni concepto relevante.
 - Si el PDF es puramente teórico sin ejercicios numéricos, usa "procedimiento" y "concepto".
