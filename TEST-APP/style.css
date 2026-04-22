@@ -4755,6 +4755,8 @@ button { touch-action: manipulation; }
   overflow: hidden;
 }
 .practica-overlay.open { transform: translateX(0); }
+/* Step overlay must sit above the session overlay (same class, later in DOM) */
+#practica-step-overlay { z-index: 1750; }
 
 /* ── Shared overlay header (reuses plan-detail-header pattern) ── */
 .practica-header {
