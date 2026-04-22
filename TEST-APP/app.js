@@ -1779,12 +1779,8 @@ async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
     const tLower = (temaTitle    || '').toLowerCase();
     const sLower = (subtemaTitle || '').toLowerCase();
 
-    // Filter formulas by tema match, fallback to first 6
-    let formulas = (allFormulas || []).filter(f => {
-      const ft = (f.tema || '').toLowerCase();
-      return ft.includes(tLower.split(' ')[0]) || tLower.includes((ft || '').split(' ')[0]);
-    });
-    if (!formulas.length) formulas = (allFormulas || []).slice(0, 6);
+    // Show ALL formulas from the PDF/asignatura in the top strip
+    const formulas = (allFormulas || []);
 
     // Relevance scoring
     const scoreFn = (e) => {
@@ -1884,6 +1880,17 @@ function _renderSepCard(tipo, item, container) {
     lbl.textContent = tipo === 'ejercicio' ? 'Solución paso a paso' : 'Pasos';
     container.appendChild(lbl);
     renderBlocks(item.solucion, container);
+  }
+  // "Ver pasos completos" button for ejercicios → opens full-screen step viewer
+  if (tipo === 'ejercicio' && (item.solucion?.length || item.enunciado?.length)) {
+    const btnWrap = document.createElement('div');
+    btnWrap.style.cssText = 'margin-top:12px;display:flex;justify-content:center;';
+    const btn = document.createElement('button');
+    btn.className = 'btn-pill';
+    btn.textContent = '📋 Ver pasos completos';
+    btn.onclick = () => _openGenAllSteps(item);
+    btnWrap.appendChild(btn);
+    container.appendChild(btnWrap);
   }
 }
 

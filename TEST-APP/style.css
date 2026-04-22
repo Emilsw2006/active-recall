@@ -5503,7 +5503,7 @@ button { touch-action: manipulation; }
 .sep-overlay {
   position: fixed;
   inset: 0;
-  z-index: 1800;
+  z-index: 1850;
   background: var(--bg, #0d0d1a);
   display: flex;
   flex-direction: column;
