@@ -104,7 +104,7 @@ async def listar_formulas(
 # ──────────────────────────────────────────────
 
 PROMPT_GENERAR = """
-Eres un profesor experto que genera ejercicios de práctica personalizados.
+Eres un profesor experto que genera ejercicios de práctica personalizados y bien estructurados.
 
 CONOCIMIENTO DISPONIBLE (usa ÚNICAMENTE este contenido):
 {contexto}
@@ -142,7 +142,17 @@ Devuelve SOLO el siguiente JSON sin texto adicional, sin markdown, sin ```json:
       ],
       "enunciado": [
         {{ "type": "text", "content": "Enunciado claro con los valores de dades ya mencionados." }},
-        {{ "type": "math", "latex": "expresión LaTeX SIN delimitadores $ ni $$" }}
+        {{
+          "type": "formula_box",
+          "nombre": "Nombre de la fórmula principal usada",
+          "latex": "v = v_0 + a \\cdot t",
+          "variables": [
+            {{ "symbol": "v", "description": "velocidad final (m/s)" }},
+            {{ "symbol": "v₀", "description": "velocidad inicial (m/s)" }},
+            {{ "symbol": "a", "description": "aceleración (m/s²)" }},
+            {{ "symbol": "t", "description": "tiempo (s)" }}
+          ]
+        }}
       ],
       "solucion": [
         {{
@@ -150,15 +160,23 @@ Devuelve SOLO el siguiente JSON sin texto adicional, sin markdown, sin ```json:
           "n": 1,
           "content": [
             {{ "type": "text", "content": "Identificamos los datos: v₀ = 15 m/s, a = 9.8 m/s²" }},
-            {{ "type": "math", "latex": "v = v_0 + a \\cdot t" }}
+            {{ "type": "math", "latex": "v_0 = 15 \\text{{ m/s}}, \\quad a = 9.8 \\text{{ m/s}}^2" }}
           ]
         }},
         {{
           "type": "step",
           "n": 2,
           "content": [
-            {{ "type": "text", "content": "Sustituimos y calculamos..." }},
-            {{ "type": "math", "latex": "v = 15 + 9.8 \\cdot 2 = 34.6 \\text{{ m/s}}" }}
+            {{ "type": "text", "content": "Aplicamos la fórmula y sustituimos los valores:" }},
+            {{ "type": "math", "latex": "v = v_0 + a \\cdot t = 15 + 9.8 \\cdot 2 = 34.6 \\text{{ m/s}}" }}
+          ]
+        }},
+        {{
+          "type": "step",
+          "n": 3,
+          "content": [
+            {{ "type": "text", "content": "Resultado final:" }},
+            {{ "type": "math", "latex": "v = 34.6 \\text{{ m/s}}" }}
           ]
         }}
       ]
@@ -167,18 +185,21 @@ Devuelve SOLO el siguiente JSON sin texto adicional, sin markdown, sin ```json:
 }}
 
 REGLAS CRÍTICAS:
-- dades: tabla de datos iniciales del ejercicio. OBLIGATORIO para ejercicios numéricos.
-  Cada entry tiene symbol (nombre de variable), value (número), unit (unidades).
-  Si el ejercicio es teórico/conceptual, dades puede ser [].
-- enunciado: SOLO bloques "text" y "math". PROHIBIDO: chart, img_desc, table, vector, number_line.
-- solucion: SOLO bloques "step". Cada step tiene "content" con bloques "text" y "math" ÚNICAMENTE.
-  Los pasos deben referenciar los valores de dades explícitamente.
-  Entre 3 y 6 pasos por ejercicio. Solución completa y detallada.
-- LaTeX: escribe SOLO el contenido matemático, SIN $ ni $$.
+- dades: tabla de datos iniciales. OBLIGATORIO para ejercicios numéricos.
+  Cada entry: symbol (símbolo de variable), value (número concreto), unit (unidades).
+  Si es un ejercicio conceptual/teórico, dades puede ser [].
+- enunciado: bloques "text" y OPCIONALMENTE un "formula_box" con la fórmula principal.
+  PROHIBIDO en enunciado: chart, img_desc, table, vector, number_line.
+- formula_box: úsalo SOLO si hay una fórmula clave que conviene mostrar con sus variables.
+  Incluye siempre: nombre, latex, variables (array con symbol y description de cada variable).
+- solucion: SOLO bloques "step". Cada step contiene "content" con bloques "text" y "math".
+  Los pasos DEBEN referenciar los valores numéricos de dades explícitamente.
+  Mínimo 3 pasos, máximo 6. Solución completa, con resultado final en el último paso.
+- LaTeX: escribe el contenido matemático SIN delimitadores $ ni $$.
   Correcto: "F = ma". Incorrecto: "$F = ma$"
 - Idioma de los textos: {lang}.
 - NO inventes conceptos fuera del conocimiento disponible.
-- Los {n} ejercicios deben ser DISTINTOS entre sí (tipos diferentes, datos diferentes).
+- Los {n} ejercicios deben ser DISTINTOS entre sí (tipos diferentes, datos numéricos diferentes).
 """.strip()
 
 

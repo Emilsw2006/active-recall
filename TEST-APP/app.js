@@ -1796,9 +1796,10 @@ async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
     };
 
     const sorted = (allEjercicios || []).slice().sort((a, b) => scoreFn(b) - scoreFn(a));
-    const ejercicios     = sorted.filter(e => e.tipo_contenido === 'ejercicio');
-    const procedimientos = sorted.filter(e => e.tipo_contenido === 'procedimiento');
-    const conceptos      = sorted.filter(e => e.tipo_contenido === 'concepto');
+    // Only show content that is actually relevant to THIS subtema/tema (score > 0)
+    const ejercicios     = sorted.filter(e => e.tipo_contenido === 'ejercicio'     && scoreFn(e) > 0);
+    const procedimientos = sorted.filter(e => e.tipo_contenido === 'procedimiento' && scoreFn(e) > 0);
+    const conceptos      = sorted.filter(e => e.tipo_contenido === 'concepto'      && scoreFn(e) > 0);
 
     // Render formulas strip
     if (strip) _renderSepFormulas(formulas, strip);
@@ -1808,7 +1809,7 @@ async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
     if (cardProc) _renderSepCard('procedimiento', procedimientos[0], cardProc);
     if (cardConc) _renderSepCard('concepto',      conceptos[0],      cardConc);
 
-    // AI-generate ejercicio if none stored
+    // AI-generate ejercicio if none is relevant to this subtema
     if (!ejercicios.length && temaId) {
       _generateSubtemaEjemplo(temaId, cardEj);
     }
