@@ -1684,7 +1684,7 @@ async function loadDocTemas(docId) {
         ${hasSubtemas ? `
         <div class="doc-tema-body" id="tema-body-${t.id}" style="display:none">
           ${subtemas.map(st => `
-            <div class="doc-subtema-item" onclick="openSubtemaPanel(${JSON.stringify(st.titulo)},${JSON.stringify(t.titulo)},${JSON.stringify(t.id)});event.stopPropagation()">
+            <div class="doc-subtema-item" onclick="openSubtemaPanel('${esc(st.titulo)}','${esc(t.titulo)}','${esc(t.id)}');event.stopPropagation()">
               <div class="doc-subtema-dot"></div>
               <span class="doc-subtema-title">${esc(st.titulo)}</span>
               <span class="doc-subtema-count">${st.n_atomos}</span>
