@@ -1727,15 +1727,45 @@ async function _checkPracticaSection(docId) {
   }
 }
 
-// ── Subtema ejemplo panel ────────────────────────────────────────────
+// ── Subtema detail page (formulas strip + swipe cards) ───────────────
+let _sepScrollListenerAdded = false;
+
 async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
   const panel = document.getElementById('subtema-ejemplo-panel');
   if (!panel) return;
+
+  // Header breadcrumb
+  const temaLbl = document.getElementById('sep-tema-label');
   const titleEl = document.getElementById('sep-title');
-  const bodyEl  = document.getElementById('sep-body');
-  if (titleEl) titleEl.textContent = subtemaTitle;
-  if (bodyEl)  bodyEl.innerHTML    = `<div class="practica-empty">Cargando...</div>`;
+  if (temaLbl) temaLbl.textContent = temaTitle    || '';
+  if (titleEl) titleEl.textContent = subtemaTitle || '';
+
+  // Reset all cards to loading state
+  const strip    = document.getElementById('sep-formulas-strip');
+  const cardEj   = document.getElementById('sep-card-ejercicio');
+  const cardProc = document.getElementById('sep-card-procedimiento');
+  const cardConc = document.getElementById('sep-card-concepto');
+  const loading  = '<div class="practica-empty" style="opacity:.6;font-size:.85rem">Cargando...</div>';
+  if (strip)    strip.innerHTML    = '';
+  if (cardEj)   cardEj.innerHTML   = loading;
+  if (cardProc) cardProc.innerHTML = loading;
+  if (cardConc) cardConc.innerHTML = loading;
+
+  // Jump to first tab instantly (no animation)
+  _sepSetTab(0);
+  const track = document.getElementById('sep-swipe-track');
+  if (track) track.scrollLeft = 0;
+
   panel.classList.add('open');
+
+  // Wire scroll → tab sync once
+  if (!_sepScrollListenerAdded && track) {
+    track.addEventListener('scroll', () => {
+      const idx = Math.round(track.scrollLeft / (track.clientWidth || 1));
+      _sepSetTab(idx);
+    }, { passive: true });
+    _sepScrollListenerAdded = true;
+  }
 
   const asigId = curSubjectId;
   if (!asigId) return;
@@ -1749,12 +1779,12 @@ async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
     const tLower = (temaTitle    || '').toLowerCase();
     const sLower = (subtemaTitle || '').toLowerCase();
 
-    // Filter formulas: prefer tema match, fallback to first 5
+    // Filter formulas by tema match, fallback to first 6
     let formulas = (allFormulas || []).filter(f => {
       const ft = (f.tema || '').toLowerCase();
       return ft.includes(tLower.split(' ')[0]) || tLower.includes((ft || '').split(' ')[0]);
     });
-    if (!formulas.length) formulas = (allFormulas || []).slice(0, 5);
+    if (!formulas.length) formulas = (allFormulas || []).slice(0, 6);
 
     // Relevance scoring
     const scoreFn = (e) => {
@@ -1765,45 +1795,101 @@ async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
       return 0;
     };
 
-    const procedimientos = (allEjercicios || [])
-      .filter(e => e.tipo_contenido === 'procedimiento')
-      .sort((a, b) => scoreFn(b) - scoreFn(a));
+    const sorted = (allEjercicios || []).slice().sort((a, b) => scoreFn(b) - scoreFn(a));
+    const ejercicios     = sorted.filter(e => e.tipo_contenido === 'ejercicio');
+    const procedimientos = sorted.filter(e => e.tipo_contenido === 'procedimiento');
+    const conceptos      = sorted.filter(e => e.tipo_contenido === 'concepto');
 
-    const sorted = (allEjercicios || []).slice().sort((a, b) => {
-      const ta = a.tipo_contenido === 'ejercicio' ? 1 : 0;
-      const tb = b.tipo_contenido === 'ejercicio' ? 1 : 0;
-      if (tb !== ta) return tb - ta;
-      return scoreFn(b) - scoreFn(a);
-    });
-    const ejemplos = sorted.filter(e => e.tipo_contenido === 'ejercicio');
+    // Render formulas strip
+    if (strip) _renderSepFormulas(formulas, strip);
 
-    _renderSubtemaPanel(formulas, procedimientos, ejemplos, bodyEl);
+    // Render one item per content type into its card
+    if (cardEj)   _renderSepCard('ejercicio',     ejercicios[0],     cardEj);
+    if (cardProc) _renderSepCard('procedimiento', procedimientos[0], cardProc);
+    if (cardConc) _renderSepCard('concepto',      conceptos[0],      cardConc);
 
-    // If no stored examples and we have a tema ID → AI-generate one on the fly
-    if (!ejemplos.length && temaId) {
-      _generateSubtemaEjemplo(temaId, bodyEl);
+    // AI-generate ejercicio if none stored
+    if (!ejercicios.length && temaId) {
+      _generateSubtemaEjemplo(temaId, cardEj);
     }
+
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = `<div class="practica-empty" style="color:var(--red)">${e.message}</div>`;
+    if (cardEj) cardEj.innerHTML = `<div class="practica-empty" style="color:var(--red)">${e.message}</div>`;
   }
 }
 
-/** AI-generates one exercise for a subtema panel when no stored example exists. */
-async function _generateSubtemaEjemplo(temaId, bodyEl) {
-  // Add the section with a loading state
-  const sec = document.createElement('div');
-  sec.className = 'sep-section';
-  const h = document.createElement('div');
-  h.className = 'sep-section-label';
-  h.textContent = 'Ejemplo resuelto';
-  sec.appendChild(h);
-  const loadEl = document.createElement('div');
-  loadEl.className = 'practica-empty';
-  loadEl.style.fontSize = '.82rem';
-  loadEl.textContent = '✨ Generando ejemplo con IA...';
-  sec.appendChild(loadEl);
-  bodyEl.appendChild(sec);
+/** Sets the active tab pill without scrolling the track */
+function _sepSetTab(idx) {
+  document.querySelectorAll('.sep-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+}
 
+/** Tab button onclick — also scrolls the track to that card */
+function sepGoTab(idx) {
+  _sepSetTab(idx);
+  const track = document.getElementById('sep-swipe-track');
+  if (track) track.scrollTo({ left: idx * track.clientWidth, behavior: 'smooth' });
+}
+
+/** Renders KaTeX formula chips in the horizontal strip */
+function _renderSepFormulas(formulas, container) {
+  container.innerHTML = '';
+  if (!formulas.length) {
+    container.innerHTML = '<span style="color:var(--txt2);font-size:.78rem;opacity:.55">Sin fórmulas para este tema</span>';
+    return;
+  }
+  for (const f of formulas) {
+    const chip   = document.createElement('div');
+    chip.className = 'sep-formula-chip';
+    const nameEl = document.createElement('div');
+    nameEl.className = 'sep-formula-chip-name';
+    nameEl.textContent = f.nombre || '';
+    const mathEl = document.createElement('div');
+    if (f.latex) {
+      try { katex.render(f.latex, mathEl, { throwOnError: false, displayMode: false }); }
+      catch(_) { mathEl.textContent = f.latex; }
+    }
+    chip.appendChild(nameEl);
+    chip.appendChild(mathEl);
+    container.appendChild(chip);
+  }
+}
+
+/** Renders one content item (ejercicio / procedimiento / concepto) into a card */
+function _renderSepCard(tipo, item, container) {
+  container.innerHTML = '';
+  if (!item) {
+    const msgs = {
+      ejercicio:     'No hay ejercicios guardados para este tema.',
+      procedimiento: 'No hay procedimientos para este tema.',
+      concepto:      'No hay conceptos guardados para este tema.',
+    };
+    container.innerHTML = `<div class="practica-empty" style="opacity:.6;font-size:.85rem">${msgs[tipo] || 'Sin contenido.'}</div>`;
+    return;
+  }
+  if (item.titulo) {
+    const h = document.createElement('div');
+    h.className = 'sep-card-title';
+    h.textContent = item.titulo;
+    container.appendChild(h);
+  }
+  // Dades table only for ejercicios
+  if (tipo === 'ejercicio' && item.dades?.length) {
+    container.insertAdjacentHTML('beforeend', _renderDadesTable(item.dades));
+  }
+  if (item.enunciado?.length) renderBlocks(item.enunciado, container);
+  if (item.solucion?.length) {
+    const lbl = document.createElement('div');
+    lbl.className = 'sep-sub-label';
+    lbl.textContent = tipo === 'ejercicio' ? 'Solución paso a paso' : 'Pasos';
+    container.appendChild(lbl);
+    renderBlocks(item.solucion, container);
+  }
+}
+
+/** AI-generates one exercise directly into the Ejercicio swipe card */
+async function _generateSubtemaEjemplo(temaId, cardEl) {
+  if (!cardEl) return;
+  cardEl.innerHTML = '<div class="practica-empty" style="font-size:.82rem;opacity:.7">✨ Generando ejemplo con IA...</div>';
   try {
     const data = await api('/practico/generar', {
       method: 'POST',
@@ -1815,127 +1901,20 @@ async function _generateSubtemaEjemplo(temaId, bodyEl) {
         usuario_id: uid || undefined,
       }),
     });
-    loadEl.remove();
     const ejercicios = data.ejercicios || [];
     if (!ejercicios.length) {
-      sec.innerHTML += `<div class="practica-empty" style="font-size:.82rem">No hay suficiente contenido para generar un ejemplo.</div>`;
+      cardEl.innerHTML = `<div class="practica-empty" style="font-size:.82rem;opacity:.6">No hay suficiente contenido para generar un ejemplo.</div>`;
       return;
     }
-    const ej = ejercicios[0];
-    if (ej.titulo) {
-      const sub = document.createElement('div');
-      sub.className = 'sep-sub-label';
-      sub.textContent = ej.titulo;
-      sec.appendChild(sub);
-    }
-    if (ej.enunciado?.length) renderBlocks(ej.enunciado, sec);
-    if (ej.solucion?.length) {
-      const stepLbl = document.createElement('div');
-      stepLbl.className = 'sep-sub-label';
-      stepLbl.textContent = 'Solución paso a paso';
-      sec.appendChild(stepLbl);
-      renderBlocks(ej.solucion, sec);
-    }
+    _renderSepCard('ejercicio', ejercicios[0], cardEl);
   } catch(e) {
-    loadEl.textContent = 'Error generando el ejemplo.';
+    cardEl.innerHTML = `<div class="practica-empty" style="color:var(--red);font-size:.82rem">Error generando el ejemplo.</div>`;
   }
 }
 
 function closeSubtemaPanel() {
   const panel = document.getElementById('subtema-ejemplo-panel');
   if (panel) panel.classList.remove('open');
-}
-
-function _renderSubtemaPanel(formulas, procedimientos, ejemplos, bodyEl) {
-  bodyEl.innerHTML = '';
-  let hasContent = false;
-
-  // ── Section 1: FÓRMULAS ──
-  if (formulas && formulas.length) {
-    hasContent = true;
-    const sec = document.createElement('div');
-    sec.className = 'sep-section';
-    const h = document.createElement('div');
-    h.className = 'sep-section-label';
-    h.textContent = 'Fórmulas';
-    sec.appendChild(h);
-    for (const f of formulas) {
-      renderBlocks([{ type: 'formula_box', nombre: f.nombre, latex: f.latex, variables: f.variables }], sec);
-    }
-    bodyEl.appendChild(sec);
-  }
-
-  // ── Section 2: CÓMO HACERLO (procedimiento) ──
-  if (procedimientos && procedimientos.length) {
-    hasContent = true;
-    const proc = procedimientos[0];
-    const sec  = document.createElement('div');
-    sec.className = 'sep-section';
-    const h = document.createElement('div');
-    h.className = 'sep-section-label';
-    h.textContent = 'Cómo hacerlo';
-    sec.appendChild(h);
-
-    if (proc.titulo) {
-      const sub = document.createElement('div');
-      sub.className = 'sep-sub-label';
-      sub.textContent = proc.titulo;
-      sec.appendChild(sub);
-    }
-    if (proc.enunciado && proc.enunciado.length) {
-      renderBlocks(proc.enunciado, sec);
-    }
-    if (proc.solucion && proc.solucion.length) {
-      const stepLbl = document.createElement('div');
-      stepLbl.className = 'sep-sub-label';
-      stepLbl.textContent = 'Pasos';
-      sec.appendChild(stepLbl);
-      renderBlocks(proc.solucion, sec);
-    }
-    bodyEl.appendChild(sec);
-  }
-
-  // ── Section 3: EJEMPLO RESUELTO (ejercicio) ──
-  if (ejemplos && ejemplos.length) {
-    hasContent = true;
-    const ej  = ejemplos[0];
-    const sec = document.createElement('div');
-    sec.className = 'sep-section';
-    const h = document.createElement('div');
-    h.className = 'sep-section-label';
-    h.textContent = 'Ejemplo resuelto';
-    sec.appendChild(h);
-
-    if (ej.titulo) {
-      const sub = document.createElement('div');
-      sub.className = 'sep-sub-label';
-      sub.textContent = ej.titulo;
-      sec.appendChild(sub);
-    }
-    if (ej.dades && ej.dades.length) {
-      sec.insertAdjacentHTML('beforeend', _renderDadesTable(ej.dades));
-    }
-    if (ej.enunciado && ej.enunciado.length) {
-      renderBlocks(ej.enunciado, sec);
-    }
-    if (ej.solucion && ej.solucion.length) {
-      const stepLbl = document.createElement('div');
-      stepLbl.className = 'sep-sub-label';
-      stepLbl.textContent = 'Solución paso a paso';
-      sec.appendChild(stepLbl);
-      renderBlocks(ej.solucion, sec);
-    }
-    bodyEl.appendChild(sec);
-  }
-
-  if (!hasContent) {
-    bodyEl.innerHTML = `<div class="practica-empty">
-      Aún no hay ejercicios para este tema.<br>
-      <span style="font-size:.8rem;opacity:.6;display:block;margin-top:6px">
-        Sube un PDF para que la IA los extraiga automáticamente.
-      </span>
-    </div>`;
-  }
 }
 
 function toggleTemaBody(id) {

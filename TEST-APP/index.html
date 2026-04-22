@@ -1155,17 +1155,31 @@
   <div class="plan-detail-body" id="review-panel-body"></div>
 </div>
 
-<!-- Subtema example panel (formulas + example exercise) -->
+<!-- Subtema detail page (formulas strip + swipe cards) -->
 <div class="sep-overlay" id="subtema-ejemplo-panel">
+  <!-- Header: back + breadcrumb -->
   <div class="sep-header">
     <button class="practica-back-btn" onclick="closeSubtemaPanel()">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
     </button>
-    <div class="sep-title" id="sep-title"></div>
-    <div style="width:32px"></div>
+    <div class="sep-breadcrumb">
+      <div class="sep-tema-label" id="sep-tema-label"></div>
+      <div class="sep-title" id="sep-title"></div>
+    </div>
   </div>
-  <div class="sep-body" id="sep-body">
-    <div class="practica-empty">Cargando...</div>
+  <!-- Formulas horizontal scroll strip -->
+  <div class="sep-formulas-strip" id="sep-formulas-strip"></div>
+  <!-- Content type tabs -->
+  <div class="sep-type-tabs">
+    <button class="sep-tab active" onclick="sepGoTab(0)">📝 Ejercicio</button>
+    <button class="sep-tab" onclick="sepGoTab(1)">🔧 Procedimiento</button>
+    <button class="sep-tab" onclick="sepGoTab(2)">💡 Concepto</button>
+  </div>
+  <!-- Swipe cards -->
+  <div class="sep-swipe-track" id="sep-swipe-track">
+    <div class="sep-swipe-page" id="sep-card-ejercicio"></div>
+    <div class="sep-swipe-page" id="sep-card-procedimiento"></div>
+    <div class="sep-swipe-page" id="sep-card-concepto"></div>
   </div>
 </div>
 
