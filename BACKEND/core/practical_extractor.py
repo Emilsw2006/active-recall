@@ -116,6 +116,12 @@ BLOQUES ENRIQUECIDOS — úsalos cuando aporten valor visual:
   * "number_line" — recta numérica: "min":0,"max":10,"marks":[{"value":3,"label":"a"}]
   NO inventes datos. Solo usa chart si el documento tiene datos reales que graficar.
 
+PREFERENCIA CRÍTICA chart_type: usa "line" por DEFECTO para cualquier gráfico numérico
+(funciones, trayectorias, velocidad-tiempo, posición-tiempo, evolución de variables).
+Usa "scatter" SOLO si el documento muestra mediciones experimentales dispersas SIN curva
+continua ni tendencia. Nunca uses scatter para problemas de física, matemáticas o química
+donde la magnitud evoluciona con una ecuación continua.
+
 REGLAS CRÍTICAS:
 - LaTeX: escribe SOLO el contenido, sin $ ni $$. Correcto: "F = ma". Incorrecto: "$F = ma$"
 - Para imágenes o diagramas sin datos numéricos: { "type": "img_desc", "description": "descripción textual detallada" }
@@ -220,6 +226,42 @@ async def extract_practical_content(
                 )
             except Exception as e:
                 logger.warning(f"[practico/{documento_id}] Content insert error: {e}")
+
+    # --- Auto-detect asignatura tipo from aggregated content ---
+    # Respects manual user choice: if `tipo_manual` is true, we never overwrite.
+    try:
+        asig_res = (
+            db.table("asignaturas")
+            .select("tipo, tipo_manual")
+            .eq("id", asignatura_id)
+            .single()
+            .execute()
+        )
+        asig = asig_res.data
+        if asig and not asig.get("tipo_manual"):
+            agg = (
+                db.table("ejercicios")
+                .select("tipo_contenido")
+                .eq("asignatura_id", asignatura_id)
+                .execute()
+            )
+            rows = agg.data or []
+            if rows:
+                n_ej = sum(1 for r in rows if r.get("tipo_contenido") == "ejercicio")
+                ratio = n_ej / len(rows)
+                if   ratio >= 0.7: detected = "practica"
+                elif ratio <= 0.2: detected = "teorica"
+                else:              detected = "mixta"
+                if detected != asig.get("tipo"):
+                    db.table("asignaturas").update({"tipo": detected}).eq(
+                        "id", asignatura_id
+                    ).execute()
+                    logger.info(
+                        f"[practico/{documento_id}] Auto-tipo → {detected} "
+                        f"(n_ej={n_ej}/{len(rows)})"
+                    )
+    except Exception as e:
+        logger.warning(f"[practico/{documento_id}] Auto-tipo failed (non-fatal): {e}")
 
     return {
         "formulas":       n_formulas,

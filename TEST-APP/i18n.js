@@ -37,6 +37,9 @@ const TRANSLATIONS = {
 
     // Hub
     hub_greeting: 'Hola,',
+    hub_stat_streak: 'racha',
+    hub_stat_today: 'hoy',
+    hub_stat_week: 'semana',
     hub_notif_title: '¡A estudiar!',
     hub_notif_sub: 'Empieza una sesión para seguir aprendiendo',
     hub_start_btn: 'INICIAR\nSESIÓN',
@@ -395,6 +398,9 @@ const TRANSLATIONS = {
     settings_btn: 'Settings',
 
     hub_greeting: 'Hello,',
+    hub_stat_streak: 'streak',
+    hub_stat_today: 'today',
+    hub_stat_week: 'week',
     hub_notif_title: 'Time to study!',
     hub_notif_sub: 'Start a session to keep learning',
     hub_start_btn: 'START\nSESSION',
@@ -732,6 +738,9 @@ const TRANSLATIONS = {
     settings_btn: 'Einstellungen',
 
     hub_greeting: 'Hallo,',
+    hub_stat_streak: 'Serie',
+    hub_stat_today: 'heute',
+    hub_stat_week: 'Woche',
     hub_notif_title: 'Zeit zum Lernen!',
     hub_notif_sub: 'Starte eine Sitzung und lerne weiter',
     hub_start_btn: 'SITZUNG\nSTARTEN',

@@ -7,11 +7,21 @@ if (window.trustedTypes && window.trustedTypes.createPolicy) {
   });
 }
 
-// Si el frontend viene del propio backend...
-// Si viene del servidor estático (8080), apuntamos al backend manualmente
-const API = (location.hostname === 'localhost' || location.hostname === '127.0.0.1' || location.hostname.startsWith('192.168.'))
-  ? `http://${location.hostname}:8000`
-  : 'https://activerecallmvp.duckdns.org';
+// API base:
+// - Si servimos la app desde backend local (8000/8443), usamos mismo origin
+// - Si abrimos frontend estático, apuntamos al backend local 8000
+// - Producción remota mantiene DuckDNS
+const isLocalHost = (
+  location.hostname === 'localhost' ||
+  location.hostname === '127.0.0.1' ||
+  location.hostname.startsWith('192.168.')
+);
+const isBackendServedLocal = isLocalHost && (location.port === '8000' || location.port === '8443');
+const API = isBackendServedLocal
+  ? location.origin
+  : isLocalHost
+    ? `http://${location.hostname}:8000`
+    : 'https://activerecallmvp.duckdns.org';
 const COLORS = ['#e8a030','#4f7eff','#4dd68a','#ff5c5c','#a78bfa','#f472b6','#38bdf8','#fb923c','#facc15','#34d399'];
 
 // Register Service Worker for PWA
@@ -123,6 +133,17 @@ let _reviewEvaluated    = false;  // true once fetched for current subject
 const $  = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
 
+// ── Subject tipo badge (teorica / practica / mixta) ─────────────────
+const TIPO_BADGE = {
+  teorica:  { icon: '📖', color: '#60a5fa', bg: 'rgba(96,165,250,0.15)' },
+  practica: { icon: '🔢', color: '#4ade80', bg: 'rgba(74,222,128,0.15)' },
+  mixta:    { icon: '⚗️', color: '#c4b5fd', bg: 'rgba(196,181,253,0.15)' },
+};
+function _tipoBadgeHtml(tipo) {
+  const t = TIPO_BADGE[tipo || 'teorica'] || TIPO_BADGE.teorica;
+  return `<span class="subj-tipo-badge" style="color:${t.color};background:${t.bg}">${t.icon}</span>`;
+}
+
 function cleanDocTitle(filename) {
   return (filename || '')
     .replace(/\.(pdf|docx?|txt|pptx?|xlsx?)$/i, '')
@@ -206,18 +227,31 @@ function toast(msg, type='info') {
 }
 
 async function api(path, opts={}) {
-  const r = await fetch(API + path, {
-    headers: { 'Content-Type':'application/json', ...(token ? {Authorization:`Bearer ${token}`} : {}) },
-    ...opts,
-  });
-  const d = await r.json().catch(() => ({}));
-  if (r.status === 401 || r.status === 403) {
-    // Token inválido o expirado — cerrar sesión automáticamente
-    logout();
-    throw new Error(T('toast_session_expired'));
+  const controller = new AbortController();
+  const timeoutMs = 15000;
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(API + path, {
+      headers: { 'Content-Type':'application/json', ...(token ? {Authorization:`Bearer ${token}`} : {}) },
+      signal: controller.signal,
+      ...opts,
+    });
+    const d = await r.json().catch(() => ({}));
+    if (r.status === 401 || r.status === 403) {
+      // Token inválido o expirado — cerrar sesión automáticamente
+      logout();
+      throw new Error(T('toast_session_expired'));
+    }
+    if (!r.ok) throw new Error(d.detail || `Error ${r.status}`);
+    return d;
+  } catch (err) {
+    if (err && err.name === 'AbortError') {
+      throw new Error('La conexión tardó demasiado. Revisa que el servidor esté activo.');
+    }
+    throw err;
+  } finally {
+    clearTimeout(timeoutId);
   }
-  if (!r.ok) throw new Error(d.detail || `Error ${r.status}`);
-  return d;
 }
 // ─ Helper: show/hide btn by ID (null-safe) ─
 function _showBtn(id, show) { const el = $(id); if (el) el.style.display = show ? '' : 'none'; }
@@ -291,7 +325,7 @@ function switchView(viewName) {
     } else {
       loadSubjectsHome();
     }
-    if (viewName === 'hub') refreshNotifications();
+    if (viewName === 'hub') { refreshNotifications(); refreshHubStats(); }
   } else if (viewName === 'historial') {
     loadSessions();
     loadPlanes();
@@ -472,6 +506,42 @@ async function _buildSmartNotifs() {
 
   } catch(e) { /* silent */ }
   return notifs.slice(0, 3);
+}
+
+async function refreshHubStats() {
+  if (!uid) return;
+  const elStreak = $('hub-stat-streak-val');
+  const elToday  = $('hub-stat-today-val');
+  const elWeek   = $('hub-stat-week-val');
+  if (!elStreak || !elToday || !elWeek) return;
+  try {
+    const sessions = await api(`/sesiones/usuario/${uid}`);
+    const all = Array.isArray(sessions) ? sessions : [];
+    const streak = _calcStreak(all);
+    const today = new Date(); today.setHours(0,0,0,0);
+    const weekAgo = new Date(today.getTime() - 6 * 86400000);
+    let nToday = 0, nWeek = 0;
+    for (const s of all) {
+      const d = new Date(s.fecha_inicio || s.created_at);
+      if (isNaN(d.getTime())) continue;
+      d.setHours(0,0,0,0);
+      if (d.getTime() === today.getTime()) nToday++;
+      if (d.getTime() >= weekAgo.getTime()) nWeek++;
+    }
+    _setStatVal(elStreak, streak);
+    _setStatVal(elToday,  nToday);
+    _setStatVal(elWeek,   nWeek);
+  } catch(e) { /* silent */ }
+}
+
+function _setStatVal(el, v) {
+  const cur = parseInt(el.textContent, 10) || 0;
+  if (cur === v) return;
+  el.textContent = v;
+  el.animate(
+    [{ transform: 'scale(.82)', opacity: .4 }, { transform: 'scale(1.08)', opacity: 1 }, { transform: 'scale(1)', opacity: 1 }],
+    { duration: 420, easing: 'cubic-bezier(0.175, 0.885, 0.32, 1.275)' }
+  );
 }
 
 function _calcStreak(sessions) {
@@ -1480,6 +1550,7 @@ function _renderSubjectsList(data) {
       data-name="${esc(s.nombre)}"
       onclick="goSubject('${s.id}', '${esc(s.nombre)}', '${s.color||COLORS[0]}')">
       <div class="sheet-item-dot" style="background:${s.color||COLORS[0]}"></div>
+      ${_tipoBadgeHtml(s.tipo)}
       <div class="sheet-item-name">${esc(s.nombre)}</div>
       <div style="font-size:.73rem; color:var(--txt3); white-space:nowrap; flex-shrink:0">${s.recuento_documentos || 0} docs</div>
       ${CHECK}
@@ -1671,6 +1742,12 @@ async function loadDocTemas(docId) {
         </div>`).join('');
       return;
     }
+    // Subtemas are only clickable if the asignatura has exercises (practica / mixta).
+    // For teoricas, items stay visible but dimmed and inert — no panel opens.
+    const _subj    = (_subjData || []).find(s => s.id === curSubjectId);
+    const _tipo    = (_subj && _subj.tipo) || 'teorica';
+    const _clickOk = _tipo !== 'teorica';
+
     container.innerHTML = temas.map(t => {
       const subtemas = t.subtemas || [];
       const hasSubtemas = subtemas.length > 0;
@@ -1684,11 +1761,11 @@ async function loadDocTemas(docId) {
         ${hasSubtemas ? `
         <div class="doc-tema-body" id="tema-body-${t.id}" style="display:none">
           ${subtemas.map(st => `
-            <div class="doc-subtema-item" onclick="openSubtemaPanel('${esc(st.titulo)}','${esc(t.titulo)}','${esc(t.id)}');event.stopPropagation()">
+            <div class="doc-subtema-item${_clickOk ? '' : ' disabled'}"${_clickOk ? ` onclick="openSubtemaPanel('${esc(st.titulo)}','${esc(t.titulo)}','${esc(t.id)}','${esc(st.id || '')}');event.stopPropagation()"` : ''}>
               <div class="doc-subtema-dot"></div>
               <span class="doc-subtema-title">${esc(st.titulo)}</span>
               <span class="doc-subtema-count">${st.n_atomos}</span>
-              <svg class="doc-subtema-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+              ${_clickOk ? `<svg class="doc-subtema-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>` : ''}
             </div>`).join('')}
         </div>` : ''}
       </div>`;
@@ -1729,8 +1806,9 @@ async function _checkPracticaSection(docId) {
 
 // ── Subtema detail page (formulas strip + swipe cards) ───────────────
 let _sepScrollListenerAdded = false;
+let _sepCurrentExercises = [];
 
-async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
+async function openSubtemaPanel(subtemaTitle, temaTitle, temaId, subtemaId) {
   const panel = document.getElementById('subtema-ejemplo-panel');
   if (!panel) return;
 
@@ -1740,29 +1818,40 @@ async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
   if (temaLbl) temaLbl.textContent = temaTitle    || '';
   if (titleEl) titleEl.textContent = subtemaTitle || '';
 
-  // Reset all cards to loading state
-  const strip    = document.getElementById('sep-formulas-strip');
-  const cardEj   = document.getElementById('sep-card-ejercicio');
-  const cardProc = document.getElementById('sep-card-procedimiento');
-  const cardConc = document.getElementById('sep-card-concepto');
-  const loading  = '<div class="practica-empty" style="opacity:.6;font-size:.85rem">Cargando...</div>';
-  if (strip)    strip.innerHTML    = '';
-  if (cardEj)   cardEj.innerHTML   = loading;
-  if (cardProc) cardProc.innerHTML = loading;
-  if (cardConc) cardConc.innerHTML = loading;
+  const track   = document.getElementById('sep-swipe-track');
+  const counter = document.getElementById('sep-counter');
+  const dots    = document.getElementById('sep-dots');
 
-  // Jump to first tab instantly (no animation)
-  _sepSetTab(0);
-  const track = document.getElementById('sep-swipe-track');
-  if (track) track.scrollLeft = 0;
+  // Loading state (gooey)
+  const loadingHTML = `
+    <div class="sep-swipe-page sep-loading-page">
+      <div class="gooey-loader" role="status" aria-label="Cargando">
+        <svg class="gooey-loader-svg" aria-hidden="true">
+          <defs>
+            <filter id="gooey-loader-filter-sep">
+              <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+              <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 48 -7" result="goo"/>
+              <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+            </filter>
+          </defs>
+        </svg>
+        <div class="gooey-loader-track" style="filter:url(#gooey-loader-filter-sep)"></div>
+      </div>
+      <div class="sep-loading-text">Preparando ejercicios...</div>
+      <div class="sep-loading-sub">La IA está resolviendo los ejercicios de este subtema</div>
+    </div>`;
+  if (track) { track.innerHTML = loadingHTML; track.scrollLeft = 0; }
+  if (counter) counter.textContent = '';
+  if (dots)    dots.innerHTML = '';
 
   panel.classList.add('open');
 
-  // Wire scroll → tab sync once
+  // Wire scroll → counter sync once
   if (!_sepScrollListenerAdded && track) {
     track.addEventListener('scroll', () => {
+      if (!_sepCurrentExercises.length) return;
       const idx = Math.round(track.scrollLeft / (track.clientWidth || 1));
-      _sepSetTab(idx);
+      _sepUpdateCounter(idx, _sepCurrentExercises.length);
     }, { passive: true });
     _sepScrollListenerAdded = true;
   }
@@ -1771,153 +1860,268 @@ async function openSubtemaPanel(subtemaTitle, temaTitle, temaId) {
   if (!asigId) return;
 
   try {
-    const [allFormulas, allEjercicios] = await Promise.all([
-      api(`/practico/formulas?asignatura_id=${asigId}`).catch(() => []),
-      api(`/practico/ejercicios?asignatura_id=${asigId}`).catch(() => []),
-    ]);
+    const allEjercicios = await api(`/practico/ejercicios?asignatura_id=${asigId}&tipo_contenido=ejercicio`).catch(() => []);
 
-    const tLower = (temaTitle    || '').toLowerCase();
-    const sLower = (subtemaTitle || '').toLowerCase();
+    const sLower = (subtemaTitle || '').toLowerCase().trim();
 
-    // Show ALL formulas from the PDF/asignatura in the top strip
-    const formulas = (allFormulas || []);
-
-    // Relevance scoring
-    const scoreFn = (e) => {
-      const et = (e.tipo || '').toLowerCase();
-      const em = (e.tema || '').toLowerCase();
-      if (et === sLower || et.includes(sLower.split(' ')[0])) return 3;
-      if (em.includes(tLower.split(' ')[0]) || tLower.includes(em.split(' ')[0])) return 2;
-      return 0;
+    // Strict match: only exercises whose `tema` OR `tipo` equals this subtema title.
+    // (Previous exercises extracted at upload time use `tema = tema.titulo`, which we
+    //  intentionally ignore here — each subtema must show only its own generated set.)
+    const matchFn = (e) => {
+      if (!sLower) return false;
+      const et = (e.tipo  || '').toLowerCase().trim();
+      const em = (e.tema  || '').toLowerCase().trim();
+      return et === sLower || em === sLower;
     };
 
-    const sorted = (allEjercicios || []).slice().sort((a, b) => scoreFn(b) - scoreFn(a));
-    // Only show content that is actually relevant to THIS subtema/tema (score > 0)
-    const ejercicios     = sorted.filter(e => e.tipo_contenido === 'ejercicio'     && scoreFn(e) > 0);
-    const procedimientos = sorted.filter(e => e.tipo_contenido === 'procedimiento' && scoreFn(e) > 0);
-    const conceptos      = sorted.filter(e => e.tipo_contenido === 'concepto'      && scoreFn(e) > 0);
+    let ejercicios = (allEjercicios || []).filter(matchFn);
+    let genError = null;
 
-    // Render formulas strip
-    if (strip) _renderSepFormulas(formulas, strip);
-
-    // Render one item per content type into its card
-    if (cardEj)   _renderSepCard('ejercicio',     ejercicios[0],     cardEj);
-    if (cardProc) _renderSepCard('procedimiento', procedimientos[0], cardProc);
-    if (cardConc) _renderSepCard('concepto',      conceptos[0],      cardConc);
-
-    // AI-generate ejercicio if none is relevant to this subtema
-    if (!ejercicios.length && temaId) {
-      _generateSubtemaEjemplo(temaId, cardEj);
+    // If no exercises exist yet for THIS subtema → auto-generate from its atoms
+    if (!ejercicios.length) {
+      const subj = (_subjData || []).find(s => s.id === asigId);
+      const asigTipo = (subj && subj.tipo) || 'teorica';
+      if ((asigTipo === 'practica' || asigTipo === 'mixta') && (subtemaId || temaId)) {
+        const res = await _generateSubtemaBatch(temaId, subtemaId, subtemaTitle, 0);
+        ejercicios = res.ejercicios;
+        genError = res.error;
+      }
     }
 
+    _sepCurrentExercises = ejercicios;
+    _renderSepExerciseList(ejercicios, track, counter, dots, temaId, subtemaId, subtemaTitle, genError);
+
   } catch(e) {
-    if (cardEj) cardEj.innerHTML = `<div class="practica-empty" style="color:var(--red)">${e.message}</div>`;
+    if (track) track.innerHTML = `<div class="sep-swipe-page"><div class="practica-empty" style="color:var(--red)">${e.message}</div></div>`;
   }
 }
 
-/** Sets the active tab pill without scrolling the track */
-function _sepSetTab(idx) {
-  document.querySelectorAll('.sep-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+/** Updates counter text + active dot */
+function _sepUpdateCounter(idx, total) {
+  const counter = document.getElementById('sep-counter');
+  const dots    = document.getElementById('sep-dots');
+  if (counter) counter.textContent = total > 0 ? `Ejercicio ${idx + 1} / ${total}` : '';
+  if (dots) {
+    dots.querySelectorAll('.sep-dot').forEach((d, i) => d.classList.toggle('active', i === idx));
+  }
 }
 
-/** Tab button onclick — also scrolls the track to that card */
-function sepGoTab(idx) {
-  _sepSetTab(idx);
+/** Go to specific exercise card (called from dots) */
+function sepGoExercise(idx) {
   const track = document.getElementById('sep-swipe-track');
   if (track) track.scrollTo({ left: idx * track.clientWidth, behavior: 'smooth' });
 }
 
-/** Renders KaTeX formula chips in the horizontal strip */
-function _renderSepFormulas(formulas, container) {
-  container.innerHTML = '';
-  if (!formulas.length) {
-    container.innerHTML = '<span style="color:var(--txt2);font-size:.78rem;opacity:.55">Sin fórmulas para este tema</span>';
+/** Renders the full list of exercises as swipeable cards */
+function _renderSepExerciseList(ejercicios, track, counter, dots, temaId, subtemaId, subtemaTitle, genError) {
+  if (!track) return;
+  track.innerHTML = '';
+
+  if (!ejercicios.length) {
+    const subj = (_subjData || []).find(s => s.id === curSubjectId);
+    const asigTipo = (subj && subj.tipo) || 'teorica';
+    const canGenerate = (asigTipo === 'practica' || asigTipo === 'mixta') && (!!subtemaId || !!temaId);
+    const subtemaTitleEsc = JSON.stringify(subtemaTitle || '').replace(/"/g, '&quot;');
+
+    let title = 'Sin ejercicios para este subtema';
+    let sub;
+    if (genError) {
+      title = 'No se pudieron generar ejercicios';
+      sub = genError;
+    } else if (canGenerate) {
+      sub = 'No encontramos ejercicios en los apuntes de este subtema.';
+    } else {
+      sub = 'Esta asignatura es teórica. Cambia el tipo a práctica o mixta en ajustes para generar ejercicios.';
+    }
+
+    track.innerHTML = `
+      <div class="sep-swipe-page sep-empty-page">
+        <div class="sep-empty-icon">
+          <svg viewBox="0 0 24 24" width="56" height="56" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+          </svg>
+        </div>
+        <div class="sep-empty-title">${title}</div>
+        <div class="sep-empty-sub">${sub}</div>
+        ${canGenerate ? `<button class="btn-pill sep-empty-cta" onclick="_retrySepGenerate('${temaId || ''}','${subtemaId || ''}', ${subtemaTitleEsc})">${genError ? 'Reintentar' : 'Generar con IA'}</button>` : ''}
+      </div>`;
+    if (counter) counter.textContent = '';
+    if (dots) dots.innerHTML = '';
     return;
   }
-  for (const f of formulas) {
-    const chip   = document.createElement('div');
-    chip.className = 'sep-formula-chip';
-    const nameEl = document.createElement('div');
-    nameEl.className = 'sep-formula-chip-name';
-    nameEl.textContent = f.nombre || '';
-    const mathEl = document.createElement('div');
-    if (f.latex) {
-      try { katex.render(f.latex, mathEl, { throwOnError: false, displayMode: false }); }
-      catch(_) { mathEl.textContent = f.latex; }
-    }
-    chip.appendChild(nameEl);
-    chip.appendChild(mathEl);
-    container.appendChild(chip);
+
+  // Build dots
+  if (dots) {
+    dots.innerHTML = '';
+    ejercicios.forEach((_, i) => {
+      const d = document.createElement('button');
+      d.className = 'sep-dot' + (i === 0 ? ' active' : '');
+      d.type = 'button';
+      d.setAttribute('aria-label', `Ir al ejercicio ${i + 1}`);
+      d.onclick = () => sepGoExercise(i);
+      dots.appendChild(d);
+    });
   }
+
+  // Build cards
+  ejercicios.forEach((ej, idx) => {
+    const page = document.createElement('div');
+    page.className = 'sep-swipe-page sep-exercise-page';
+    _renderSepExerciseCard(ej, page, idx, ejercicios.length);
+    track.appendChild(page);
+  });
+
+  _sepUpdateCounter(0, ejercicios.length);
+  track.scrollLeft = 0;
 }
 
-/** Renders one content item (ejercicio / procedimiento / concepto) into a card */
-function _renderSepCard(tipo, item, container) {
+/** Renders a single exercise with full step-by-step expanded + symbol legend */
+function _renderSepExerciseCard(item, container, idx, total) {
   container.innerHTML = '';
-  if (!item) {
-    const msgs = {
-      ejercicio:     'No hay ejercicios guardados para este tema.',
-      procedimiento: 'No hay procedimientos para este tema.',
-      concepto:      'No hay conceptos guardados para este tema.',
-    };
-    container.innerHTML = `<div class="practica-empty" style="opacity:.6;font-size:.85rem">${msgs[tipo] || 'Sin contenido.'}</div>`;
-    return;
-  }
+
+  // Title
   if (item.titulo) {
     const h = document.createElement('div');
     h.className = 'sep-card-title';
     h.textContent = item.titulo;
     container.appendChild(h);
   }
-  // Dades table only for ejercicios
-  if (tipo === 'ejercicio' && item.dades?.length) {
+
+  // Dades table (initial data)
+  if (item.dades?.length) {
     container.insertAdjacentHTML('beforeend', _renderDadesTable(item.dades));
   }
-  if (item.enunciado?.length) renderBlocks(item.enunciado, container);
+
+  // Enunciado
+  if (item.enunciado?.length) {
+    renderBlocks(item.enunciado, container);
+  }
+
+  // Step-by-step (always expanded)
   if (item.solucion?.length) {
     const lbl = document.createElement('div');
     lbl.className = 'sep-sub-label';
-    lbl.textContent = tipo === 'ejercicio' ? 'Solución paso a paso' : 'Pasos';
+    lbl.textContent = 'Solución paso a paso';
     container.appendChild(lbl);
-    renderBlocks(item.solucion, container);
+
+    const stepsWrap = document.createElement('div');
+    stepsWrap.className = 'sep-steps-wrap';
+    renderBlocks(item.solucion, stepsWrap);
+    container.appendChild(stepsWrap);
   }
-  // "Ver pasos completos" button for ejercicios → opens full-screen step viewer
-  if (tipo === 'ejercicio' && (item.solucion?.length || item.enunciado?.length)) {
-    const btnWrap = document.createElement('div');
-    btnWrap.style.cssText = 'margin-top:12px;display:flex;justify-content:center;';
-    const btn = document.createElement('button');
-    btn.className = 'btn-pill';
-    btn.textContent = '📋 Ver pasos completos';
-    btn.onclick = () => _openGenAllSteps(item);
-    btnWrap.appendChild(btn);
-    container.appendChild(btnWrap);
+
+  // Symbol legend (extract from dades + any formula_box variables)
+  const legend = _collectSymbolLegend(item);
+  if (legend.length) {
+    const lbl = document.createElement('div');
+    lbl.className = 'sep-sub-label';
+    lbl.textContent = 'Qué significa cada símbolo';
+    container.appendChild(lbl);
+
+    const list = document.createElement('div');
+    list.className = 'sep-legend';
+    legend.forEach(({ symbol, description }) => {
+      const row = document.createElement('div');
+      row.className = 'sep-legend-row';
+      const sym = document.createElement('span');
+      sym.className = 'sep-legend-sym';
+      try { katex.render(symbol, sym, { throwOnError: false, displayMode: false }); }
+      catch(_) { sym.textContent = symbol; }
+      const desc = document.createElement('span');
+      desc.className = 'sep-legend-desc';
+      desc.textContent = description;
+      row.appendChild(sym);
+      row.appendChild(desc);
+      list.appendChild(row);
+    });
+    container.appendChild(list);
   }
+
+  // Bottom meta row
+  const meta = document.createElement('div');
+  meta.className = 'sep-card-meta';
+  meta.textContent = `${idx + 1} / ${total}`;
+  container.appendChild(meta);
 }
 
-/** AI-generates one exercise directly into the Ejercicio swipe card */
-async function _generateSubtemaEjemplo(temaId, cardEl) {
-  if (!cardEl) return;
-  cardEl.innerHTML = '<div class="practica-empty" style="font-size:.82rem;opacity:.7">✨ Generando ejemplo con IA...</div>';
+/** Collects symbol legend from dades + formula_box variables in enunciado */
+function _collectSymbolLegend(item) {
+  const map = new Map();
+  // From dades: symbol + unit as hint
+  for (const d of (item.dades || [])) {
+    if (d?.symbol && !map.has(d.symbol)) {
+      const unit = d.unit ? ` (${d.unit})` : '';
+      map.set(d.symbol, { symbol: d.symbol, description: `Valor: ${d.value ?? '—'}${unit}` });
+    }
+  }
+  // From formula_box variables in enunciado
+  const blocks = item.enunciado || [];
+  for (const b of blocks) {
+    if (b?.type === 'formula_box' && Array.isArray(b.variables)) {
+      for (const v of b.variables) {
+        if (v?.symbol) {
+          // Prefer the richer description over the bare value hint
+          map.set(v.symbol, { symbol: v.symbol, description: v.description || map.get(v.symbol)?.description || '' });
+        }
+      }
+    }
+  }
+  return Array.from(map.values()).filter(x => x.description);
+}
+
+/** AI-generates a batch of exercises for a subtema.
+ *  n = 0 → auto (cover every distinct type found in the notes).
+ *  If subtemaId is given, the backend filters atoms by subtema_id for accurate,
+ *  subtema-specific generation (with fallback to tema_id if it yields nothing).
+ *  Returns { ejercicios, error } — error is a human-readable string when generation fails.
+ */
+async function _generateSubtemaBatch(temaId, subtemaId, subtemaTitle, n = 0) {
   try {
     const data = await api('/practico/generar', {
       method: 'POST',
       body: JSON.stringify({
         asignatura_id: curSubjectId,
-        temas_ids: [temaId],
-        n: 1,
+        temas_ids: temaId ? [temaId] : [],
+        subtemas_ids: subtemaId ? [subtemaId] : undefined,
+        n,
         lang: currentLang,
         usuario_id: uid || undefined,
+        subtema: subtemaTitle || undefined,
       }),
     });
-    const ejercicios = data.ejercicios || [];
-    if (!ejercicios.length) {
-      cardEl.innerHTML = `<div class="practica-empty" style="font-size:.82rem;opacity:.6">No hay suficiente contenido para generar un ejemplo.</div>`;
-      return;
-    }
-    _renderSepCard('ejercicio', ejercicios[0], cardEl);
+    return { ejercicios: data.ejercicios || [], error: data.error || null };
   } catch(e) {
-    cardEl.innerHTML = `<div class="practica-empty" style="color:var(--red);font-size:.82rem">Error generando el ejemplo.</div>`;
+    return { ejercicios: [], error: (e && e.message) || 'Error al contactar con el servidor' };
   }
+}
+
+/** Retry button from empty state */
+async function _retrySepGenerate(temaId, subtemaId, subtemaTitle) {
+  const track   = document.getElementById('sep-swipe-track');
+  const counter = document.getElementById('sep-counter');
+  const dots    = document.getElementById('sep-dots');
+  if (track) {
+    track.innerHTML = `
+      <div class="sep-swipe-page sep-loading-page">
+        <div class="gooey-loader" role="status" aria-label="Cargando">
+          <svg class="gooey-loader-svg" aria-hidden="true">
+            <defs>
+              <filter id="gooey-loader-filter-sep-retry">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 48 -7" result="goo"/>
+                <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+              </filter>
+            </defs>
+          </svg>
+          <div class="gooey-loader-track" style="filter:url(#gooey-loader-filter-sep-retry)"></div>
+        </div>
+        <div class="sep-loading-text">Generando ejercicios...</div>
+        <div class="sep-loading-sub">La IA está creando ejercicios a partir de los apuntes</div>
+      </div>`;
+  }
+  const res = await _generateSubtemaBatch(temaId, subtemaId, subtemaTitle, 0);
+  _sepCurrentExercises = res.ejercicios;
+  _renderSepExerciseList(res.ejercicios, track, counter, dots, temaId, subtemaId, subtemaTitle, res.error);
 }
 
 function closeSubtemaPanel() {
@@ -2532,7 +2736,18 @@ function _practicaRender() {
   if (_genState === 'loading') {
     wrap.innerHTML = `
       <div class="practica-gen-loading">
-        <div class="practica-gen-loading-icon">✨</div>
+        <div class="gooey-loader" role="status" aria-label="Cargando">
+          <svg class="gooey-loader-svg" aria-hidden="true">
+            <defs>
+              <filter id="gooey-loader-filter-2">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 48 -7" result="goo"/>
+                <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+              </filter>
+            </defs>
+          </svg>
+          <div class="gooey-loader-track" style="filter:url(#gooey-loader-filter-2)"></div>
+        </div>
         <div class="practica-gen-loading-text">Generando ejercicios...</div>
         <div class="practica-gen-loading-sub">La IA está creando ejercicios personalizados a partir de tus apuntes</div>
       </div>`;
@@ -5867,7 +6082,8 @@ function renderBlocks(blocks, container) {
 }
 
 // ── Chart renderers ─────────────────────────────────────────────────
-const _CHART_PALETTE = ['#4f7eff','#4dd68a','#ff5c5c','#e8a030','#a78bfa','#f472b6','#38bdf8'];
+// Softer, less saturated palette that plays nicely with the dark glass theme.
+const _CHART_PALETTE = ['#60a5fa','#4ade80','#f87171','#fbbf24','#c4b5fd','#f9a8d4','#67e8f9'];
 
 function _renderChartJs(blk, canvas, chartType) {
   if (typeof Chart === 'undefined') {
@@ -5885,9 +6101,11 @@ function _renderChartJs(blk, canvas, chartType) {
     }
     return {
       label: ds.label || '', data: ds.data || [],
-      borderColor: color, backgroundColor: color + '22',
-      tension: type === 'line' ? 0.4 : 0,
-      fill: type === 'line', borderWidth: 2.5, pointRadius: 4,
+      borderColor: color, backgroundColor: color + '1a',
+      tension: type === 'line' ? 0.35 : 0,
+      fill: type === 'line', borderWidth: 2.5,
+      pointRadius: 0,         // clean continuous curve — no dots on the line
+      pointHoverRadius: 5,    // dots only appear on hover
     };
   });
   new Chart(canvas, {
@@ -6236,7 +6454,6 @@ function openStepViewer(ejercicioId) {
 
 function _renderStepViewer() {
   const track = document.getElementById('step-viewer-track');
-  const counter = document.getElementById('step-counter');
   if (!track) return;
 
   track.innerHTML = '';
@@ -6265,14 +6482,35 @@ function _renderStepViewer() {
 
   // Scroll to current
   _scrollToStep(_stepViewerIdx);
+  _updateStepViewerChrome();
 
+  // Wire native swipe → keep _stepViewerIdx in sync with the visible card.
+  // Hooked once per track element; survives re-renders because the <div> is re-used.
+  if (!track.dataset.scrollHooked) {
+    track.dataset.scrollHooked = '1';
+    let _scrollRaf = null;
+    track.addEventListener('scroll', () => {
+      if (_scrollRaf) cancelAnimationFrame(_scrollRaf);
+      _scrollRaf = requestAnimationFrame(() => {
+        const w = track.clientWidth || 1;
+        const idx = Math.round(track.scrollLeft / w);
+        if (idx !== _stepViewerIdx && idx >= 0 && idx < _stepViewerSteps.length) {
+          _stepViewerIdx = idx;
+          _updateStepViewerChrome();
+        }
+      });
+    }, { passive: true });
+  }
+}
+
+/** Shared counter + nav-button refresh for the step viewer overlay. */
+function _updateStepViewerChrome() {
+  const counter = document.getElementById('step-counter');
+  const prev    = document.getElementById('step-prev-btn');
+  const next    = document.getElementById('step-next-btn');
   if (counter) {
     counter.textContent = `${T('practica_step')} ${_stepViewerIdx + 1} ${T('practica_of')} ${_stepViewerSteps.length}`;
   }
-
-  // Update nav buttons
-  const prev = document.getElementById('step-prev-btn');
-  const next = document.getElementById('step-next-btn');
   if (prev) prev.textContent = _stepViewerIdx === 0 ? '✕' : '←';
   if (next) {
     const isLast = _stepViewerIdx === _stepViewerSteps.length - 1;
@@ -6290,30 +6528,13 @@ function _scrollToStep(idx) {
 
 function stepViewerNav(dir) {
   const newIdx = _stepViewerIdx + dir;
-  if (newIdx < 0) {
-    closePracticaStep();
-    return;
-  }
-  if (newIdx >= _stepViewerSteps.length) {
+  if (newIdx < 0 || newIdx >= _stepViewerSteps.length) {
     closePracticaStep();
     return;
   }
   _stepViewerIdx = newIdx;
   _scrollToStep(_stepViewerIdx);
-
-  const counter = document.getElementById('step-counter');
-  if (counter) {
-    counter.textContent = `${T('practica_step')} ${_stepViewerIdx + 1} ${T('practica_of')} ${_stepViewerSteps.length}`;
-  }
-
-  const prev = document.getElementById('step-prev-btn');
-  const next = document.getElementById('step-next-btn');
-  if (prev) prev.textContent = _stepViewerIdx === 0 ? '✕' : '←';
-  if (next) {
-    const isLast = _stepViewerIdx === _stepViewerSteps.length - 1;
-    next.textContent = isLast ? T('practica_siguiente') + ' ›' : '→';
-    next.className = `step-nav-btn${isLast ? ' primary' : ''}`;
-  }
+  _updateStepViewerChrome();
 }
 
 function closePracticaStep() {

@@ -294,17 +294,42 @@
             <p class="ob2-sub">Así ajustamos el módulo de práctica.</p>
             <div class="ob2-options ob2-options-tipo" id="ob-tipo-opts">
               <button class="ob2-opt ob2-opt-tipo" onclick="obSelectTipo('teorica',this)">
-                <span class="ob2-opt-tipo-icon">📖</span>
+                <span class="ob2-opt-tipo-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+                  </svg>
+                </span>
                 <span class="ob2-opt-tipo-name">Teórica</span>
                 <span class="ob2-opt-tipo-desc">Teoría, conceptos y memoria</span>
               </button>
               <button class="ob2-opt ob2-opt-tipo" onclick="obSelectTipo('mixta',this)">
-                <span class="ob2-opt-tipo-icon">⚗️</span>
+                <span class="ob2-opt-tipo-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 2v7.31"/>
+                    <path d="M15 2v7.31"/>
+                    <path d="M4.5 22h15l-5-9.38V2h-5v10.62z"/>
+                    <path d="M8 15h8"/>
+                  </svg>
+                </span>
                 <span class="ob2-opt-tipo-name">Mixta</span>
                 <span class="ob2-opt-tipo-desc">Teoría y ejercicios prácticos</span>
               </button>
               <button class="ob2-opt ob2-opt-tipo" onclick="obSelectTipo('practica',this)">
-                <span class="ob2-opt-tipo-icon">🔢</span>
+                <span class="ob2-opt-tipo-icon">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                    <rect x="4" y="2" width="16" height="20" rx="2"/>
+                    <line x1="8" y1="6" x2="16" y2="6"/>
+                    <line x1="8" y1="10" x2="10" y2="10"/>
+                    <line x1="12" y1="10" x2="14" y2="10"/>
+                    <line x1="16" y1="10" x2="16" y2="10"/>
+                    <line x1="8" y1="14" x2="10" y2="14"/>
+                    <line x1="12" y1="14" x2="14" y2="14"/>
+                    <line x1="16" y1="14" x2="16" y2="14"/>
+                    <line x1="8" y1="18" x2="10" y2="18"/>
+                    <line x1="12" y1="18" x2="16" y2="18"/>
+                  </svg>
+                </span>
                 <span class="ob2-opt-tipo-name">Práctica</span>
                 <span class="ob2-opt-tipo-desc">Problemas, fórmulas y cálculo</span>
               </button>
@@ -478,30 +503,51 @@
         <span class="greet-name" id="greet-name">Estudiante</span>
       </div>
 
-      <!-- Notificaciones smart (max 3, agregadas) -->
-      <div class="notif-card">
-        <div class="notif-carousel">
-          <div class="notif-track" id="notif-track" onscroll="_onNotifScroll(this)">
-            <div class="notif-item notif-blue">
-              <div class="notif-item-title">Cargando...</div>
-              <div class="notif-item-sub">Preparando resumen</div>
-            </div>
-          </div>
-          <div class="notif-dots" id="notif-dots"></div>
+      <!-- Stats chips (datos reales) -->
+      <div class="hub-stats-row" id="hub-stats-row">
+        <div class="hub-stat-chip" id="hub-stat-streak">
+          <span class="hub-stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+            </svg>
+          </span>
+          <span class="hub-stat-val" id="hub-stat-streak-val">0</span>
+          <span class="hub-stat-lbl" data-i18n="hub_stat_streak">racha</span>
+        </div>
+        <div class="hub-stat-chip" id="hub-stat-today">
+          <span class="hub-stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="9"/>
+              <polyline points="12 7 12 12 15 14"/>
+            </svg>
+          </span>
+          <span class="hub-stat-val" id="hub-stat-today-val">0</span>
+          <span class="hub-stat-lbl" data-i18n="hub_stat_today">hoy</span>
+        </div>
+        <div class="hub-stat-chip" id="hub-stat-week">
+          <span class="hub-stat-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M3 3v18h18"/>
+              <path d="M7 15l4-4 3 3 5-5"/>
+            </svg>
+          </span>
+          <span class="hub-stat-val" id="hub-stat-week-val">0</span>
+          <span class="hub-stat-lbl" data-i18n="hub_stat_week">semana</span>
         </div>
       </div>
 
-      <!-- Orbe CTA -->
-      <div class="orb-start-wrap">
-        <div class="orb-start-halo"></div>
-        <button class="orb-start" onclick="_reviewGateLobby()" aria-label="Iniciar sesión">
-          <span class="orb-body"></span>
-          <span class="orb-spec"></span>
-          <span class="orb-bounce"></span>
-          <span class="orb-glyph">
-            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
-          </span>
-        </button>
+      <div class="hub-start-wrap">
+        <div class="hub-start-stage">
+          <span class="hub-halo" aria-hidden="true"></span>
+          <span class="hub-ring hub-ring-1" aria-hidden="true"></span>
+          <span class="hub-ring hub-ring-2" aria-hidden="true"></span>
+          <span class="hub-ring hub-ring-3" aria-hidden="true"></span>
+          <button class="glass-start-button" onclick="_reviewGateLobby()" aria-label="Iniciar sesión">
+            <span class="glass-start-shine" aria-hidden="true"></span>
+            <span class="glass-start-ripple" aria-hidden="true"></span>
+            <span class="glass-start-text">Start session</span>
+          </button>
+        </div>
       </div>
     </div>
 
@@ -726,7 +772,18 @@
 
       <!-- Loading screen -->
       <div id="test-loading" class="test-loading-screen">
-        <div class="test-loading-orb"></div>
+        <div class="gooey-loader" role="status" aria-label="Cargando">
+          <svg class="gooey-loader-svg" aria-hidden="true">
+            <defs>
+              <filter id="gooey-loader-filter">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 48 -7" result="goo"/>
+                <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+              </filter>
+            </defs>
+          </svg>
+          <div class="gooey-loader-track"></div>
+        </div>
 
         <div class="test-loading-title" data-i18n="test_generating">Generando test</div>
         <div class="test-loading-sub" data-i18n="test_generating_sub">Preparando preguntas personalizadas...</div>
@@ -1004,15 +1061,40 @@
       <div class="ajustes-lang-label" data-i18n="settings_subject_tipo">Tipo de asignatura</div>
       <div class="ajustes-tipo-row">
         <button class="ajustes-tipo-btn" id="tipo-btn-teorica" onclick="setSubjectTipo('teorica')">
-          <span class="ajustes-tipo-icon">📖</span>
+          <span class="ajustes-tipo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+            </svg>
+          </span>
           <span class="ajustes-tipo-label" data-i18n="tipo_teorica">Teórica</span>
         </button>
         <button class="ajustes-tipo-btn" id="tipo-btn-practica" onclick="setSubjectTipo('practica')">
-          <span class="ajustes-tipo-icon">🔢</span>
+          <span class="ajustes-tipo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="4" y="2" width="16" height="20" rx="2"/>
+              <line x1="8" y1="6" x2="16" y2="6"/>
+              <line x1="8" y1="10" x2="10" y2="10"/>
+              <line x1="12" y1="10" x2="14" y2="10"/>
+              <line x1="16" y1="10" x2="16" y2="10"/>
+              <line x1="8" y1="14" x2="10" y2="14"/>
+              <line x1="12" y1="14" x2="14" y2="14"/>
+              <line x1="16" y1="14" x2="16" y2="14"/>
+              <line x1="8" y1="18" x2="10" y2="18"/>
+              <line x1="12" y1="18" x2="16" y2="18"/>
+            </svg>
+          </span>
           <span class="ajustes-tipo-label" data-i18n="tipo_practica">Práctica</span>
         </button>
         <button class="ajustes-tipo-btn" id="tipo-btn-mixta" onclick="setSubjectTipo('mixta')">
-          <span class="ajustes-tipo-icon">⚗️</span>
+          <span class="ajustes-tipo-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M9 2v7.31"/>
+              <path d="M15 2v7.31"/>
+              <path d="M4.5 22h15l-5-9.38V2h-5v10.62z"/>
+              <path d="M8 15h8"/>
+            </svg>
+          </span>
           <span class="ajustes-tipo-label" data-i18n="tipo_mixta">Mixta</span>
         </button>
       </div>
@@ -1167,20 +1249,13 @@
       <div class="sep-title" id="sep-title"></div>
     </div>
   </div>
-  <!-- Formulas horizontal scroll strip -->
-  <div class="sep-formulas-strip" id="sep-formulas-strip"></div>
-  <!-- Content type tabs -->
-  <div class="sep-type-tabs">
-    <button class="sep-tab active" onclick="sepGoTab(0)">📝 Ejercicio</button>
-    <button class="sep-tab" onclick="sepGoTab(1)">🔧 Procedimiento</button>
-    <button class="sep-tab" onclick="sepGoTab(2)">💡 Concepto</button>
+  <!-- Counter + dots -->
+  <div class="sep-counter-row">
+    <div class="sep-counter" id="sep-counter">Ejercicio 1 / 1</div>
+    <div class="sep-dots" id="sep-dots"></div>
   </div>
-  <!-- Swipe cards -->
-  <div class="sep-swipe-track" id="sep-swipe-track">
-    <div class="sep-swipe-page" id="sep-card-ejercicio"></div>
-    <div class="sep-swipe-page" id="sep-card-procedimiento"></div>
-    <div class="sep-swipe-page" id="sep-card-concepto"></div>
-  </div>
+  <!-- Exercises swipe track (one card per exercise, no formulas, no tabs) -->
+  <div class="sep-swipe-track" id="sep-swipe-track"></div>
 </div>
 
 <!-- ════ PRACTICAL MODULE OVERLAYS ════ -->

@@ -118,16 +118,17 @@ HISTORIAL (ejercicios ya realizados por el estudiante — NO repitas estos títu
 INSTRUCCIONES — sigue estas 3 fases ANTES de escribir el JSON:
 
 FASE 1 — IDENTIFICAR TIPOS:
-Analiza el conocimiento disponible e identifica 3-5 tipos distintos de ejercicios posibles
-(ejemplos: "cinemática uniforme", "caída libre", "trabajo y energía", "cálculo de derivadas",
-"integración por partes", "probabilidad condicional", etc.).
+Analiza el conocimiento disponible e identifica TODOS los tipos distintos de ejercicios posibles
+que aparecen o se pueden plantear a partir del contenido (ejemplos: "cinemática uniforme",
+"caída libre", "trabajo y energía", "cálculo de derivadas", "integración por partes",
+"probabilidad condicional", etc.). No te limites a 3 o 5 — lista los que realmente haya.
 
 FASE 2 — ELEGIR TIPOS NUEVOS:
 De los tipos identificados, descarta los que ya aparecen en el historial.
 Prioriza los que el estudiante NO ha practicado todavía.
 
 FASE 3 — GENERAR EJERCICIOS:
-Crea exactamente {n} ejercicios distintos usando los tipos elegidos en la Fase 2.
+{plan_fase3}
 
 Devuelve SOLO el siguiente JSON sin texto adicional, sin markdown, sin ```json:
 
@@ -188,27 +189,37 @@ REGLAS CRÍTICAS:
 - dades: tabla de datos iniciales. OBLIGATORIO para ejercicios numéricos.
   Cada entry: symbol (símbolo de variable), value (número concreto), unit (unidades).
   Si es un ejercicio conceptual/teórico, dades puede ser [].
-- enunciado: bloques "text" y OPCIONALMENTE un "formula_box" con la fórmula principal.
+- enunciado: bloques "text" y OBLIGATORIO un "formula_box" cuando haya cualquier fórmula.
   PROHIBIDO en enunciado: chart, img_desc, table, vector, number_line.
-- formula_box: úsalo SOLO si hay una fórmula clave que conviene mostrar con sus variables.
-  Incluye siempre: nombre, latex, variables (array con symbol y description de cada variable).
+- formula_box: úsalo SIEMPRE que el ejercicio use una fórmula.
+  Incluye OBLIGATORIAMENTE: nombre, latex y variables.
+  variables: array con TODOS los símbolos que aparecen en la fórmula Y en dades.
+  Cada variable: {{ "symbol": "...", "description": "qué es y en qué unidades" }}.
+  Ejemplo: {{"symbol": "v₀", "description": "velocidad inicial (m/s)"}}.
 - solucion: SOLO bloques "step". Cada step contiene "content" con bloques "text" y "math".
-  Los pasos DEBEN referenciar los valores numéricos de dades explícitamente.
-  Mínimo 3 pasos, máximo 6. Solución completa, con resultado final en el último paso.
+  Explica como a un estudiante que ve el tema por PRIMERA VEZ:
+    * Paso 1: identificar datos (qué dato tenemos y qué significa cada símbolo).
+    * Paso 2: qué fórmula usamos y POR QUÉ.
+    * Paso 3-5: sustituir y resolver, mostrando cada operación.
+    * Último paso: resultado final con unidades.
+  Mínimo 3 pasos, máximo 6.
 - LaTeX: escribe el contenido matemático SIN delimitadores $ ni $$.
   Correcto: "F = ma". Incorrecto: "$F = ma$"
 - Idioma de los textos: {lang}.
 - NO inventes conceptos fuera del conocimiento disponible.
-- Los {n} ejercicios deben ser DISTINTOS entre sí (tipos diferentes, datos numéricos diferentes).
+- Todos los ejercicios deben ser DISTINTOS entre sí (tipos diferentes, datos numéricos diferentes).
+- El título de cada ejercicio debe indicar claramente el tema del subtema (ej: "Caída libre: altura máxima").
 """.strip()
 
 
 class GenerarBody(BaseModel):
     asignatura_id: str
     temas_ids: list[str]
-    n: int = 3
+    subtemas_ids: list[str] | None = None  # if provided, fetch atoms by subtema_id (not tema_id)
+    n: int = 3           # 0 = auto (one exercise per distinct type identified, 3..10 range)
     lang: str = "es"
     usuario_id: str | None = None
+    subtema: str | None = None  # subtema title (saved in `tema` column for later filtering)
 
 
 @router.post("/generar")
@@ -223,22 +234,48 @@ async def generar_ejercicios(body: GenerarBody):
     from google.genai import types as gtypes
 
     db = get_service_client()
-    n = max(1, min(10, body.n))
+    # n=0 → auto mode (cover every type identified, between 3 and 10)
+    auto_mode = (body.n == 0)
+    n = 0 if auto_mode else max(1, min(10, body.n))
 
-    # 1. Fetch atoms for the given tema IDs
-    # (temas_ids are IDs from the `temas` table; atomos has a direct tema_id FK)
+    # 1. Fetch atoms
+    # Preferred: filter by subtema_id (gives content specific to the clicked subtema).
+    # If that yields nothing (old docs where subtema_id wasn't set properly) OR when no
+    # subtemas are provided, fall back to tema_id.
     atomos_rows: list[dict] = []
-    if body.temas_ids:
+    filter_used = "none"
+
+    if body.subtemas_ids:
         res = (
             db.table("atomos")
-            .select("titulo_corto, texto_completo, tema_id")
+            .select("titulo_corto, texto_completo, tema_id, subtema_id")
+            .in_("subtema_id", body.subtemas_ids)
+            .limit(80)
+            .execute()
+        )
+        atomos_rows = res.data or []
+        filter_used = f"subtema_id ({len(body.subtemas_ids)})"
+
+    if not atomos_rows and body.temas_ids:
+        res = (
+            db.table("atomos")
+            .select("titulo_corto, texto_completo, tema_id, subtema_id")
             .in_("tema_id", body.temas_ids)
             .limit(80)
             .execute()
         )
         atomos_rows = res.data or []
+        filter_used = f"tema_id ({len(body.temas_ids)}) [fallback]" if body.subtemas_ids else f"tema_id ({len(body.temas_ids)})"
+
+    logger.info(
+        f"[generar] asig={body.asignatura_id} subtema='{body.subtema}' "
+        f"filter={filter_used} atomos_found={len(atomos_rows)}"
+    )
 
     if not atomos_rows:
+        logger.warning(
+            f"[generar] No atoms found. subtemas_ids={body.subtemas_ids} temas_ids={body.temas_ids}"
+        )
         return {"ejercicios": [], "error": "No hay contenido para los temas seleccionados"}
 
     contexto = "\n\n".join(
@@ -286,8 +323,18 @@ async def generar_ejercicios(body: GenerarBody):
             logger.warning(f"[generar] History fetch failed (non-fatal): {e_hist}")
 
     # 4. Build prompt and call Gemini
+    if auto_mode:
+        plan_fase3 = (
+            "Crea UN ejercicio por cada tipo distinto identificado en la Fase 2.\n"
+            "Rango total: mínimo 3, máximo 10 ejercicios.\n"
+            "Si el contenido solo cubre 1-2 tipos, genera variantes distintas hasta llegar a 3.\n"
+            "Si hay más de 10 tipos, elige los 10 más representativos del contenido."
+        )
+    else:
+        plan_fase3 = f"Crea exactamente {n} ejercicios distintos usando los tipos elegidos en la Fase 2."
+
     prompt = PROMPT_GENERAR.format(
-        n=n,
+        plan_fase3=plan_fase3,
         contexto=contexto[:8000],
         formulas=formulas_ctx[:2000],
         historial=historial_ctx,
@@ -321,12 +368,13 @@ async def generar_ejercicios(body: GenerarBody):
         return {"ejercicios": []}
 
     # Persist generated exercises so results can be recorded by ID
+    subtema_label = (body.subtema or "").strip()
     rows = [
         {
             "asignatura_id": body.asignatura_id,
             "documento_id":  None,
-            "tema":          "",
-            "tipo":          "generado",
+            "tema":          subtema_label,
+            "tipo":          subtema_label or "generado",
             "tipo_contenido": "ejercicio",
             "titulo":        ej.get("titulo", ""),
             "dificultad":    1,

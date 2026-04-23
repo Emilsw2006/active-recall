@@ -81,6 +81,10 @@ async def actualizar_asignatura(asignatura_id: str, body: AsignaturaUpdate):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
     if not updates:
         raise HTTPException(status_code=400, detail="Nada que actualizar")
+    # When the user explicitly sets tipo, mark it as manual so the auto-detect
+    # in practical_extractor stops overwriting it.
+    if "tipo" in updates:
+        updates["tipo_manual"] = True
     res = (
         db.table("asignaturas")
         .update(updates)
