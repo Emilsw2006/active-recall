@@ -5240,27 +5240,90 @@ button { touch-action: manipulation; }
 }
 .step-nav-row {
   display: flex;
-  gap: 8px;
+  align-items: center;
+  gap: 14px;
   padding: 12px 16px calc(max(env(safe-area-inset-bottom,16px),16px) + 12px);
   flex-shrink: 0;
 }
-.step-nav-btn {
-  flex: 1;
-  padding: 12px;
-  border-radius: 14px;
-  border: 1px solid rgba(255,255,255,0.15);
-  background: rgba(255,255,255,0.06);
+/* Circular chevron navigation — "arrow without stem" per request */
+.step-nav-chev {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.05);
   color: var(--txt);
-  font-size: 0.85rem;
-  font-weight: 600;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out);
+  padding: 0;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-out);
+  -webkit-tap-highlight-color: transparent;
 }
-.step-nav-btn:active { background: rgba(255,255,255,0.14); }
-.step-nav-btn.primary {
+.step-nav-chev:active { background: rgba(255,255,255,0.14); transform: scale(0.94); }
+.step-nav-chev.primary {
   background: var(--accent);
   border-color: var(--accent);
   color: #fff;
+}
+.step-nav-chev.primary:active { background: color-mix(in srgb, var(--accent) 85%, #000); }
+.step-nav-chev .nav-x {
+  font-size: 1.1rem;
+  line-height: 1;
+  font-weight: 700;
+}
+/* Dot pagination in the nav row */
+.step-nav-dots {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  min-height: 16px;
+}
+.step-nav-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.25);
+  padding: 0;
+  cursor: pointer;
+  transition: background .18s ease, transform .2s var(--ease-spring, ease);
+  -webkit-tap-highlight-color: transparent;
+}
+.step-nav-dot:hover { background: rgba(255,255,255,0.45); }
+.step-nav-dot.active {
+  background: var(--accent);
+  transform: scale(1.4);
+  box-shadow: 0 0 8px rgba(79,126,255,0.55);
+}
+
+/* ── Inline step blocks (rendered via renderBlocks inside SEP / session views) ── */
+.step-block {
+  background: rgba(255,255,255,0.035);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 14px;
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.step-block-label {
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+  opacity: 0.9;
+}
+.step-block-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
 /* ── Block renderers ── */

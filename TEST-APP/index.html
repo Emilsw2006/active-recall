@@ -1296,8 +1296,13 @@
     </div>
     <div class="step-viewer-track" id="step-viewer-track"></div>
     <div class="step-nav-row">
-      <button class="step-nav-btn" id="step-prev-btn" onclick="stepViewerNav(-1)">←</button>
-      <button class="step-nav-btn primary" id="step-next-btn" onclick="stepViewerNav(1)">→</button>
+      <button class="step-nav-chev" id="step-prev-btn" aria-label="Paso anterior" onclick="stepViewerNav(-1)">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+      </button>
+      <div class="step-nav-dots" id="step-nav-dots"></div>
+      <button class="step-nav-chev primary" id="step-next-btn" aria-label="Siguiente paso" onclick="stepViewerNav(1)">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
     </div>
   </div>
 </div>

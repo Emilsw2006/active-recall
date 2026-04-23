@@ -227,14 +227,17 @@ function toast(msg, type='info') {
 }
 
 async function api(path, opts={}) {
+  // Allow callers to override the default 15s timeout for long-running
+  // endpoints (Gemini generation, PDF ingestion, etc.).
+  const timeoutMs = Number.isFinite(opts.timeoutMs) ? opts.timeoutMs : 15000;
+  const { timeoutMs: _ignored, ...fetchOpts } = opts;
   const controller = new AbortController();
-  const timeoutMs = 15000;
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  const timeoutId  = setTimeout(() => controller.abort(), timeoutMs);
   try {
     const r = await fetch(API + path, {
       headers: { 'Content-Type':'application/json', ...(token ? {Authorization:`Bearer ${token}`} : {}) },
       signal: controller.signal,
-      ...opts,
+      ...fetchOpts,
     });
     const d = await r.json().catch(() => ({}));
     if (r.status === 401 || r.status === 403) {
@@ -2077,8 +2080,10 @@ function _collectSymbolLegend(item) {
  */
 async function _generateSubtemaBatch(temaId, subtemaId, subtemaTitle, n = 0) {
   try {
+    // Gemini reasoning generation can take 40–90s; give it 3 min of headroom.
     const data = await api('/practico/generar', {
       method: 'POST',
+      timeoutMs: 180000,
       body: JSON.stringify({
         asignatura_id: curSubjectId,
         temas_ids: temaId ? [temaId] : [],
@@ -6012,12 +6017,17 @@ function renderBlocks(blocks, container) {
         break;
       }
       case 'step': {
-        el.className = 'step-card';
+        // Inline step rendering (used in SEP panel, session view). Gets its own
+        // class so the overlay-specific .step-card stays unaffected.
+        el.className = 'step-block';
         const lbl = document.createElement('div');
-        lbl.className = 'step-label';
+        lbl.className = 'step-block-label';
         lbl.textContent = `${T('practica_step')} ${blk.n}`;
         el.appendChild(lbl);
-        renderBlocks(blk.content || [], el);
+        const body = document.createElement('div');
+        body.className = 'step-block-body';
+        renderBlocks(blk.content || [], body);
+        el.appendChild(body);
         break;
       }
       case 'formula_box': {
@@ -6508,14 +6518,53 @@ function _updateStepViewerChrome() {
   const counter = document.getElementById('step-counter');
   const prev    = document.getElementById('step-prev-btn');
   const next    = document.getElementById('step-next-btn');
+  const dotsEl  = document.getElementById('step-nav-dots');
+  const total   = _stepViewerSteps.length;
+  const idx     = _stepViewerIdx;
+  const isFirst = idx === 0;
+  const isLast  = idx === total - 1;
+
   if (counter) {
-    counter.textContent = `${T('practica_step')} ${_stepViewerIdx + 1} ${T('practica_of')} ${_stepViewerSteps.length}`;
+    counter.textContent = `${T('practica_step')} ${idx + 1} ${T('practica_of')} ${total}`;
   }
-  if (prev) prev.textContent = _stepViewerIdx === 0 ? '✕' : '←';
+
+  // Dots
+  if (dotsEl) {
+    if (dotsEl.children.length !== total) {
+      dotsEl.innerHTML = '';
+      for (let i = 0; i < total; i++) {
+        const d = document.createElement('button');
+        d.type = 'button';
+        d.className = 'step-nav-dot';
+        d.setAttribute('aria-label', `Ir al paso ${i + 1}`);
+        d.onclick = () => { _stepViewerIdx = i; _scrollToStep(i); _updateStepViewerChrome(); };
+        dotsEl.appendChild(d);
+      }
+    }
+    [...dotsEl.children].forEach((d, i) => d.classList.toggle('active', i === idx));
+  }
+
+  // Prev: at first slide, becomes a close "✕" (same circular chevron shape)
+  if (prev) {
+    prev.classList.toggle('close-mode', isFirst);
+    const svg = prev.querySelector('svg');
+    if (svg) svg.style.display = isFirst ? 'none' : '';
+    let xEl = prev.querySelector('.nav-x');
+    if (isFirst) {
+      if (!xEl) {
+        xEl = document.createElement('span');
+        xEl.className = 'nav-x';
+        xEl.textContent = '✕';
+        prev.appendChild(xEl);
+      }
+    } else if (xEl) {
+      xEl.remove();
+    }
+  }
+
+  // Next: primary chevron; keep shape but mark as last (check mark) when on final slide
   if (next) {
-    const isLast = _stepViewerIdx === _stepViewerSteps.length - 1;
-    next.textContent = isLast ? T('practica_siguiente') + ' ›' : '→';
-    next.className = `step-nav-btn${isLast ? ' primary' : ''}`;
+    next.classList.toggle('last-mode', isLast);
   }
 }
 

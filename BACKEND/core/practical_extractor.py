@@ -291,8 +291,20 @@ async def _call_gemini(pdf_bytes: bytes, documento_id: str) -> dict:
     try:
         parsed = json.loads(raw)
     except json.JSONDecodeError as e:
-        logger.error(f"[practico/{documento_id}] JSON parse error: {e} — raw[:400]: {raw[:400]}")
-        raise ValueError(f"Gemini returned invalid JSON: {e}")
+        # Gemini sometimes emits invalid JSON escapes inside LaTeX strings
+        # (e.g. "\cdot" where \c is not a valid JSON escape). Recover by
+        # doubling any backslash that isn't followed by a valid JSON escape.
+        import re as _re
+        sanitized = _re.sub(r'\\(?!["\\/bfnrtu])', r'\\\\', raw)
+        try:
+            parsed = json.loads(sanitized)
+            logger.warning(
+                f"[practico/{documento_id}] Gemini JSON needed escape sanitization "
+                f"(original error: {e})"
+            )
+        except json.JSONDecodeError as e2:
+            logger.error(f"[practico/{documento_id}] JSON parse error: {e2} — raw[:400]: {raw[:400]}")
+            raise ValueError(f"Gemini returned invalid JSON: {e2}")
 
     # Normalise: if Gemini wraps in a list
     if isinstance(parsed, list):
