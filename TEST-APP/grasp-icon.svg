@@ -1,0 +1,5 @@
+<svg viewBox="6 8 46 50" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Grasp">
+  <path d="M 44 16 C 34 11, 20 14, 16 28 C 12.5 40, 20 52, 34 51 C 40 50.5, 44 48, 46 45"
+        fill="none" stroke="#1c0e06" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="44.5" cy="32" r="4" fill="#1c0e06"/>
+</svg>

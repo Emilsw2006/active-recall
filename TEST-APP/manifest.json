@@ -1,11 +1,11 @@
 {
-  "name": "Active Recall",
-  "short_name": "Recall",
+  "name": "Grasp",
+  "short_name": "Grasp",
   "description": "Estudio activo con IA — repasa con voz, flashcards y tests",
   "start_url": ".",
   "display": "standalone",
-  "background_color": "#4a70c4",
-  "theme_color": "#4a70c4",
+  "background_color": "#F4C9A4",
+  "theme_color": "#F4C9A4",
   "orientation": "portrait",
   "categories": ["education"],
   "icons": [

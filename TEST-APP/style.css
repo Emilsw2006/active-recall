@@ -6703,115 +6703,57 @@ button { touch-action: manipulation; }
     z-index: auto !important;
   }
 
-  /* ================= HOME — centrado ================= */
+  /* ================= HOME — centrado desktop ================= */
   #v-hub {
     display: flex !important;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
     width: 100%;
     max-width: none;
     margin: 0;
-    padding: calc(var(--desktop-header-h) + 56px) var(--desktop-pad) 56px !important;
+    padding: calc(var(--desktop-header-h) + 40px) var(--desktop-pad) 48px !important;
     height: auto;
     min-height: 100%;
-    overflow: visible;
-    gap: 28px;
+    overflow-y: auto !important;
+    gap: 24px;
     text-align: center;
   }
-  #v-hub #user-greeting { order: 1; }
-  #v-hub .hub-phrase-area { order: 2; }
-  #v-hub .hub-stats-row { order: 3; }
-  #v-hub .hub-cta-wrap { order: 4; }
   #user-greeting {
     margin: 0 !important;
     padding: 0 !important;
     width: 100%;
-    max-width: 720px;
+    max-width: 640px;
     text-align: center;
     display: flex;
     flex-direction: column;
     align-items: center;
   }
-  #user-greeting .greet-label {
-    font-size: .92rem;
-    color: var(--fg2);
-    letter-spacing: .01em;
-  }
-  #user-greeting .greet-name {
-    font-size: 2.8rem;
-    line-height: 1.1;
-    margin-top: 4px;
-    font-weight: 700;
-    letter-spacing: -0.02em;
-  }
+  #user-greeting .greet-label { font-size: .92rem; }
+  #user-greeting .greet-name { font-size: 2.6rem; margin-top: 4px; }
 
-  .hub-start-wrap {
+  /* Phrase area — wider on desktop */
+  .hub-phrase-area {
+    max-width: 640px;
     width: 100%;
-    max-width: 720px;
-    display: flex !important;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 22px;
-    margin: 0 !important;
+    flex: unset;
+    padding: 28px 32px;
   }
-  .hub-start-stage {
-    width: 100%;
-    max-width: 560px;
-    height: auto;
-    min-height: 260px;
-    padding: 34px 40px;
-    display: flex !important;
-    justify-content: center;
-    align-items: center;
-    margin: 0 auto;
-    background: linear-gradient(135deg, rgba(255,255,255,0.60), rgba(255,255,255,0.30));
-    border: 1px solid rgba(255,255,255,0.70);
-    border-radius: 32px;
-    box-shadow: 0 36px 80px -32px rgba(28,22,18,0.28), inset 0 1px 0 rgba(255,255,255,0.80);
-    backdrop-filter: blur(22px) saturate(150%);
-    -webkit-backdrop-filter: blur(22px) saturate(150%);
-  }
-  .hub-halo, .hub-ring, .hub-ring-1, .hub-ring-2, .hub-ring-3 { display: none !important; }
-  .glass-start-button {
-    min-width: 280px;
-    height: 72px;
-    font-size: 1.05rem;
-    font-weight: 700;
-    letter-spacing: 0.01em;
-  }
+  .hub-phrase { font-size: 1.35rem; }
 
-  /* Stats en fila horizontal debajo del CTA */
-  .hub-stats-row {
-    display: flex !important;
-    flex-direction: row;
-    justify-content: center;
-    gap: 14px;
-    margin: 0 !important;
+  /* Cards row — side by side, constrained width */
+  .hub-cards-row {
+    max-width: 640px;
     width: 100%;
-    max-width: 720px;
-    flex-wrap: wrap;
+    gap: 16px;
   }
-  .hub-stat-chip {
-    flex: 1 1 200px;
-    max-width: 240px;
-    padding: 16px 18px;
-    border-radius: 18px;
-    flex-direction: row;
-    align-items: center;
-    gap: 12px;
-    text-align: left;
-    background: rgba(255,255,255,0.55);
-    border: 1px solid rgba(255,255,255,0.70);
-    box-shadow: 0 10px 24px -14px rgba(28,22,18,0.18), inset 0 1px 0 rgba(255,255,255,0.70);
-    backdrop-filter: blur(14px);
-    -webkit-backdrop-filter: blur(14px);
+  .hub-card-val { font-size: 2.8rem; }
+
+  /* CTA — constrained width */
+  .hub-cta-wrap {
+    max-width: 640px;
+    width: 100%;
   }
-  .hub-stat-chip .hub-stat-icon { width: 32px; height: 32px; flex-shrink: 0; }
-  .hub-stat-chip .hub-stat-icon svg { width: 20px; height: 20px; }
-  .hub-stat-val { font-size: 1.4rem; }
-  .hub-stat-lbl { font-size: .7rem; }
+  .hub-start-btn { font-size: 1.12rem; padding: 20px 28px 20px 34px; }
 
   /* ================= HISTORIAL — layout desktop propio ================= */
   #v-historial {
