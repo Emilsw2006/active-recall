@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-<meta name="theme-color" content="#4a70c4" />
+<meta name="theme-color" content="#F4C9A4" />
 <meta name="description" content="Estudio activo con IA — repasa con voz, flashcards y tests" />
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="logo.png" />
@@ -13,7 +13,7 @@
 <title>Active Recall</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css?v=46" />
 <!-- KaTeX — LaTeX rendering (no build step required) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
@@ -32,19 +32,19 @@
   <div class="auth-top-bar" style="position:absolute; top:24px; right:24px; z-index:100; display:flex; flex-direction:column; align-items:flex-end; gap:16px;">
     <!-- Language Box Selector (Solo bandera) -->
     <div style="position:relative;">
-      <select onchange="changeLang(this.value); setTimeout(updateAuthTexts, 50)" id="auth-lang-select" style="background:transparent; color:#fff; border:none; padding:4px 16px 4px 4px; border-radius:0; outline:none; font-size:1.6rem; cursor:pointer; appearance:none;">
+      <select onchange="changeLang(this.value); setTimeout(updateAuthTexts, 50)" id="auth-lang-select" style="background:transparent; color:var(--fg1,#1C1612); border:none; padding:4px 16px 4px 4px; border-radius:0; outline:none; font-size:1.6rem; cursor:pointer; appearance:none;">
         <option value="es">🇪🇸</option>
         <option value="en">🇬🇧</option>
         <option value="de">🇩🇪</option>
       </select>
-      <div style="position:absolute; right:2px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:0.6rem; color:rgba(255,255,255,0.7);">▼</div>
+      <div style="position:absolute; right:2px; top:50%; transform:translateY(-50%); pointer-events:none; font-size:0.6rem; color:rgba(28,22,18,0.55);">▼</div>
     </div>
   </div>
 
   <div class="auth-content" style="z-index:10; display:flex; flex-direction:column; justify-content:center; width: 100%; max-width: 320px; text-align: center; min-height: 75vh;">
     
     <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
-      <h1 style="font-size:2.2rem; font-weight:700; color:#fff; letter-spacing:-0.04em;" id="auth-main-title">Únete a Active Recall</h1>
+      <h1 style="font-size:2.125rem; font-weight:700; color:var(--fg1,#1C1612); letter-spacing:-0.02em;" id="auth-main-title">Únete a Active Recall</h1>
     </div>
 
     <div class="auth-err" id="auth-err"></div>
@@ -58,7 +58,7 @@
       <button class="auth-btn-google-glass" onclick="showEmailForm()" style="background:rgba(255,255,255,0.15); border:none; margin-top:4px;">
         <span style="font-size:1rem; margin-right:4px;">✉️</span> <span id="auth-btn-email-text">Regístrate con Email</span>
       </button>
-      <div id="auth-switch-text" style="font-size:0.85rem; color:rgba(255,255,255,0.7); margin-top:24px; cursor:pointer;" onclick="toggleAuthMode()">¿Ya tienes cuenta? <strong style="color:#fff;">Iniciar sesión</strong></div>
+      <div id="auth-switch-text" style="font-size:0.85rem; color:rgba(28,22,18,0.55); margin-top:24px; cursor:pointer;" onclick="toggleAuthMode()">¿Ya tienes cuenta? <strong style="color:#1C1612;">Iniciar sesión</strong></div>
     </div>
     
     <div id="auth-forms-container" style="width: 100%; display:none; margin-bottom: 5vh;">
@@ -76,7 +76,7 @@
         <button class="auth-cta-glass" id="btn-register" onclick="doRegister()" style="margin-top:8px;">Crear cuenta</button>
       </div>
       
-      <div style="font-size:0.85rem; color:rgba(255,255,255,0.7); margin-top:24px; cursor:pointer;" onclick="hideEmailForm()">← Volver</div>
+      <div style="font-size:0.85rem; color:rgba(28,22,18,0.55); margin-top:24px; cursor:pointer;" onclick="hideEmailForm()">← Volver</div>
     </div>
   </div>
   
