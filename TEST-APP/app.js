@@ -577,24 +577,80 @@ async function _buildSmartNotifs() {
 }
 
 const _HUB_PHRASES = [
-  'Cada sesión te acerca más a dominar lo que estudias.',
-  'La constancia supera al talento.',
-  'Pequeños pasos, grandes resultados.',
-  'El conocimiento que repasas hoy, lo recuerdas mañana.',
-  'Estudiar con propósito marca la diferencia.',
-  'Tu esfuerzo de hoy es el resultado de mañana.',
-  'La mejor forma de aprender es practicar activamente.'
+  'Cada sesión te acerca\na dominar lo que estudias.',
+  'La constancia supera\nal talento.',
+  'El conocimiento que repasas\nhoy, lo recuerdas mañana.',
+  'Pequeños pasos,\ngrandes resultados.',
+  'Estudiar con propósito\nmarca la diferencia.',
+  'Tu esfuerzo de hoy\nes el resultado de mañana.',
+  'La mejor forma de aprender\nes practicar activamente.'
 ];
 function _rotateHubPhrase() {
   const el = document.getElementById('hub-phrase');
   if (!el) return;
   const idx = Math.floor(Math.random() * _HUB_PHRASES.length);
-  el.style.transition = 'opacity .4s ease';
+  el.style.transition = 'opacity .35s ease';
   el.style.opacity = '0';
   setTimeout(() => {
-    el.textContent = _HUB_PHRASES[idx];
-    el.style.opacity = '0.85';
-  }, 400);
+    el.innerHTML = _HUB_PHRASES[idx].replace(/\n/g, '<br>');
+    el.style.opacity = '1';
+  }, 350);
+}
+
+/* ── Streak helpers ── */
+function _isoWeekNumber(d) {
+  const date = new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
+  date.setUTCDate(date.getUTCDate() + 4 - (date.getUTCDay() || 7));
+  const yearStart = new Date(Date.UTC(date.getUTCFullYear(), 0, 1));
+  return Math.ceil((((date - yearStart) / 86400000) + 1) / 7);
+}
+function _weekBounds() {
+  const now = new Date();
+  const day = now.getDay(); // 0=Sun
+  const diffToMon = (day === 0) ? -6 : 1 - day;
+  const mon = new Date(now); mon.setHours(0,0,0,0); mon.setDate(now.getDate() + diffToMon);
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6); sun.setHours(23,59,59,999);
+  return { mon, sun };
+}
+function _consecutiveStreak(sessions) {
+  const days = new Set();
+  for (const s of sessions) {
+    const d = new Date(s.fecha_inicio || s.created_at);
+    if (!isNaN(d.getTime())) {
+      const key = `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
+      days.add(key);
+    }
+  }
+  let streak = 0;
+  const cur = new Date(); cur.setHours(0,0,0,0);
+  while (true) {
+    const key = `${cur.getFullYear()}-${cur.getMonth()}-${cur.getDate()}`;
+    if (!days.has(key)) break;
+    streak++;
+    cur.setDate(cur.getDate() - 1);
+  }
+  return streak;
+}
+function _renderStreakDots(activeDays) {
+  const wrap = document.getElementById('hub-streak-dots');
+  if (!wrap) return;
+  wrap.innerHTML = '';
+  const DAYS = ['L','M','X','J','V','S','D'];
+  for (let i = 0; i < 7; i++) {
+    const span = document.createElement('span');
+    span.className = 'hub-streak-dot' + (activeDays[i] ? ' active' : '');
+    span.textContent = activeDays[i] ? '🔥' : '🩶';
+    span.title = DAYS[i];
+    if (activeDays[i]) span.style.animationDelay = (i * 0.07) + 's';
+    wrap.appendChild(span);
+  }
+}
+function _weekLabel(mon, sun) {
+  const wn = _isoWeekNumber(mon);
+  const MONTHS = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  const startStr = mon.getDate() + ' ' + MONTHS[mon.getMonth()];
+  const endStr   = sun.getDate() + ' ' + MONTHS[sun.getMonth()];
+  return `Sem. ${wn} (${startStr}–${endStr})`;
 }
 
 async function refreshHubStats() {
@@ -602,24 +658,48 @@ async function refreshHubStats() {
   const elStreak = $('hub-stat-streak-val');
   const elToday  = $('hub-stat-today-val');
   const elWeek   = $('hub-stat-week-val');
-  if (!elStreak || !elToday || !elWeek) return;
+  if (!elStreak || !elToday) return;
   try {
     const sessions = await api(`/sesiones/usuario/${uid}`);
     const all = Array.isArray(sessions) ? sessions : [];
-    const streak = _calcStreak(all);
+
+    // Días con sesión en la semana actual (Lun–Dom)
+    const { mon, sun } = _weekBounds();
     const today = new Date(); today.setHours(0,0,0,0);
-    const weekAgo = new Date(today.getTime() - 6 * 86400000);
-    let nToday = 0, nWeek = 0;
+
+    // activeDays[0]=Lun … activeDays[6]=Dom
+    const activeDays = [false,false,false,false,false,false,false];
+    let nToday = 0;
     for (const s of all) {
       const d = new Date(s.fecha_inicio || s.created_at);
       if (isNaN(d.getTime())) continue;
-      d.setHours(0,0,0,0);
-      if (d.getTime() === today.getTime()) nToday++;
-      if (d.getTime() >= weekAgo.getTime()) nWeek++;
+      const dDay = new Date(d); dDay.setHours(0,0,0,0);
+      if (dDay >= mon && dDay <= sun) {
+        // 0=Dom → queremos 0=Lun
+        const wd = (d.getDay() + 6) % 7; // Lun=0
+        activeDays[wd] = true;
+      }
+      if (dDay.getTime() === today.getTime()) nToday++;
     }
-    _setStatVal(elStreak, streak);
-    _setStatVal(elToday,  nToday);
-    _setStatVal(elWeek,   nWeek);
+    const nWeek = activeDays.filter(Boolean).length;
+    // Racha consecutiva
+    const streak = _consecutiveStreak(all);
+
+    _setStatVal(elStreak, nWeek);
+    _setStatVal(elToday, nToday);
+    if (elWeek) elWeek.textContent = streak;
+
+    // Render dots con animación
+    _renderStreakDots(activeDays);
+
+    // Semana label
+    const wkEl = $('hub-streak-week');
+    if (wkEl) wkEl.textContent = _weekLabel(mon, sun);
+
+    // Congrats
+    const cEl = $('hub-today-congrats');
+    if (cEl) cEl.textContent = nToday > 0 ? '¡Sigue así!' : '';
+
   } catch(e) { /* silent */ }
 }
 

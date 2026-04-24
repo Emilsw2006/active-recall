@@ -14,7 +14,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=47" />
+<link rel="stylesheet" href="style.css?v=48" />
 <!-- KaTeX — LaTeX rendering (no build step required) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
@@ -505,49 +505,52 @@
         <span class="greet-name" id="greet-name">Estudiante</span>
       </div>
 
-      <!-- Centro: frase motivacional -->
+      <!-- Centro: frase + waveform en glass -->
       <div class="hub-phrase-area">
-        <div class="hub-phrase-glow" aria-hidden="true"></div>
-        <p class="hub-phrase" id="hub-phrase">Cada sesión te acerca más a dominar lo que estudias.</p>
+        <p class="hub-phrase" id="hub-phrase">Cada sesión te acerca<br>a dominar lo que estudias.</p>
+        <div class="hub-waveform" aria-hidden="true">
+          <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+        </div>
       </div>
 
-      <!-- Stat cards (racha + hoy) -->
-      <div class="hub-stats-row" id="hub-stats-row">
-        <div class="hub-stat-chip" id="hub-stat-streak">
-          <span class="hub-stat-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
-            </svg>
-          </span>
-          <div class="hub-stat-body">
-            <span class="hub-stat-val" id="hub-stat-streak-val">0</span>
-            <span class="hub-stat-lbl" data-i18n="hub_stat_streak">racha</span>
+      <!-- Tarjetas grandes -->
+      <div class="hub-cards-row">
+        <!-- Racha semanal -->
+        <div class="hub-card" id="hub-card-streak">
+          <div class="hub-card-header">
+            <div class="hub-card-icon-wrap">🔥</div>
+            <span class="hub-card-title">Racha semanal</span>
+            <svg class="hub-card-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
+          <span class="hub-card-val" id="hub-stat-streak-val">0</span>
+          <div class="hub-card-sub">días esta semana</div>
+          <div class="hub-card-week" id="hub-streak-week"></div>
+          <div class="hub-streak-dots" id="hub-streak-dots"></div>
         </div>
-        <div class="hub-stat-chip" id="hub-stat-today">
-          <span class="hub-stat-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="12" cy="12" r="9"/>
-              <polyline points="12 7 12 12 15 14"/>
-            </svg>
-          </span>
-          <div class="hub-stat-body">
-            <span class="hub-stat-val" id="hub-stat-today-val">0</span>
-            <span class="hub-stat-lbl" data-i18n="hub_stat_today">hoy</span>
+        <!-- Hoy -->
+        <div class="hub-card" id="hub-card-today">
+          <div class="hub-card-header">
+            <div class="hub-card-icon-wrap">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
+            </div>
+            <span class="hub-card-title">Hoy</span>
+            <svg class="hub-card-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
           </div>
+          <span class="hub-card-val" id="hub-stat-today-val">0</span>
+          <div class="hub-card-sub">sesiones completadas</div>
+          <div class="hub-card-congrats" id="hub-today-congrats"></div>
         </div>
-        <!-- week val kept for JS compatibility -->
-        <span id="hub-stat-week-val" style="display:none">0</span>
       </div>
+      <!-- compat JS -->
+      <span id="hub-stat-week-val" style="display:none">0</span>
 
-      <!-- CTA -->
+      <!-- CTA liquid glass -->
       <div class="hub-cta-wrap">
         <button class="hub-start-btn" onclick="_reviewGateLobby()" aria-label="Empezar sesión">
-          <svg width="20" height="20" viewBox="10 10 40 46" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path d="M 44 16 C 34 11, 20 14, 16 28 C 12.5 40, 20 52, 34 51 C 40 50.5, 44 48, 46 45" fill="none" stroke="#FDFAF7" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
-            <circle cx="44.5" cy="32" r="4" fill="#FDFAF7"/>
-          </svg>
           <span data-i18n="hub_start">Empezar sesión</span>
+          <div class="hub-start-waveform" aria-hidden="true">
+            <span></span><span></span><span></span><span></span><span></span>
+          </div>
         </button>
       </div>
     </div>
@@ -1570,7 +1573,7 @@
 
 </div>
 
-<script src="app.js?v=43"></script>
+<script src="app.js?v=44"></script>
 <script>
 // goNotif, _notifIdx, _onNotifScroll are defined in app.js (scroll-snap based)
 // Auto-advance every 5s
