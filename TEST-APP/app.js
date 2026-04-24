@@ -86,7 +86,7 @@ function installPWA() {
 
   overlay.innerHTML = `
     <div class="pwa-install-card">
-      <img src="logo.png" alt="Active Recall" class="pwa-install-logo"/>
+      <img src="logo.png" alt="Grasp" class="pwa-install-logo"/>
       <p class="pwa-install-instructions">${instructions}</p>
       <button class="pwa-install-cancel" id="pwa-cancel">Cerrar</button>
     </div>
@@ -133,6 +133,20 @@ let _reviewEvaluated    = false;  // true once fetched for current subject
 const $  = id => document.getElementById(id);
 const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;');
 
+/**
+ * Quita emojis (pictogramas, símbolos, banderas, emoji presentation, ZWJ)
+ * del texto para mostrar preguntas limpias en la UI.
+ */
+function stripEmojis(s) {
+  if (!s) return '';
+  return String(s)
+    .replace(/\p{Extended_Pictographic}/gu, '')
+    .replace(/[\u{1F1E6}-\u{1F1FF}]/gu, '')
+    .replace(/[\u200D\uFE0F]/g, '')
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
 // ── Subject tipo badge (teorica / practica / mixta) ─────────────────
 const TIPO_BADGE = {
   teorica:  { icon: '📖', color: '#60a5fa', bg: 'rgba(96,165,250,0.15)' },
@@ -152,15 +166,44 @@ function cleanDocTitle(filename) {
     .trim() || filename;
 }
 
+function _ensureDesktopOverlay() {
+  let ov = document.getElementById('desk-modal-overlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'desk-modal-overlay';
+    ov.addEventListener('click', () => {
+      document.querySelectorAll('.doc-card.open').forEach(c => c.classList.remove('open'));
+      document.querySelectorAll('.sess-acc-item.open').forEach(c => c.classList.remove('open'));
+      _updateDesktopOverlay();
+    });
+    document.body.appendChild(ov);
+  }
+  return ov;
+}
+function _updateDesktopOverlay() {
+  const ov = _ensureDesktopOverlay();
+  const anyOpen = !!document.querySelector('.doc-card.open, .sess-acc-item.open');
+  ov.classList.toggle('on', anyOpen);
+  document.body.classList.toggle('desk-modal-open', anyOpen);
+}
+
 function toggleDocCard(id) {
   const card = document.getElementById('doc-card-' + id);
   if (!card) return;
   const wasOpen = card.classList.contains('open');
   document.querySelectorAll('.doc-card.open').forEach(c => c.classList.remove('open'));
+  document.querySelectorAll('.sess-acc-item.open').forEach(c => c.classList.remove('open'));
   if (!wasOpen) {
     card.classList.add('open');
     loadDocTemas(id);
   }
+  _updateDesktopOverlay();
+}
+
+function closeDocCard(id) {
+  const card = document.getElementById('doc-card-' + id);
+  if (card) card.classList.remove('open');
+  _updateDesktopOverlay();
 }
 
 function toggleSessCard(id) {
@@ -168,8 +211,26 @@ function toggleSessCard(id) {
   if (!card) return;
   const wasOpen = card.classList.contains('open');
   document.querySelectorAll('.sess-acc-item.open').forEach(c => c.classList.remove('open'));
+  document.querySelectorAll('.doc-card.open').forEach(c => c.classList.remove('open'));
   if (!wasOpen) card.classList.add('open');
+  _updateDesktopOverlay();
 }
+
+function closeSessCard(id) {
+  const card = document.getElementById('sess-acc-' + id);
+  if (card) card.classList.remove('open');
+  _updateDesktopOverlay();
+}
+
+// Cerrar modales desktop con ESC
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Escape') return;
+  const anyOpen = document.querySelector('.doc-card.open, .sess-acc-item.open');
+  if (!anyOpen) return;
+  document.querySelectorAll('.doc-card.open').forEach(c => c.classList.remove('open'));
+  document.querySelectorAll('.sess-acc-item.open').forEach(c => c.classList.remove('open'));
+  _updateDesktopOverlay();
+});
 
 let _planBannerTimer = null;
 
@@ -281,6 +342,10 @@ function switchView(viewName) {
       view.style.transform = `translateX(${slidePos[v] - slidePos[viewName]}%)`;
     }
   });
+  ['historial', 'hub', 'materiales'].forEach(v => {
+    const dBtn = $(`dnav-btn-${v}`);
+    if (dBtn) dBtn.classList.toggle('active', v === viewName);
+  });
 
   if (viewName === 'lobby') {
     // Reset wizard to first step
@@ -328,7 +393,7 @@ function switchView(viewName) {
     } else {
       loadSubjectsHome();
     }
-    if (viewName === 'hub') { refreshNotifications(); refreshHubStats(); }
+    if (viewName === 'hub') { refreshNotifications(); refreshHubStats(); _rotateHubPhrase(); }
   } else if (viewName === 'historial') {
     loadSessions();
     loadPlanes();
@@ -501,7 +566,7 @@ async function _buildSmartNotifs() {
     } else if (allSessions.length === 0) {
       notifs.push({
         color: 'blue',
-        titulo: '¡Bienvenido a Active Recall!',
+        titulo: '¡Bienvenido a Grasp!',
         mensaje: 'Sube tus apuntes y empieza tu primera sesión de estudio.',
         accion: { tipo: 'ver_materiales' }
       });
@@ -509,6 +574,27 @@ async function _buildSmartNotifs() {
 
   } catch(e) { /* silent */ }
   return notifs.slice(0, 3);
+}
+
+const _HUB_PHRASES = [
+  'Cada sesión te acerca más a dominar lo que estudias.',
+  'La constancia supera al talento.',
+  'Pequeños pasos, grandes resultados.',
+  'El conocimiento que repasas hoy, lo recuerdas mañana.',
+  'Estudiar con propósito marca la diferencia.',
+  'Tu esfuerzo de hoy es el resultado de mañana.',
+  'La mejor forma de aprender es practicar activamente.'
+];
+function _rotateHubPhrase() {
+  const el = document.getElementById('hub-phrase');
+  if (!el) return;
+  const idx = Math.floor(Math.random() * _HUB_PHRASES.length);
+  el.style.transition = 'opacity .4s ease';
+  el.style.opacity = '0';
+  setTimeout(() => {
+    el.textContent = _HUB_PHRASES[idx];
+    el.style.opacity = '0.85';
+  }, 400);
 }
 
 async function refreshHubStats() {
@@ -691,7 +777,7 @@ async function setSubjectTipo(tipo) {
       method: 'PUT',
       body: JSON.stringify({ tipo }),
     });
-    toast(`${tipo === 'teorica' ? '📖' : tipo === 'practica' ? '🔢' : '⚗️'} ${T('tipo_' + tipo)}`, 'ok');
+    toast(T('tipo_' + tipo), 'ok');
   } catch(e) {
     toast(e.message, 'err');
   }
@@ -829,6 +915,8 @@ function switchHistTab(tab) {
   const tabPl  = $('hist-tab-planes');
   if (tabSes) tabSes.classList.toggle('on', tab === 'sesiones');
   if (tabPl)  tabPl.classList.toggle('on', tab === 'planes');
+  const vHist = $('v-historial');
+  if (vHist) vHist.setAttribute('data-hist-tab', tab);
   if (tab === 'planes') loadPlanes();
   if (tab === 'sesiones') loadSessions();
 }
@@ -848,6 +936,7 @@ function goHome() {
 // ─ UI Selectors ─
 let modeSelector = 'voz';
 window._lobbyStep = 0;
+let _testStepAdvanceTimer = null;
 
 /** Navigate the lobby onboarding wizard to a specific step (0-based). */
 function lobbyGoStep(step) {
@@ -909,10 +998,8 @@ function setStudyMode(mode) {
   const tabEl = mode === 'voz' ? $('ltab-voz') : $('ltab-test');
   if (tabEl) tabEl.classList.add('active');
   checkMicPermission();
-  // Práctica: go through duration + topic selection like Oral/Test
-  if (mode === 'practica') {
-    lobbyGoStep(1);
-  }
+  // All modes move to next step immediately.
+  lobbyGoStep(1);
 }
 
 
@@ -922,6 +1009,13 @@ function setTestNPreguntas(n) {
   if (val) val.textContent = _testNPreguntas;
   const slider = $('lobby-test-n-slider');
   if (slider && +slider.value !== _testNPreguntas) slider.value = _testNPreguntas;
+  // Test flow: once user adjusts the slider, continue automatically.
+  if (modeSelector === 'test' && window._lobbyStep === 1) {
+    if (_testStepAdvanceTimer) clearTimeout(_testStepAdvanceTimer);
+    _testStepAdvanceTimer = setTimeout(() => {
+      if (modeSelector === 'test' && window._lobbyStep === 1) lobbyGoStep(2);
+    }, 320);
+  }
 }
 
 function pickDuration(dur) {
@@ -1491,7 +1585,7 @@ function logout() {
 
   // Reset header UI
   const bcs = $('bc-subject');
-  if (bcs) bcs.textContent = 'Active Recall';
+  if (bcs) bcs.textContent = 'Grasp';
   const hdot = $('header-dot');
   if (hdot) hdot.style.background = 'var(--amber)';
 
@@ -1553,9 +1647,8 @@ function _renderSubjectsList(data) {
       data-name="${esc(s.nombre)}"
       onclick="goSubject('${s.id}', '${esc(s.nombre)}', '${s.color||COLORS[0]}')">
       <div class="sheet-item-dot" style="background:${s.color||COLORS[0]}"></div>
-      ${_tipoBadgeHtml(s.tipo)}
       <div class="sheet-item-name">${esc(s.nombre)}</div>
-      <div style="font-size:.73rem; color:var(--txt3); white-space:nowrap; flex-shrink:0">${s.recuento_documentos || 0} docs</div>
+      <div class="sheet-item-docs">${s.recuento_documentos || 0} docs</div>
       ${CHECK}
       <button class="sheet-action-btn" title="Renombrar" onclick="editSubject('${s.id}','${esc(s.nombre)}');event.stopPropagation()">${PENCIL}</button>
       <button class="sheet-action-btn danger" title="Eliminar" onclick="deleteSubject('${s.id}','${esc(s.nombre)}');event.stopPropagation()">${TRASH}</button>
@@ -1631,6 +1724,10 @@ function _applySubjectHeader(name, color) {
   const dotEl  = $('header-dot');
   if (textEl) textEl.textContent = name || T('subj_empty');
   if (dotEl && color) dotEl.style.background = color;
+  const dTextEl = $('dnav-subject-name');
+  const dDotEl  = $('dnav-subject-dot');
+  if (dTextEl) dTextEl.textContent = name || T('subj_empty');
+  if (dDotEl && color) dDotEl.style.background = color;
 }
 
 async function loadDocs() {
@@ -1659,12 +1756,16 @@ async function loadDocs() {
       const isProc = d.estado === 'procesando';
       const bodyHtml = isProc
         ? `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;font-size:.82rem;color:var(--txt2)">${SPIN_ICON} ${T('mat_extracting')}</div>`
-        : `<div class="doc-temas-list" id="doc-temas-${d.id}"><div class="atom-loading">${T('mat_opening')}</div></div>
-           <div class="doc-card-actions" style="margin-top:10px">
+        : `<div class="doc-modal-section-title">${T('mat_topics') || 'Temas y conceptos'}</div>
+           <div class="doc-temas-list" id="doc-temas-${d.id}"><div class="atom-loading">${T('mat_opening')}</div></div>
+           <div class="doc-card-actions" style="margin-top:14px">
              <button class="doc-btn danger" onclick="deleteDocument('${d.id}');event.stopPropagation()">${T('mat_delete_doc')}</button>
            </div>`;
       return `
       <div class="doc-card${isProc ? ' doc-processing' : ''}" id="doc-card-${d.id}" onclick="${isProc ? '' : `toggleDocCard('${d.id}')`}">
+        <button class="doc-card-close" type="button" aria-label="Cerrar" onclick="event.stopPropagation();closeDocCard('${d.id}')">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
         <div class="doc-card-header" style="${isProc ? 'cursor:default' : ''}">
           <span class="doc-card-icon">${isProc ? SPIN_ICON : PDF_ICON}</span>
           <div class="doc-card-info">
@@ -1673,7 +1774,7 @@ async function loadDocs() {
           </div>
           ${isProc ? '' : `<svg class="doc-card-chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>`}
         </div>
-        <div class="doc-card-body">${bodyHtml}</div>
+        <div class="doc-card-body" onclick="event.stopPropagation()">${bodyHtml}</div>
       </div>`;
     }).join('');
 
@@ -1913,6 +2014,20 @@ function _sepUpdateCounter(idx, total) {
 function sepGoExercise(idx) {
   const track = document.getElementById('sep-swipe-track');
   if (track) track.scrollTo({ left: idx * track.clientWidth, behavior: 'smooth' });
+}
+
+/** Desktop nav: previous/next exercise via chevrons */
+function sepNavExercise(dir) {
+  const track = document.getElementById('sep-swipe-track');
+  if (!track) return;
+  const total = _sepCurrentExercises ? _sepCurrentExercises.length : 0;
+  if (!total) return;
+  const w = track.clientWidth || 1;
+  const curIdx = Math.round(track.scrollLeft / w);
+  let next = curIdx + (dir > 0 ? 1 : -1);
+  if (next < 0) next = 0;
+  if (next > total - 1) next = total - 1;
+  sepGoExercise(next);
 }
 
 /** Renders the full list of exercises as swipeable cards */
@@ -2637,6 +2752,13 @@ function startSessionFlow() {
     return;
   }
 
+  showSessionLoading(
+    modeSelector === 'test' ? 'Preparando test...' : 'Preparando sesión...',
+    modeSelector === 'test'
+      ? 'Generando preguntas personalizadas'
+      : 'Conectando y cargando la primera pregunta'
+  );
+
   toast(T('sess_starting'), 'info');
   api('/sesion/crear', {
     method: 'POST',
@@ -2664,13 +2786,17 @@ function startSessionFlow() {
     }
 
     if (modeSelector === 'test') {
+      hideSessionLoading();
       switchView('test');
       loadTestQuestions();
     } else {
       switchView('duelo');
       connectSessionWS(res.n_atomos);
     }
-  }).catch(e => toast(e.message, 'err'));
+  }).catch(e => {
+    hideSessionLoading();
+    toast(e.message, 'err');
+  });
 }
 
 /** Abre la sesión de práctica desde el lobby (botón PRACTICAR) — legacy fallback. */
@@ -3037,8 +3163,10 @@ function connectSessionWS(totalAtomos) {
     }
 
     if (msg.type === 'pregunta') {
+      hideSessionLoading();
       _closeAllPanels();
-      _currentQPregunta = msg.pregunta || '';
+      const preguntaLimpia = stripEmojis(msg.pregunta || '');
+      _currentQPregunta = preguntaLimpia;
       const qEl = $('duel-question');
       updateProgress(msg.progreso.actual, msg.progreso.total);
 
@@ -3049,8 +3177,8 @@ function connectSessionWS(totalAtomos) {
 
       // Typewriter + audio simultáneamente
       const duration = estimateAudioDuration(msg.audio_base64, msg.audio_format);
-      const typePromise = typewriterText(qEl, msg.pregunta, duration);
-      const audioPromise = playAudio(msg.audio_base64, msg.pregunta, msg.audio_format);
+      const typePromise = typewriterText(qEl, preguntaLimpia, duration);
+      const audioPromise = playAudio(msg.audio_base64, preguntaLimpia, msg.audio_format);
       await Promise.all([typePromise, audioPromise]);
       await new Promise(r => setTimeout(r, 300));
 
@@ -3239,6 +3367,7 @@ function connectSessionWS(totalAtomos) {
   };
 
   sessWs.onclose = () => {
+    hideSessionLoading();
     stopMicrophone();
     if (sessState === 'complete') return;
     if (_wsPausing) { _wsPausing = false; return; } // pausa intencional, no error
@@ -3762,7 +3891,7 @@ function _renderTestQuestion() {
   if (tipoEl) tipoEl.textContent = tipoLabels[p.tipo] || T('test_select_one');
 
   const pregEl = $('test-pregunta');
-  if (pregEl) pregEl.textContent = p.pregunta;
+  if (pregEl) pregEl.textContent = stripEmojis(p.pregunta);
 
   const fbEl = $('test-feedback');
   if (fbEl) fbEl.style.display = 'none';
@@ -3943,7 +4072,7 @@ function openTestRevision() {
         ${badge}
         <span style="font-size:.72rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--accent)">${tipoLabels[p.tipo]||''}</span>
       </div>
-      <div style="font-size:1rem;font-weight:500;color:var(--txt);line-height:1.55;margin-bottom:14px">${esc(p.pregunta)}</div>
+      <div style="font-size:1rem;font-weight:500;color:var(--txt);line-height:1.55;margin-bottom:14px">${esc(stripEmojis(p.pregunta))}</div>
       ${optsHtml}
       <div class="test-feedback ${resp.correcta ? 'correct' : 'wrong'}" style="margin-top:10px;display:block">
         <div class="test-feedback-text">${esc(p.explicacion||'')}</div>
@@ -4011,9 +4140,30 @@ function _primeraOracion(texto) {
 
 // ─ Enviar respuesta manualmente ─
 function enviarRespuesta() {
-  if (sessState !== 'listening') return;
+  if (!sessWs || sessWs.readyState !== WebSocket.OPEN) return;
   _showBtn('btn-enviar', false);
-  stopMicrophone();
+  if (sessMediaRecorder && sessMediaRecorder.state !== 'inactive') {
+    stopMicrophone();
+    return;
+  }
+  // Fallback: if recorder is already closed, still force submit.
+  sessWs.send(JSON.stringify({ type: 'enviar' }));
+  setVoiceState('processing');
+}
+
+function showSessionLoading(title = 'Preparando sesión...', sub = 'Conectando y cargando la primera pregunta') {
+  const overlay = $('duelo-loading');
+  if (!overlay) return;
+  const titleEl = $('duelo-loading-title');
+  const subEl = $('duelo-loading-sub');
+  if (titleEl) titleEl.textContent = title;
+  if (subEl) subEl.textContent = sub;
+  overlay.style.display = 'flex';
+}
+
+function hideSessionLoading() {
+  const overlay = $('duelo-loading');
+  if (overlay) overlay.style.display = 'none';
 }
 
 // ─ Error flashcard panel ─
@@ -5286,7 +5436,8 @@ async function openFallos(sesionId) {
 
     // Build outer slides
     qTrack.innerHTML = fallos.map((f, idx) => {
-      const preguntaText = (f.pregunta && f.pregunta !== f.titulo) ? f.pregunta : f.titulo;
+      const preguntaRaw = (f.pregunta && f.pregunta !== f.titulo) ? f.pregunta : f.titulo;
+      const preguntaText = stripEmojis(preguntaRaw);
       const esSaltada = f.respuesta_usuario === '[saltado]';
       const innerTrackId = `fallos-inner-${idx}`;
       const innerDotsId  = `fallos-idots-${idx}`;
@@ -5378,7 +5529,8 @@ function _renderRevisionSlides(items, overlay, qTrack, qDotsEl) {
   qDotsEl.innerHTML = `<span class="fallos-q-counter">1 / ${items.length}</span>`;
 
   qTrack.innerHTML = items.map((f, idx) => {
-    const preguntaText = (f.pregunta && f.pregunta !== f.titulo) ? f.pregunta : f.titulo;
+    const preguntaRaw = (f.pregunta && f.pregunta !== f.titulo) ? f.pregunta : f.titulo;
+    const preguntaText = stripEmojis(preguntaRaw);
     const esSaltada = f.respuesta_usuario === '[saltado]';
     const estado = f.estado || 'rojo';
     const innerTrackId = `fallos-inner-${idx}`;

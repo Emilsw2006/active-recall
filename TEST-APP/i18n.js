@@ -1,5 +1,5 @@
 /**
- * Active Recall — Internationalisation (i18n)
+ * Grasp — Internationalisation (i18n)
  * Supported languages: es (Spanish), en (English), de (German)
  */
 
@@ -42,8 +42,8 @@ const TRANSLATIONS = {
     hub_stat_week: 'semana',
     hub_notif_title: '¡A estudiar!',
     hub_notif_sub: 'Empieza una sesión para seguir aprendiendo',
-    hub_start_btn: 'INICIAR\nSESIÓN',
-    hub_start: 'INICIAR SESIÓN',
+    hub_start_btn: 'Empezar sesión',
+    hub_start: 'Empezar sesión',
 
     // Materials
     mat_title: 'Tus Apuntes',
@@ -156,7 +156,7 @@ const TRANSLATIONS = {
     settings_install_sub: 'Acceso directo en tu pantalla',
     install_ios: 'Pulsa Compartir (↑) y luego "Añadir a pantalla de inicio"',
     install_android: 'Pulsa el menú (⋮) y luego "Instalar app"',
-    install_title: 'Instalar Active Recall',
+    install_title: 'Instalar Grasp',
     install_desc: 'Accede directamente desde tu pantalla de inicio, sin navegador.',
     install_btn: 'Instalar',
     cancel: 'Cancelar',
@@ -234,7 +234,8 @@ const TRANSLATIONS = {
     // Materials/atoms
     mat_extracting: 'Extrayendo conceptos con IA...',
     mat_opening: 'Abriendo...',
-    mat_delete_doc: 'Eliminar doc',
+    mat_delete_doc: 'Eliminar apunte',
+    mat_topics: 'Temas y conceptos',
     mat_atoms_count: '{n} átomos',
     mat_no_subtopics: 'Sin subtemas',
     mat_concepts_count: '{n} conceptos',
@@ -509,7 +510,7 @@ const TRANSLATIONS = {
     settings_install_sub: 'Quick access from your home screen',
     install_ios: 'Tap Share (↑) then "Add to Home Screen"',
     install_android: 'Tap menu (⋮) then "Install app"',
-    install_title: 'Install Active Recall',
+    install_title: 'Install Grasp',
     install_desc: 'Access directly from your home screen, no browser needed.',
     install_btn: 'Install',
     cancel: 'Cancel',
@@ -583,7 +584,8 @@ const TRANSLATIONS = {
     // Materials/atoms
     mat_extracting: 'Extracting concepts with AI...',
     mat_opening: 'Opening...',
-    mat_delete_doc: 'Delete doc',
+    mat_delete_doc: 'Delete note',
+    mat_topics: 'Topics & concepts',
     mat_atoms_count: '{n} atoms',
     mat_no_subtopics: 'No subtopics',
     mat_concepts_count: '{n} concepts',
@@ -849,7 +851,7 @@ const TRANSLATIONS = {
     settings_install_sub: 'Direktzugriff auf deinem Startbildschirm',
     install_ios: 'Tippe auf Teilen (↑) und dann "Zum Home-Bildschirm"',
     install_android: 'Tippe auf Menü (⋮) und dann "App installieren"',
-    install_title: 'Active Recall installieren',
+    install_title: 'Grasp installieren',
     install_desc: 'Direkt vom Startbildschirm aus zugreifen, ohne Browser.',
     install_btn: 'Installieren',
     cancel: 'Abbrechen',
@@ -923,7 +925,8 @@ const TRANSLATIONS = {
     // Materials/atoms
     mat_extracting: 'Konzepte werden mit KI extrahiert...',
     mat_opening: 'Öffnen...',
-    mat_delete_doc: 'Dok. löschen',
+    mat_delete_doc: 'Notiz löschen',
+    mat_topics: 'Themen & Konzepte',
     mat_atoms_count: '{n} Atome',
     mat_no_subtopics: 'Keine Unterthemen',
     mat_concepts_count: '{n} Konzepte',

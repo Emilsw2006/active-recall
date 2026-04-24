@@ -10,17 +10,17 @@
 <link rel="manifest" href="manifest.json" />
 <link rel="icon" href="logo.png" />
 <link rel="apple-touch-icon" href="logo.png" />
-<title>Active Recall</title>
+<title>Grasp</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=46" />
+<link rel="stylesheet" href="style.css?v=47" />
 <!-- KaTeX — LaTeX rendering (no build step required) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
 <!-- Chart.js — interactive charts (no build step required) -->
 <script defer src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js" crossorigin="anonymous"></script>
-<script src="i18n.js?v=22"></script>
+<script src="i18n.js?v=23"></script>
 </head>
 <body>
 
@@ -43,8 +43,15 @@
 
   <div class="auth-content" style="z-index:10; display:flex; flex-direction:column; justify-content:center; width: 100%; max-width: 320px; text-align: center; min-height: 75vh;">
     
-    <div style="flex:1; display:flex; flex-direction:column; justify-content:center;">
-      <h1 style="font-size:2.125rem; font-weight:700; color:var(--fg1,#1C1612); letter-spacing:-0.02em;" id="auth-main-title">Únete a Active Recall</h1>
+    <div style="flex:1; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:20px;">
+      <svg viewBox="0 0 220 64" xmlns="http://www.w3.org/2000/svg" aria-label="Grasp" style="width:140px; height:auto;">
+        <g transform="translate(0,0)">
+          <path d="M 44 16 C 34 11, 20 14, 16 28 C 12.5 40, 20 52, 34 51 C 40 50.5, 44 48, 46 45" fill="none" stroke="#1c0e06" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+          <circle cx="44.5" cy="32" r="4" fill="#1c0e06"/>
+        </g>
+        <text x="72" y="46" font-family="'Instrument Serif', Georgia, serif" font-size="42" font-weight="400" fill="#1c0e06" letter-spacing="-0.02em">grasp</text>
+      </svg>
+      <h1 style="font-size:1.25rem; font-weight:500; color:var(--fg1,#1C1612); letter-spacing:-0.01em; margin:0;" id="auth-main-title">Únete a Grasp</h1>
     </div>
 
     <div class="auth-err" id="auth-err"></div>
@@ -88,21 +95,21 @@
       document.getElementById('auth-lang-select').value = lang;
       const t = {
         es: {
-          regTitle: 'Únete a Active Recall', logTitle: 'Bienvenido de nuevo',
+          regTitle: 'Únete a Grasp', logTitle: 'Bienvenido de nuevo',
           googleReg: 'Regístrate con Google', googleLog: 'Iniciar sesión con Google',
           emailReg: 'Regístrate con Email', emailLog: 'Iniciar sesión con Email',
           haveAcc: '¿Ya tienes cuenta? ', noAcc: '¿No tienes cuenta? ',
           doLog: 'Iniciar sesión', doReg: 'Regístrate'
         },
         en: {
-          regTitle: 'Join Active Recall', logTitle: 'Welcome back',
+          regTitle: 'Join Grasp', logTitle: 'Welcome back',
           googleReg: 'Sign up with Google', googleLog: 'Sign in with Google',
           emailReg: 'Sign up with Email', emailLog: 'Sign in with Email',
           haveAcc: 'Already have an account? ', noAcc: 'Don\'t have an account? ',
           doLog: 'Sign in', doReg: 'Sign up'
         },
         de: {
-          regTitle: 'Active Recall beitreten', logTitle: 'Willkommen zurück',
+          regTitle: 'Grasp beitreten', logTitle: 'Willkommen zurück',
           googleReg: 'Mit Google registrieren', googleLog: 'Mit Google anmelden',
           emailReg: 'Mit Email registrieren', emailLog: 'Mit Email anmelden',
           haveAcc: 'Hast du schon ein Konto? ', noAcc: 'Du hast noch kein Konto? ',
@@ -115,12 +122,12 @@
          document.getElementById('auth-main-title').innerText = d.logTitle;
          document.getElementById('auth-btn-google-text').innerText = d.googleLog;
          document.getElementById('auth-btn-email-text').innerText = d.emailLog;
-         document.getElementById('auth-switch-text').innerHTML = d.noAcc + '<strong style="color:#fff;">' + d.doReg + '</strong>';
+         document.getElementById('auth-switch-text').innerHTML = d.noAcc + '<strong style="color:#1C1612;">' + d.doReg + '</strong>';
       } else {
          document.getElementById('auth-main-title').innerText = d.regTitle;
          document.getElementById('auth-btn-google-text').innerText = d.googleReg;
          document.getElementById('auth-btn-email-text').innerText = d.emailReg;
-         document.getElementById('auth-switch-text').innerHTML = d.haveAcc + '<strong style="color:#fff;">' + d.doLog + '</strong>';
+         document.getElementById('auth-switch-text').innerHTML = d.haveAcc + '<strong style="color:#1C1612;">' + d.doLog + '</strong>';
       }
     }
     
@@ -294,42 +301,14 @@
             <p class="ob2-sub">Así ajustamos el módulo de práctica.</p>
             <div class="ob2-options ob2-options-tipo" id="ob-tipo-opts">
               <button class="ob2-opt ob2-opt-tipo" onclick="obSelectTipo('teorica',this)">
-                <span class="ob2-opt-tipo-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-                    <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-                  </svg>
-                </span>
                 <span class="ob2-opt-tipo-name">Teórica</span>
                 <span class="ob2-opt-tipo-desc">Teoría, conceptos y memoria</span>
               </button>
               <button class="ob2-opt ob2-opt-tipo" onclick="obSelectTipo('mixta',this)">
-                <span class="ob2-opt-tipo-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M9 2v7.31"/>
-                    <path d="M15 2v7.31"/>
-                    <path d="M4.5 22h15l-5-9.38V2h-5v10.62z"/>
-                    <path d="M8 15h8"/>
-                  </svg>
-                </span>
                 <span class="ob2-opt-tipo-name">Mixta</span>
                 <span class="ob2-opt-tipo-desc">Teoría y ejercicios prácticos</span>
               </button>
               <button class="ob2-opt ob2-opt-tipo" onclick="obSelectTipo('practica',this)">
-                <span class="ob2-opt-tipo-icon">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-                    <rect x="4" y="2" width="16" height="20" rx="2"/>
-                    <line x1="8" y1="6" x2="16" y2="6"/>
-                    <line x1="8" y1="10" x2="10" y2="10"/>
-                    <line x1="12" y1="10" x2="14" y2="10"/>
-                    <line x1="16" y1="10" x2="16" y2="10"/>
-                    <line x1="8" y1="14" x2="10" y2="14"/>
-                    <line x1="12" y1="14" x2="14" y2="14"/>
-                    <line x1="16" y1="14" x2="16" y2="14"/>
-                    <line x1="8" y1="18" x2="10" y2="18"/>
-                    <line x1="12" y1="18" x2="16" y2="18"/>
-                  </svg>
-                </span>
                 <span class="ob2-opt-tipo-name">Práctica</span>
                 <span class="ob2-opt-tipo-desc">Problemas, fórmulas y cálculo</span>
               </button>
@@ -425,7 +404,7 @@
     <div class="hdr-spacer"></div>
     <button class="subject-selector" onclick="openModal()" id="subject-selector-btn">
       <span class="subject-dot" id="header-dot" style="background:var(--amber)"></span>
-      <span id="bc-subject" style="font-weight:600">Active Recall</span>
+      <span id="bc-subject" style="font-weight:600">Grasp</span>
       <svg width="10" height="10" viewBox="0 0 16 16" fill="currentColor" style="margin-left:4px; opacity:.5"><path d="M8 11.5l-5-5 1.4-1.4 3.6 3.6 3.6-3.6 1.4 1.4-5 5z"/></svg>
     </button>
     <button class="btn-settings" onclick="openAjustesModal()" aria-label="Ajustes">
@@ -436,10 +415,33 @@
     </button>
   </div>
 
+  <!-- Header Desktop -->
+  <div class="desktop-header" role="banner">
+    <nav class="desktop-nav" aria-label="Navegación principal">
+      <button class="desktop-nav-btn active" id="dnav-btn-hub" onclick="switchView('hub')">Home</button>
+      <button class="desktop-nav-btn" id="dnav-btn-historial" onclick="switchView('historial')">Historial</button>
+      <button class="desktop-nav-btn" id="dnav-btn-materiales" onclick="switchView('materiales')">Apuntes</button>
+    </nav>
+    <button class="desktop-subject-selector" onclick="openModal()" id="dnav-subject-btn" aria-label="Cambiar asignatura">
+      <span class="desktop-subject-dot" id="dnav-subject-dot" style="background:var(--amber)"></span>
+      <span class="desktop-subject-name" id="dnav-subject-name">Grasp</span>
+      <svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 11.5l-5-5 1.4-1.4 3.6 3.6 3.6-3.6 1.4 1.4-5 5z"/></svg>
+    </button>
+    <div class="desktop-header-right">
+      <button class="desktop-settings-btn" onclick="openAjustesModal()" aria-label="Ajustes">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true">
+          <line x1="3" y1="7" x2="21" y2="7"/><circle cx="8" cy="7" r="2.2" fill="currentColor" stroke="none"/>
+          <line x1="3" y1="14" x2="21" y2="14"/><circle cx="16" cy="14" r="2.2" fill="currentColor" stroke="none"/>
+        </svg>
+        <span>Ajustes</span>
+      </button>
+    </div>
+  </div>
+
   <div class="content-slider">
     
     <!-- 1. HISTORIAL (Left) -->
-    <div id="v-historial" class="view-slide" style="transform:translateX(-100%)">
+    <div id="v-historial" class="view-slide" data-hist-tab="sesiones" style="transform:translateX(-100%)">
       <div class="view-title" style="margin-bottom:10px" data-i18n="nav_history">Historial</div>
 
       <!-- Tab switcher -->
@@ -503,7 +505,13 @@
         <span class="greet-name" id="greet-name">Estudiante</span>
       </div>
 
-      <!-- Stats chips (datos reales) -->
+      <!-- Centro: frase motivacional -->
+      <div class="hub-phrase-area">
+        <div class="hub-phrase-glow" aria-hidden="true"></div>
+        <p class="hub-phrase" id="hub-phrase">Cada sesión te acerca más a dominar lo que estudias.</p>
+      </div>
+
+      <!-- Stat cards (racha + hoy) -->
       <div class="hub-stats-row" id="hub-stats-row">
         <div class="hub-stat-chip" id="hub-stat-streak">
           <span class="hub-stat-icon">
@@ -511,8 +519,10 @@
               <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
             </svg>
           </span>
-          <span class="hub-stat-val" id="hub-stat-streak-val">0</span>
-          <span class="hub-stat-lbl" data-i18n="hub_stat_streak">racha</span>
+          <div class="hub-stat-body">
+            <span class="hub-stat-val" id="hub-stat-streak-val">0</span>
+            <span class="hub-stat-lbl" data-i18n="hub_stat_streak">racha</span>
+          </div>
         </div>
         <div class="hub-stat-chip" id="hub-stat-today">
           <span class="hub-stat-icon">
@@ -521,39 +531,36 @@
               <polyline points="12 7 12 12 15 14"/>
             </svg>
           </span>
-          <span class="hub-stat-val" id="hub-stat-today-val">0</span>
-          <span class="hub-stat-lbl" data-i18n="hub_stat_today">hoy</span>
+          <div class="hub-stat-body">
+            <span class="hub-stat-val" id="hub-stat-today-val">0</span>
+            <span class="hub-stat-lbl" data-i18n="hub_stat_today">hoy</span>
+          </div>
         </div>
-        <div class="hub-stat-chip" id="hub-stat-week">
-          <span class="hub-stat-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M3 3v18h18"/>
-              <path d="M7 15l4-4 3 3 5-5"/>
-            </svg>
-          </span>
-          <span class="hub-stat-val" id="hub-stat-week-val">0</span>
-          <span class="hub-stat-lbl" data-i18n="hub_stat_week">semana</span>
-        </div>
+        <!-- week val kept for JS compatibility -->
+        <span id="hub-stat-week-val" style="display:none">0</span>
       </div>
 
-      <div class="hub-start-wrap">
-        <div class="hub-start-stage">
-          <span class="hub-halo" aria-hidden="true"></span>
-          <span class="hub-ring hub-ring-1" aria-hidden="true"></span>
-          <span class="hub-ring hub-ring-2" aria-hidden="true"></span>
-          <span class="hub-ring hub-ring-3" aria-hidden="true"></span>
-          <button class="glass-start-button" onclick="_reviewGateLobby()" aria-label="Iniciar sesión">
-            <span class="glass-start-shine" aria-hidden="true"></span>
-            <span class="glass-start-ripple" aria-hidden="true"></span>
-            <span class="glass-start-text">Start session</span>
-          </button>
-        </div>
+      <!-- CTA -->
+      <div class="hub-cta-wrap">
+        <button class="hub-start-btn" onclick="_reviewGateLobby()" aria-label="Empezar sesión">
+          <svg width="20" height="20" viewBox="10 10 40 46" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <path d="M 44 16 C 34 11, 20 14, 16 28 C 12.5 40, 20 52, 34 51 C 40 50.5, 44 48, 46 45" fill="none" stroke="#FDFAF7" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            <circle cx="44.5" cy="32" r="4" fill="#FDFAF7"/>
+          </svg>
+          <span data-i18n="hub_start">Empezar sesión</span>
+        </button>
       </div>
     </div>
 
     <!-- 3. MATERIALES (Right) -->
     <div id="v-materiales" class="view-slide" style="transform:translateX(100%)">
-      <div class="view-title" data-i18n="mat_title">Tus Apuntes</div>
+      <div class="mat-header-row">
+        <div class="view-title" data-i18n="mat_title">Tus Apuntes</div>
+        <button class="mat-desktop-upload" onclick="document.getElementById('file-inp').click()">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span>Subir apunte</span>
+        </button>
+      </div>
       <div class="doc-list" id="doc-list">
         <div class="empty-state" data-i18n="mat_empty">No hay apuntes aún. Toca + para subir un PDF.</div>
       </div>
@@ -587,6 +594,7 @@
             <div class="lobby-onb-step" id="lob-step-0">
               <div class="lobby-onb-body">
                 <p class="lobby-onb-label">Como quieres estudiar?</p>
+                <p class="lobby-onb-sub">Elige un formato. Pasaras automaticamente al siguiente paso.</p>
                 <div class="lobby-mode-cards">
                   <button class="lobby-mode-card lobby-mode-card--practica" id="lcard-practica" onclick="setStudyMode('practica')" style="display:none">
                     <div class="lmc-icon">
@@ -618,6 +626,7 @@
               <div class="lobby-onb-body">
                 <div id="lob-dur-section">
                   <p class="lobby-onb-label">Duracion de la sesion</p>
+                  <p class="lobby-onb-sub">Selecciona corta o larga para continuar.</p>
                   <div class="lobby-dur-row">
                     <button class="ldur-pill on" id="dur-corta" onclick="pickDuration('corta'); lobbyGoStep(2)">
                       <span class="ldur-pill-name">Corta</span>
@@ -638,6 +647,7 @@
                 </div>
                 <div id="lob-test-n-section" style="display:none">
                   <p class="lobby-onb-label">Numero de preguntas <span id="lobby-test-n-val" style="color:var(--accent)">10</span></p>
+                  <p class="lobby-onb-sub">Mueve el control y pasaras al siguiente paso.</p>
                   <input type="range" id="lobby-test-n-slider" min="5" max="30" value="10" step="1"
                     oninput="setTestNPreguntas(+this.value)"
                     style="width:100%;margin-top:20px;accent-color:var(--accent);cursor:pointer;height:6px">
@@ -655,6 +665,7 @@
             <div class="lobby-onb-step" id="lob-step-2">
               <div class="lobby-onb-body lobby-onb-body--scroll">
                 <p class="lobby-onb-label">Que temas incluir?</p>
+                <p class="lobby-onb-sub">Selecciona los temas que quieres practicar.</p>
                 <div id="lobby-completo-row" class="lobby-completo-row" style="margin-bottom:16px">
                   <div class="lobby-completo-left">
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -682,6 +693,24 @@
     </div>
     <!-- 5. DUELO (Sesión Activa) -->
     <div id="v-duelo" class="view-slide" style="transform:translateX(100%)">
+      <div id="duelo-loading" class="duelo-loading-overlay" style="display:none">
+        <div class="duelo-loading-card">
+          <div class="gooey-loader" role="status" aria-label="Cargando">
+            <svg class="gooey-loader-svg" aria-hidden="true">
+              <defs>
+                <filter id="gooey-loader-filter-duelo">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+                  <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 48 -7" result="goo"/>
+                  <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+                </filter>
+              </defs>
+            </svg>
+            <div class="gooey-loader-track" style="filter:url(#gooey-loader-filter-duelo)"></div>
+          </div>
+          <div class="test-loading-title" id="duelo-loading-title">Preparando sesión...</div>
+          <div class="test-loading-sub" id="duelo-loading-sub">Conectando y cargando la primera pregunta</div>
+        </div>
+      </div>
       <!-- Top bar — session only (header/nav hidden via CSS .session-mode) -->
       <div class="duelo-topbar">
         <button id="btn-sess-hist" class="duelo-topbar-hist" onclick="openSessHistory()" style="display:none">
@@ -697,6 +726,21 @@
 
       <!-- Question — starts empty; filled by typewriter when AI sends pregunta -->
       <div class="duelo-question" id="duel-question" onclick="expandQuestion(this)"></div>
+      <!-- Gooey wave loader shown while the question is empty (same as exercises loader) -->
+      <div class="duelo-q-loader" id="duel-q-loader" aria-hidden="true">
+        <div class="gooey-loader" role="status" aria-label="Cargando">
+          <svg class="gooey-loader-svg" aria-hidden="true">
+            <defs>
+              <filter id="gooey-loader-filter-q">
+                <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+                <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 48 -7" result="goo"/>
+                <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+              </filter>
+            </defs>
+          </svg>
+          <div class="gooey-loader-track" style="filter:url(#gooey-loader-filter-q)"></div>
+        </div>
+      </div>
       <button class="q-expand-btn" id="q-expand-btn" onclick="expandQuestion($('duel-question'))" style="display:none">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
@@ -1061,40 +1105,12 @@
       <div class="ajustes-lang-label" data-i18n="settings_subject_tipo">Tipo de asignatura</div>
       <div class="ajustes-tipo-row">
         <button class="ajustes-tipo-btn" id="tipo-btn-teorica" onclick="setSubjectTipo('teorica')">
-          <span class="ajustes-tipo-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
-              <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-            </svg>
-          </span>
           <span class="ajustes-tipo-label" data-i18n="tipo_teorica">Teórica</span>
         </button>
         <button class="ajustes-tipo-btn" id="tipo-btn-practica" onclick="setSubjectTipo('practica')">
-          <span class="ajustes-tipo-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="4" y="2" width="16" height="20" rx="2"/>
-              <line x1="8" y1="6" x2="16" y2="6"/>
-              <line x1="8" y1="10" x2="10" y2="10"/>
-              <line x1="12" y1="10" x2="14" y2="10"/>
-              <line x1="16" y1="10" x2="16" y2="10"/>
-              <line x1="8" y1="14" x2="10" y2="14"/>
-              <line x1="12" y1="14" x2="14" y2="14"/>
-              <line x1="16" y1="14" x2="16" y2="14"/>
-              <line x1="8" y1="18" x2="10" y2="18"/>
-              <line x1="12" y1="18" x2="16" y2="18"/>
-            </svg>
-          </span>
           <span class="ajustes-tipo-label" data-i18n="tipo_practica">Práctica</span>
         </button>
         <button class="ajustes-tipo-btn" id="tipo-btn-mixta" onclick="setSubjectTipo('mixta')">
-          <span class="ajustes-tipo-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 2v7.31"/>
-              <path d="M15 2v7.31"/>
-              <path d="M4.5 22h15l-5-9.38V2h-5v10.62z"/>
-              <path d="M8 15h8"/>
-            </svg>
-          </span>
           <span class="ajustes-tipo-label" data-i18n="tipo_mixta">Mixta</span>
         </button>
       </div>
@@ -1256,6 +1272,13 @@
   </div>
   <!-- Exercises swipe track (one card per exercise, no formulas, no tabs) -->
   <div class="sep-swipe-track" id="sep-swipe-track"></div>
+  <!-- Desktop-only nav chevrons (prev/next) -->
+  <button type="button" class="sep-nav-chev sep-nav-prev" id="sep-nav-prev" aria-label="Ejercicio anterior" onclick="sepNavExercise(-1)">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
+  <button type="button" class="sep-nav-chev sep-nav-next" id="sep-nav-next" aria-label="Ejercicio siguiente" onclick="sepNavExercise(1)">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
 </div>
 
 <!-- ════ PRACTICAL MODULE OVERLAYS ════ -->
@@ -1547,7 +1570,7 @@
 
 </div>
 
-<script src="app.js?v=42"></script>
+<script src="app.js?v=43"></script>
 <script>
 // goNotif, _notifIdx, _onNotifScroll are defined in app.js (scroll-snap based)
 // Auto-advance every 5s
