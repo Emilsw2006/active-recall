@@ -8035,82 +8035,120 @@ button { touch-action: manipulation; }
 
   /* ================= EJERCICIOS (#subtema-ejemplo-panel) — card centrado + chevrons ================= */
   .sep-overlay {
-    background: rgba(20, 15, 10, 0.32) !important;
+    background: rgba(20, 15, 10, 0.40) !important;
+    background-attachment: initial !important;
     backdrop-filter: blur(10px) saturate(120%) !important;
     -webkit-backdrop-filter: blur(10px) saturate(120%) !important;
     display: flex !important;
+    flex-direction: column !important;
     align-items: center;
     justify-content: center;
-    padding: 32px;
+    padding: 40px 80px !important;   /* espai per als chevrons */
   }
   .sep-overlay.open { transform: none !important; }
-  /* Pseudo-card detrás del contenido: liquid glass centrado */
+  /* Card liquid glass cream — conté tots els fills */
   .sep-overlay::before {
     content: "";
     position: absolute;
     top: 50%; left: 50%;
     transform: translate(-50%, -50%);
-    width: min(900px, calc(100% - 64px));
-    height: min(82vh, 780px);
+    width: min(860px, calc(100% - 160px));
+    height: min(84vh, 800px);
     border-radius: 28px;
-    background: #fdfaf7;
-    border: 1px solid rgba(28,22,18,0.08);
-    box-shadow: 0 50px 120px -40px rgba(28,22,18,0.50);
+    background:
+      linear-gradient(180deg, rgba(255,251,246,0.97) 0%, rgba(253,247,240,0.93) 100%);
+    border: 1px solid rgba(255,255,255,0.88);
+    box-shadow:
+      0 50px 120px -40px rgba(28,22,18,0.52),
+      0 1px 0 rgba(255,255,255,0.95) inset;
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
     pointer-events: none;
     z-index: 0;
   }
   .sep-overlay > * {
     position: relative;
     z-index: 1;
-    width: min(900px, calc(100% - 64px));
-    max-width: 900px;
+    width: min(860px, calc(100% - 160px));
+    max-width: 860px;
     margin-left: auto !important;
     margin-right: auto !important;
   }
-  /* Header: más claro y limpio */
+  /* Header: fosc sobre fons clar */
   .sep-overlay .sep-header {
-    padding: 20px 28px 16px !important;
-    padding-top: 20px !important;
-    border-bottom: 1px solid rgba(28,22,18,0.08) !important;
+    padding: 22px 30px 16px !important;
+    border-bottom: 1px solid rgba(28,22,18,0.07) !important;
     background: transparent !important;
+    border-radius: 28px 28px 0 0;
   }
   .sep-overlay .sep-tema-label {
     color: #c98a3e !important;
+    font-weight: 700 !important;
     opacity: 1;
   }
-  .sep-overlay .sep-title { color: #1c1612 !important; }
-  .sep-overlay .practica-back-btn {
-    background: rgba(28,22,18,0.04) !important;
-    border: 1px solid rgba(28,22,18,0.08) !important;
+  .sep-overlay .sep-title {
     color: #1c1612 !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+  }
+  .sep-overlay .practica-back-btn {
+    background: rgba(28,22,18,0.05) !important;
+    border: 1px solid rgba(28,22,18,0.10) !important;
+    color: #1c1612 !important;
+    border-radius: 50% !important;
   }
   .sep-overlay .practica-back-btn:hover {
-    background: rgba(28,22,18,0.10) !important;
+    background: rgba(28,22,18,0.12) !important;
   }
   /* Counter + dots */
   .sep-overlay .sep-counter-row {
-    padding: 12px 28px 14px !important;
-    border-bottom: 1px solid rgba(28,22,18,0.08) !important;
+    padding: 12px 30px 14px !important;
+    border-bottom: 1px solid rgba(28,22,18,0.07) !important;
     background: transparent !important;
   }
-  .sep-overlay .sep-counter { color: rgba(28,22,18,0.55) !important; }
+  .sep-overlay .sep-counter { color: rgba(28,22,18,0.55) !important; font-weight: 600 !important; }
   .sep-overlay .sep-dot { background: rgba(28,22,18,0.18) !important; }
   .sep-overlay .sep-dot.active {
     background: #1c1612 !important;
     box-shadow: 0 0 8px rgba(28,22,18,0.30) !important;
   }
-  /* Track visible solo en área del card */
+  /* Track + slide */
   .sep-overlay .sep-swipe-track {
     flex: 1;
     height: auto !important;
-    max-height: calc(min(82vh, 780px) - 150px);
+    max-height: calc(min(84vh, 800px) - 148px);
   }
   .sep-overlay .sep-swipe-page {
-    padding: 22px 28px 28px !important;
+    padding: 24px 30px 28px !important;
   }
-  /* Textos en light mode dentro del card */
-  .sep-overlay .sep-card-title { color: #1c1612 !important; }
-  .sep-overlay .sep-card-meta { color: rgba(28,22,18,0.55) !important; }
+  /* Textos dark */
+  .sep-overlay .sep-card-title {
+    color: #1c1612 !important;
+    font-size: 1.05rem !important;
+    font-weight: 700 !important;
+  }
+  .sep-overlay .sep-card-meta {
+    color: rgba(28,22,18,0.55) !important;
+    font-size: .88rem !important;
+  }
+  /* PASO labels — violet accent */
+  .sep-overlay .sep-step-label,
+  .sep-overlay [class*="sep-step"] b,
+  .sep-overlay [class*="sep-step"] strong {
+    color: #7c5cbf !important;
+    font-weight: 700 !important;
+  }
+  /* Steps scrollable area */
+  .sep-overlay .sep-steps-wrap {
+    gap: 18px !important;
+  }
+  /* Separadors entre passos */
+  .sep-overlay .sep-step {
+    border-bottom: 1px solid rgba(28,22,18,0.06);
+    padding-bottom: 16px !important;
+    margin-bottom: 0 !important;
+  }
+  .sep-overlay .sep-step:last-child { border-bottom: none; }
 
   /* Chevrons laterales (solo desktop) */
   .sep-nav-chev {
@@ -8649,21 +8687,22 @@ button { touch-action: manipulation; }
 
   /* ================= REVISIÓ DE SESSIÓ (.fallos-overlay) — desktop card ================= */
   .fallos-overlay {
-    background: rgba(20,15,10,0.40) !important;
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
+    background: rgba(20,15,10,0.42) !important;
+    background-attachment: initial !important;    /* cancel·la el fixed del mobile */
+    backdrop-filter: blur(10px) !important;
+    -webkit-backdrop-filter: blur(10px) !important;
     display: none;
     align-items: center !important;
     justify-content: center !important;
     padding: 32px !important;
   }
   .fallos-overlay.open { display: flex !important; }
-  /* Card centrada liquid glass cream */
+  /* Card centrada liquid glass cream — mida compacta */
   .fallos-card {
     flex: none !important;
-    width: min(760px, calc(100% - 64px));
-    height: min(82vh, 720px);
-    border-radius: 28px;
+    width: min(620px, calc(100% - 64px)) !important;
+    height: min(72vh, 600px) !important;
+    border-radius: 26px;
     background:
       linear-gradient(180deg, rgba(255,251,246,0.97) 0%, rgba(253,247,240,0.93) 100%);
     border: 1px solid rgba(255,255,255,0.88);
