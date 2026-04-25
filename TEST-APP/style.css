@@ -7642,11 +7642,11 @@ button { touch-action: manipulation; }
     margin: auto !important;
     padding: 36px 44px !important;
     border-radius: 32px !important;
-    background: rgba(255,255,255,0.55) !important;
-    border: 1px solid rgba(255,255,255,0.70) !important;
-    box-shadow: 0 40px 100px -40px rgba(28,22,18,0.32), inset 0 1px 0 rgba(255,255,255,0.80) !important;
-    backdrop-filter: blur(22px) saturate(160%) !important;
-    -webkit-backdrop-filter: blur(22px) saturate(160%) !important;
+    background: linear-gradient(180deg, rgba(255,251,246,0.97) 0%, rgba(253,247,240,0.93) 100%) !important;
+    border: 1px solid rgba(255,255,255,0.88) !important;
+    box-shadow: 0 50px 120px -40px rgba(28,22,18,0.40), inset 0 1px 0 rgba(255,255,255,0.95) !important;
+    backdrop-filter: blur(28px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
     overflow: hidden !important;
     display: flex !important;
     flex-direction: column;
@@ -8030,6 +8030,23 @@ button { touch-action: manipulation; }
     color: #1c1612 !important;
   }
   .fc-track { max-height: 46vh; }
+
+  /* Override mobile session-mode dark rule — warm cream on desktop */
+  #screen-app.session-mode .error-panel,
+  #screen-app.session-mode .answer-panel {
+    background: linear-gradient(180deg, rgba(255,251,246,0.98) 0%, rgba(253,247,240,0.95) 100%) !important;
+    border: 1px solid rgba(255,255,255,0.88) !important;
+    border-top: 1px solid rgba(255,255,255,0.88) !important;
+    box-shadow:
+      0 50px 120px -40px rgba(28,22,18,0.48),
+      0 1px 0 rgba(255,255,255,0.95) inset,
+      0 -1px 0 rgba(28,22,18,0.04) inset !important;
+  }
+  /* Warm amber backdrop instead of cold dark blue */
+  .answer-panel::before,
+  .error-panel::before {
+    background: rgba(28, 22, 18, 0.30) !important;
+  }
 
   .duelo-loading-overlay { z-index: 420; }
 
