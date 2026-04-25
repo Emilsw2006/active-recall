@@ -3229,11 +3229,14 @@ function connectSessionWS(totalAtomos) {
       if (msg.estado === 'generating_question') {
         setVoiceState('waiting');
         const trEl = $('duel-transcript');
-        if (trEl) trEl.textContent = T('sess_next_q');
+        if (trEl) {
+          trEl.classList.add('is-loading');
+          trEl.innerHTML = `<span class="duel-tr-wave"><span></span><span></span><span></span><span></span><span></span><span></span><span></span></span><span class="duel-tr-text">${T('sess_next_q')}</span>`;
+        }
       } else if (msg.estado === 'processing_answer') {
         setVoiceState('processing');
         const trEl = $('duel-transcript');
-        if (trEl) trEl.textContent = '';
+        if (trEl) { trEl.classList.remove('is-loading'); trEl.textContent = ''; }
       } else if (msg.estado === 'servidor_ocupado') {
         setVoiceState('processing');
         const trEl = $('duel-transcript');
@@ -3245,6 +3248,8 @@ function connectSessionWS(totalAtomos) {
     if (msg.type === 'pregunta') {
       hideSessionLoading();
       _closeAllPanels();
+      const trEl = $('duel-transcript');
+      if (trEl) { trEl.classList.remove('is-loading'); trEl.textContent = ''; }
       const preguntaLimpia = stripEmojis(msg.pregunta || '');
       _currentQPregunta = preguntaLimpia;
       const qEl = $('duel-question');
