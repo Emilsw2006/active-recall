@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=53" />
+<link rel="stylesheet" href="style.css?v=54" />
 <!-- KaTeX — LaTeX rendering (no build step required) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
@@ -1197,6 +1197,9 @@
 
 <!-- Fallos Overlay -->
 <div class="fallos-overlay" id="fallos-overlay">
+  <button type="button" class="fallos-nav-chev fallos-nav-prev" id="fallos-nav-prev" onclick="fallosNavQ(-1)" aria-label="Anterior">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="15 18 9 12 15 6"/></svg>
+  </button>
   <div class="fallos-card">
     <div class="fallos-header">
       <div class="fallos-header-left">
@@ -1209,6 +1212,9 @@
     </div>
     <div class="fallos-q-track" id="fallos-q-track"></div>
   </div>
+  <button type="button" class="fallos-nav-chev fallos-nav-next" id="fallos-nav-next" onclick="fallosNavQ(1)" aria-label="Siguiente">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>
+  </button>
 </div>
 
 <!-- Plan Detail Overlay -->
@@ -1576,7 +1582,7 @@
 
 </div>
 
-<script src="app.js?v=46"></script>
+<script src="app.js?v=47"></script>
 <script>
 // goNotif, _notifIdx, _onNotifScroll are defined in app.js (scroll-snap based)
 // Auto-advance every 5s

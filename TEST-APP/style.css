@@ -8803,5 +8803,110 @@ button { touch-action: manipulation; }
   /* Inner dots */
   .fallos-overlay .fallos-inner-dot { background: rgba(28,22,18,0.18); }
   .fallos-overlay .fallos-inner-dot.active { background: #1c1612; }
+
+  /* ── Fletxes nav de la revisió ── */
+  .fallos-nav-chev {
+    position: absolute !important;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px !important; height: 44px !important;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.85) !important;
+    border: 1px solid rgba(28,22,18,0.10) !important;
+    color: #1c1612;
+    display: inline-flex !important; align-items: center; justify-content: center;
+    cursor: pointer; z-index: 2;
+    box-shadow: 0 8px 24px -8px rgba(28,22,18,0.22), inset 0 1px 0 rgba(255,255,255,0.85);
+    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+    transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
+  }
+  .fallos-nav-prev { left: max(16px, calc(50% - 310px - 58px)); }
+  .fallos-nav-next { right: max(16px, calc(50% - 310px - 58px)); }
+  .fallos-nav-chev:hover {
+    background: #1c1612 !important; color: #fdfaf7 !important;
+    transform: translateY(-50%) scale(1.06);
+    box-shadow: 0 16px 36px -12px rgba(28,22,18,0.38);
+  }
+
+  /* ── Ajustes panel desktop — modal centrat amb paleta càlida ── */
+  #modal-ajustes { background: rgba(20,15,10,0.40) !important; backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); }
+  #modal-ajustes .ajustes-sheet {
+    width: min(400px, calc(100% - 80px)) !important;
+    border-radius: 26px !important;
+    padding: 22px 22px 26px !important;
+    transform: translateY(0) scale(.96) !important;
+    opacity: 0;
+    transition: transform .30s cubic-bezier(.2,.8,.2,1), opacity .25s ease !important;
+    background:
+      linear-gradient(180deg, rgba(255,251,246,0.97) 0%, rgba(253,247,240,0.93) 100%) !important;
+    border: 1px solid rgba(255,255,255,0.88) !important;
+    box-shadow:
+      0 50px 120px -40px rgba(28,22,18,0.50),
+      0 1px 0 rgba(255,255,255,0.95) inset !important;
+    backdrop-filter: blur(28px) saturate(180%) !important;
+    -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  }
+  #modal-ajustes.open .ajustes-sheet {
+    transform: translateY(0) scale(1) !important;
+    opacity: 1;
+  }
+  /* Amagum el handle en desktop (no és un bottom sheet) */
+  #modal-ajustes .ajustes-handle { display: none; }
+  /* Avatar amb gradient ambre càlid */
+  #modal-ajustes .ajustes-avatar {
+    background: linear-gradient(135deg, #f4c9a4 0%, #e8a56a 100%) !important;
+    border: 2px solid rgba(255,255,255,0.80) !important;
+    color: #5c2d0a !important;
+    font-weight: 700 !important;
+    box-shadow: 0 4px 12px -4px rgba(232,160,80,0.40);
+  }
+  /* Rows: vidre càlid */
+  #modal-ajustes .ajustes-rows {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.70) 0%, rgba(255,248,240,0.55) 100%) !important;
+    border: 1px solid rgba(255,255,255,0.80) !important;
+    box-shadow: 0 2px 8px -4px rgba(28,22,18,0.10), 0 1px 0 rgba(255,255,255,0.80) inset;
+  }
+  #modal-ajustes .ajustes-row-icon {
+    background: linear-gradient(135deg, rgba(244,201,164,0.45), rgba(232,165,106,0.25)) !important;
+    border: 1px solid rgba(232,165,106,0.30) !important;
+    color: #8b4a18 !important;
+  }
+  /* Secció separadors */
+  #modal-ajustes .ajustes-lang-row,
+  #modal-ajustes .ajustes-tipo-section {
+    border-top-color: rgba(28,22,18,0.07) !important;
+  }
+  /* Botó de tipus i idioma: estil càlid */
+  #modal-ajustes .ajustes-tipo-btn,
+  #modal-ajustes .lang-btn {
+    background: linear-gradient(180deg, rgba(255,255,255,0.72) 0%, rgba(255,248,240,0.55) 100%) !important;
+    border: 1px solid rgba(255,255,255,0.75) !important;
+    box-shadow: 0 2px 6px -2px rgba(28,22,18,0.10), 0 1px 0 rgba(255,255,255,0.80) inset;
+    color: #1c1612 !important;
+  }
+  #modal-ajustes .ajustes-tipo-btn.active,
+  #modal-ajustes .lang-btn.active {
+    background: #1c1612 !important;
+    color: #fdfaf7 !important;
+    border-color: #1c1612 !important;
+    box-shadow: 0 6px 16px -6px rgba(28,22,18,0.42);
+  }
+  #modal-ajustes .ajustes-tipo-btn:hover:not(.active),
+  #modal-ajustes .lang-btn:hover:not(.active) {
+    background: rgba(255,255,255,0.92) !important;
+    border-color: rgba(28,22,18,0.14) !important;
+  }
+  /* Logout — vermell càlid sobre fons clar */
+  #modal-ajustes .ajustes-logout {
+    background: rgba(220,80,90,0.08) !important;
+    border: 1px solid rgba(220,80,90,0.22) !important;
+    color: #b8333d !important;
+    border-radius: 14px !important;
+  }
+  #modal-ajustes .ajustes-logout:hover {
+    background: rgba(220,80,90,0.14) !important;
+    border-color: rgba(220,80,90,0.32) !important;
+  }
 }
 

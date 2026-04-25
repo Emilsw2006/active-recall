@@ -5598,6 +5598,15 @@ function scrollFalloQ(idx) {
   if (track) track.scrollTo({ left: idx * track.offsetWidth, behavior: 'smooth' });
 }
 
+function fallosNavQ(dir) {
+  const track = $('fallos-q-track');
+  if (!track) return;
+  const current = Math.round(track.scrollLeft / track.offsetWidth);
+  const total = track.querySelectorAll('.fallos-q-slide').length;
+  const next = Math.max(0, Math.min(total - 1, current + dir));
+  scrollFalloQ(next);
+}
+
 function scrollFalloInner(trackId, dotsId, idx) {
   const track = document.getElementById(trackId);
   if (track) track.scrollTo({ left: idx * track.offsetWidth, behavior: 'smooth' });
