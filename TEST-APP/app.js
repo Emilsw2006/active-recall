@@ -5281,7 +5281,8 @@ async function loadSessions() {
           <div class="sess-acc-header">
             <div class="sess-acc-info">
               <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px">${isTestSess ? '<span class="sess-acc-test-badge">TEST</span>' : isRepaso ? '<span class="sess-acc-test-badge" style="background:rgba(120,100,220,0.35);color:#c4b5fd;border-color:rgba(120,100,220,0.5)">REPASO</span>' : ''}${esc(sesNombre)}</div>
-              <div class="sess-acc-meta">${fecha}${hora ? ' · ' + hora : ''} · <span style="font-variant-numeric:tabular-nums;color:rgba(255,255,255,0.60)">${fraccion}</span></div>
+              <div class="sess-acc-meta">${fecha}${hora ? ' · ' + hora : ''}</div>
+              ${c.total > 0 ? `<div class="sess-acc-stats">${c.verde > 0 ? `<span class="sess-stat-dot g">✓${c.verde}</span>` : ''}${c.amarillo > 0 ? `<span class="sess-stat-dot y">◑${c.amarillo}</span>` : ''}${c.rojo > 0 ? `<span class="sess-stat-dot r">✕${c.rojo}</span>` : ''}<span class="sess-stat-total">${fraccion}</span></div>` : `<div class="sess-acc-stats"><span class="sess-stat-total">${fraccion}</span></div>`}
             </div>
             <span class="sess-acc-badge">${badgeTxt}</span>
             <svg class="sess-acc-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>

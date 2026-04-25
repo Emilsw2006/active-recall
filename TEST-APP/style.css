@@ -2587,6 +2587,10 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   flex-direction: column;
 }
 .fallos-overlay.open { display: flex; }
+/* Card wrapper: mobile = fills screen, desktop = centred liquid glass card */
+.fallos-card {
+  display: flex; flex-direction: column; flex: 1; min-height: 0;
+}
 .fallos-header {
   padding: calc(env(safe-area-inset-top, 0px) + 14px) 20px 12px;
   display: flex; align-items: center; justify-content: space-between; flex-shrink: 0;
@@ -6866,54 +6870,85 @@ button { touch-action: manipulation; }
     position: static !important;
     flex-wrap: wrap;
   }
-  #hist-slide-sesiones > div:first-child .sess-select-wrap {
-    flex: 1 1 220px;
-    min-width: 180px;
-    max-width: 280px;
-    position: relative;
+  /* Row de filtres — envoltori liquid glass */
+  #hist-slide-sesiones > div:first-child {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.78) 0%, rgba(255,250,244,0.62) 100%);
+    border: 1px solid rgba(255,255,255,0.85);
+    border-radius: 18px;
+    padding: 10px 14px !important;
+    backdrop-filter: blur(14px) saturate(150%);
+    -webkit-backdrop-filter: blur(14px) saturate(150%);
+    box-shadow:
+      0 8px 24px -16px rgba(28,22,18,0.18),
+      0 1px 0 rgba(255,255,255,0.85) inset,
+      0 -1px 0 rgba(28,22,18,0.04) inset;
+    margin-bottom: 14px !important;
   }
-  /* Chevron custom dentro de cada wrapper */
+  #hist-slide-sesiones > div:first-child .sess-select-wrap {
+    flex: 1 1 200px;
+    min-width: 160px;
+    max-width: 260px;
+    position: relative;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.70) 0%, rgba(255,248,240,0.50) 100%);
+    border: 1px solid rgba(255,255,255,0.75);
+    border-radius: 12px;
+    box-shadow: 0 2px 8px -4px rgba(28,22,18,0.12), 0 1px 0 rgba(255,255,255,0.80) inset;
+    overflow: visible;
+  }
+  /* Chevron custom */
   #hist-slide-sesiones > div:first-child .sess-select-wrap::after {
     content: "";
     position: absolute;
     right: 14px; top: 50%;
-    width: 8px; height: 8px;
-    border-right: 1.8px solid rgba(28,22,18,0.50);
-    border-bottom: 1.8px solid rgba(28,22,18,0.50);
+    width: 7px; height: 7px;
+    border-right: 1.8px solid rgba(28,22,18,0.45);
+    border-bottom: 1.8px solid rgba(28,22,18,0.45);
     transform: translateY(-70%) rotate(45deg);
     pointer-events: none;
   }
   #hist-slide-sesiones > div:first-child .sess-filter-select {
     width: 100% !important;
-    height: 42px !important;
-    padding: 0 34px 0 16px !important;
+    height: 38px !important;
+    padding: 0 32px 0 14px !important;
     border-radius: 12px !important;
-    background: rgba(255,255,255,0.78) !important;
-    border: 1px solid rgba(28,22,18,0.08) !important;
-    color: var(--hist-read) !important;
+    background: transparent !important;
+    border: none !important;
+    color: #1c1612 !important;
     font: 600 .86rem var(--font-sans) !important;
     appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
     cursor: pointer;
-    box-shadow: 0 4px 10px -4px rgba(28,22,18,0.10);
-    transition: background .18s ease, border-color .18s ease;
+    transition: opacity .18s ease;
   }
-  #hist-slide-sesiones > div:first-child .sess-filter-select:hover {
-    background: #fff !important;
-    border-color: rgba(28,22,18,0.18) !important;
-  }
-  #hist-slide-sesiones > div:first-child .sess-filter-select:focus {
-    outline: none;
-    border-color: rgba(28,22,18,0.40) !important;
-    box-shadow: 0 0 0 3px rgba(28,22,18,0.08);
-  }
-  /* Options: intento de suavizar (el SO limita mucho el estilado de <option>) */
+  #hist-slide-sesiones > div:first-child .sess-filter-select:hover { opacity: .80; }
+  #hist-slide-sesiones > div:first-child .sess-filter-select:focus { outline: none; }
+  /* Options */
   #hist-slide-sesiones > div:first-child .sess-filter-select option {
     background: #fdfaf7;
     color: #1c1612;
     font-weight: 500;
-    padding: 8px;
+  }
+  /* Botón refresh */
+  #hist-slide-sesiones > div:first-child .repaso-icon-btn,
+  #hist-slide-sesiones > div:first-child #repaso-mini-btn {
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.70) 0%, rgba(255,248,240,0.50) 100%) !important;
+    border: 1px solid rgba(255,255,255,0.75) !important;
+    border-radius: 12px !important;
+    color: rgba(28,22,18,0.60) !important;
+    box-shadow: 0 2px 8px -4px rgba(28,22,18,0.12), 0 1px 0 rgba(255,255,255,0.80) inset;
+    width: 38px !important; height: 38px !important;
+    display: flex; align-items: center; justify-content: center;
+    transition: background .18s ease, transform .18s ease;
+  }
+  #hist-slide-sesiones > div:first-child .repaso-icon-btn:hover,
+  #hist-slide-sesiones > div:first-child #repaso-mini-btn:hover {
+    background: rgba(255,255,255,0.90) !important;
+    transform: rotate(45deg);
+    color: #1c1612 !important;
   }
 
   /* Botón repaso: solo icono, liquid glass, a la derecha de los filtros */
@@ -7013,6 +7048,36 @@ button { touch-action: manipulation; }
   #sessions-list .sess-acc-progress {
     font-size: 0.82rem !important;
     color: rgba(28, 22, 18, 0.55) !important;
+  }
+  /* Stats dots — visibles en la card col·lapsada */
+  #sessions-list .sess-acc-stats {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 5px;
+    flex-wrap: wrap;
+  }
+  #sessions-list .sess-stat-dot {
+    display: inline-flex; align-items: center; gap: 2px;
+    font-size: .70rem; font-weight: 700;
+    padding: 2px 8px; border-radius: 99px;
+    line-height: 1.4;
+  }
+  #sessions-list .sess-stat-dot.g {
+    background: rgba(76,175,129,0.18); color: #2e8b5d;
+    border: 1px solid rgba(76,175,129,0.28);
+  }
+  #sessions-list .sess-stat-dot.y {
+    background: rgba(232,160,48,0.18); color: #b87410;
+    border: 1px solid rgba(232,160,48,0.28);
+  }
+  #sessions-list .sess-stat-dot.r {
+    background: rgba(220,80,90,0.16); color: #b8333d;
+    border: 1px solid rgba(220,80,90,0.24);
+  }
+  #sessions-list .sess-stat-total {
+    font-size: .76rem; color: rgba(28,22,18,0.45); font-weight: 500;
+    font-variant-numeric: tabular-nums;
   }
 
   /* Sesión abierta → modal desktop centrado liquid glass */
@@ -8581,5 +8646,123 @@ button { touch-action: manipulation; }
   #v-test .test-bottom {
     padding: 14px 4px 0 !important;
   }
+
+  /* ================= REVISIÓ DE SESSIÓ (.fallos-overlay) — desktop card ================= */
+  .fallos-overlay {
+    background: rgba(20,15,10,0.40) !important;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: none;
+    align-items: center !important;
+    justify-content: center !important;
+    padding: 32px !important;
+  }
+  .fallos-overlay.open { display: flex !important; }
+  /* Card centrada liquid glass cream */
+  .fallos-card {
+    flex: none !important;
+    width: min(760px, calc(100% - 64px));
+    height: min(82vh, 720px);
+    border-radius: 28px;
+    background:
+      linear-gradient(180deg, rgba(255,251,246,0.97) 0%, rgba(253,247,240,0.93) 100%);
+    border: 1px solid rgba(255,255,255,0.88);
+    box-shadow:
+      0 50px 120px -40px rgba(28,22,18,0.52),
+      0 1px 0 rgba(255,255,255,0.95) inset;
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Header */
+  .fallos-overlay .fallos-header {
+    padding: 20px 26px 14px !important;
+    border-bottom: 1px solid rgba(28,22,18,0.07);
+    flex-shrink: 0;
+  }
+  .fallos-overlay .fallos-header-left h2 {
+    font-size: 1rem !important;
+    font-weight: 700 !important;
+    color: #1c1612 !important;
+  }
+  .fallos-overlay .ajustes-close {
+    background: rgba(28,22,18,0.05) !important;
+    border: 1px solid rgba(28,22,18,0.10) !important;
+    color: rgba(28,22,18,0.55) !important;
+    border-radius: 50% !important;
+  }
+  .fallos-overlay .ajustes-close:hover {
+    background: rgba(28,22,18,0.10) !important;
+    color: #1c1612 !important;
+  }
+  /* Dots de navegació */
+  .fallos-overlay .fallos-q-dots { color: rgba(28,22,18,0.55); }
+  .fallos-overlay .fallos-q-counter { color: rgba(28,22,18,0.55) !important; }
+  .fallos-overlay .fallos-q-dot {
+    background: rgba(28,22,18,0.18);
+  }
+  .fallos-overlay .fallos-q-dot.active { background: #1c1612; }
+  /* Track de preguntes */
+  .fallos-overlay .fallos-q-track { flex: 1; min-height: 0; }
+  /* Slide */
+  .fallos-overlay .fallos-q-slide {
+    padding: 22px 28px 20px !important;
+  }
+  /* Pregunta — color fosc sobre fons clar */
+  .fallos-overlay .fallos-q-question {
+    font-size: 1.05rem !important;
+    font-weight: 600 !important;
+    color: #1c1612 !important;
+    line-height: 1.5 !important;
+    max-height: 22vh !important;
+  }
+  /* Badge de resposta — reutilitza tokens del answer panel */
+  .fallos-overlay .fallos-q-slide > span:first-child {
+    /* badge inline injectat amb estil inline — el sobreescrivim via !important */
+    border-radius: 99px !important;
+    font-size: .75rem !important;
+    font-weight: 700 !important;
+    padding: 4px 12px !important;
+    letter-spacing: .02em;
+  }
+  /* Inner cards: superfícies liquid glass suaus */
+  .fallos-overlay .fallos-inner-card {
+    border-radius: 18px !important;
+    padding: 18px 20px !important;
+  }
+  .fallos-overlay .fallos-inner-user {
+    background: linear-gradient(180deg, rgba(28,22,18,0.05), rgba(28,22,18,0.02)) !important;
+    border: 1px solid rgba(28,22,18,0.09) !important;
+    box-shadow: 0 1px 0 rgba(255,255,255,0.70) inset;
+  }
+  .fallos-overlay .fallos-inner-error {
+    background: linear-gradient(180deg, rgba(220,80,90,0.12), rgba(220,80,90,0.05)) !important;
+    border: 1px solid rgba(220,80,90,0.20) !important;
+  }
+  .fallos-overlay .fallos-inner-answer {
+    background: linear-gradient(180deg, rgba(76,175,129,0.12), rgba(76,175,129,0.05)) !important;
+    border: 1px solid rgba(76,175,129,0.22) !important;
+  }
+  .fallos-overlay .fallos-inner-analogy {
+    background: linear-gradient(180deg, rgba(180,140,210,0.14), rgba(180,140,210,0.06)) !important;
+    border: 1px solid rgba(180,140,210,0.24) !important;
+  }
+  .fallos-overlay .fallos-inner-label {
+    color: rgba(28,22,18,0.52) !important;
+  }
+  .fallos-overlay .fallos-inner-text {
+    color: #1c1612 !important;
+    font-size: .94rem !important;
+  }
+  /* text de l'usuari (primer inner card): cursiva */
+  .fallos-overlay .fallos-inner-user .fallos-inner-text {
+    color: rgba(28,22,18,0.75) !important;
+    font-style: italic !important;
+  }
+  /* Inner dots */
+  .fallos-overlay .fallos-inner-dot { background: rgba(28,22,18,0.18); }
+  .fallos-overlay .fallos-inner-dot.active { background: #1c1612; }
 }
 
