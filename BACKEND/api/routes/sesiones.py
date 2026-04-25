@@ -107,11 +107,28 @@ async def listar_sesiones_usuario(
         temas_map = {t["id"]: t.get("titulo", "") for t in (temas_res.data or [])}
 
     sessions = []
+    sesiones_sin_nombre = []  # para regenerar en background los que están vacíos
     for s in sesiones_res.data:
         asig = asig_map.get(s["asignatura_id"], {})
         c = conteos.get(s["id"], {"verde": 0, "amarillo": 0, "rojo": 0, "total": 0})
         temas_ids = s.get("temas_elegidos") or []
         temas_nombres = [temas_map[tid] for tid in temas_ids if tid in temas_map]
+
+        # nombre — si la IA no generó nada, usamos los temas como fallback legible
+        nombre_db = (s.get("nombre") or "").strip()
+        if nombre_db:
+            nombre_final = nombre_db
+        elif temas_nombres:
+            join_str = ", ".join(t for t in temas_nombres[:3] if t)
+            if len(join_str) > 60:
+                join_str = join_str[:57].rstrip(", ") + "…"
+            nombre_final = join_str
+            # Marcar para regenerar con IA en background
+            sesiones_sin_nombre.append((s["id"], temas_ids))
+        else:
+            nombre_final = ""
+            sesiones_sin_nombre.append((s["id"], temas_ids))
+
         sessions.append({
             "sesion_id": s["id"],
             "asignatura_id": s["asignatura_id"],
@@ -127,12 +144,48 @@ async def listar_sesiones_usuario(
             "conteo": c,
             "plan_id": s.get("plan_id"),
             "lang": s.get("lang", "es"),
-            "nombre": s.get("nombre") or "",
+            "nombre": nombre_final,
             "n_preguntas": s.get("n_preguntas"),
             "has_test_draft": s.get("test_draft") is not None,
         })
 
+    # Regenerar los nombres faltantes con la IA, en background (sin bloquear la respuesta).
+    # Así la próxima vez que el usuario cargue historial ya tendrán título.
+    if sesiones_sin_nombre:
+        asyncio.create_task(_regenerar_nombres_faltantes(sesiones_sin_nombre))
+
     return sessions
+
+
+async def _regenerar_nombres_faltantes(sesiones: list[tuple[str, list[str]]]):
+    """Para cada sesión sin nombre, genera uno con la IA usando los átomos de sus temas."""
+    if not sesiones:
+        return
+    db = get_service_client()
+    # Limitar a 10 sesiones por llamada para no saturar la API
+    for sid, temas_ids in sesiones[:10]:
+        try:
+            if not temas_ids:
+                continue
+            # Tomar algunos átomos para generar el título
+            at_res = (
+                db.table("atomos")
+                .select("texto_completo, lang")
+                .in_("tema_id", temas_ids)
+                .limit(6)
+                .execute()
+            )
+            atomos = at_res.data or []
+            if not atomos:
+                continue
+            textos = [a.get("texto_completo", "") for a in atomos if a.get("texto_completo")]
+            lang = (atomos[0].get("lang") or "es")[:2]
+            nombre = await generar_titulo_sesion(textos, lang=lang)
+            if nombre:
+                db.table("sesiones").update({"nombre": nombre}).eq("id", sid).execute()
+                logger.info(f"Nombre regenerado para sesión {sid}: '{nombre}'")
+        except Exception as e:
+            logger.warning(f"No se pudo regenerar nombre de sesión {sid}: {e}")
 
 
 class CrearSesionAsignaturaRequest(BaseModel):
