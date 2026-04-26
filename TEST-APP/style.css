@@ -213,7 +213,7 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   color: var(--fg1); letter-spacing: var(--ls-heading); line-height: 1.1;
 }
 
-/* ─ Hub: frase + waveform (glass card) ─ */
+/* ─ Hub: frase + waveform (sin caja) ─ */
 .hub-phrase-area {
   flex: 1;
   width: 100%;
@@ -222,26 +222,8 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   align-items: center;
   justify-content: center;
   gap: 18px;
-  background: rgba(255,255,255,0.22);
-  border: 1px solid rgba(255,255,255,0.50);
-  border-radius: var(--r-xl);
-  backdrop-filter: blur(18px) saturate(140%);
-  -webkit-backdrop-filter: blur(18px) saturate(140%);
-  box-shadow: 0 2px 20px rgba(28,22,18,0.06), inset 0 1px 0 rgba(255,255,255,0.65);
-  padding: 24px 20px;
   margin-bottom: 12px;
   animation: fadeUp .45s var(--ease-out) .08s both;
-  position: relative;
-  overflow: hidden;
-}
-.hub-phrase-area::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 45%;
-  background: linear-gradient(180deg, rgba(255,255,255,.28), transparent);
-  border-radius: inherit;
-  pointer-events: none;
 }
 .hub-phrase {
   position: relative;
@@ -297,22 +279,12 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   gap: 6px;
   padding: 14px 14px 16px;
   border-radius: var(--r-lg);
-  background: rgba(255,255,255,0.32);
-  border: 1px solid rgba(255,255,255,0.58);
-  box-shadow: 0 4px 24px rgba(28,22,18,0.08), inset 0 1px 0 rgba(255,255,255,0.75);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  background: rgba(255,255,255,0.50);
+  border: 1px solid rgba(255,255,255,0.70);
+  box-shadow: 0 2px 12px rgba(28,22,18,0.06), inset 0 1px 0 rgba(255,255,255,0.85);
   position: relative;
   overflow: hidden;
   transition: transform .22s var(--ease-spring);
-}
-.hub-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 42%;
-  background: linear-gradient(180deg, rgba(255,255,255,.32), transparent);
-  pointer-events: none;
 }
 .hub-card:active { transform: scale(.97); }
 .hub-card-header {
@@ -423,25 +395,8 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   transform: translateY(-1px);
 }
 .hub-start-btn:active { transform: scale(.97); }
-/* mini waveform en el botón — oculta en mòbil */
-.hub-start-waveform { display: none; }
-.hub-start-waveform {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  height: 26px;
-  flex-shrink: 0;
-}
-.hub-start-waveform span {
-  width: 3.5px;
-  border-radius: 2px;
-  background: rgba(28,22,18,0.28);
-  animation: hub-wave 1.5s ease-in-out infinite;
-  transform-origin: bottom center;
-}
-.hub-start-waveform span:nth-child(1) { height: 8px;  animation-delay: .10s; }
-.hub-start-waveform span:nth-child(2) { height: 16px; animation-delay: .24s; }
-.hub-start-waveform span:nth-child(3) { height: 22px; animation-delay: .36s; }
+/* mini waveform en el botón — oculta */
+.hub-start-waveform { display: none !important; }
 .hub-start-waveform span:nth-child(4) { height: 16px; animation-delay: .48s; }
 .hub-start-waveform span:nth-child(5) { height: 8px;  animation-delay: .60s; }
 
@@ -2689,6 +2644,8 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 /* Inner wrapper — groups all plan-detail v2 children for mobile (full-height) & desktop (card) */
 .plan-detail-inner {
   flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;
+  /* Solid cream bg on mobile so glass level cards are visible against it */
+  background: rgba(250, 244, 236, 0.72);
 }
 
 /* Próximas: full-screen, slides in from the right */
