@@ -495,23 +495,36 @@ async function _buildSmartNotifs() {
       });
     }
 
-    // ── Card 1b: Sesión de repaso pendiente en plan activo ────
+    // ── Card 1b: Plan activo — repaso pendiente o progreso ────
     if (curSubjectId && uid) {
       try {
         const planes = await api(`/planes/usuario/${uid}?asignatura_id=${curSubjectId}`);
-        const activePlanes = (planes || []).filter(pl => pl.status === 'activo' && pl.sesiones_totales > pl.sesiones_completadas);
+        const activePlanes = (planes || []).filter(pl => pl.sesiones_totales > pl.sesiones_completadas);
         for (const plan of activePlanes.slice(0, 2)) {
+          // Cache plan meta so openPlanDetail can use it immediately
+          _planCache[plan.id] = plan;
           const planSessions = await api(`/plan/${plan.id}/sesiones`);
           const pendingReview = (planSessions || []).find(s => s.is_review_session && (s.status === 'por_empezar' || s.status === 'empezada'));
           if (pendingReview) {
             notifs.unshift({
               color: 'blue',
               titulo: 'Sesión de repaso en tu plan',
-              mensaje: `Tu plan "${plan.nombre || 'activo'}" tiene una sesión de repaso prioritaria pendiente.`,
-              accion: { tipo: 'ver_plan_review', plan_id: plan.id, sesion_id: pendingReview.id }
+              mensaje: `Tu plan "${plan.nombre || 'activo'}" tiene una sesión de repaso prioritaria.`,
+              accion: { tipo: 'abrir_plan', plan_id: plan.id }
             });
-            break;
+          } else {
+            // Active plan without review — show progress + open plan detail on tap
+            const done  = plan.sesiones_completadas || 0;
+            const total = plan.sesiones_totales || 0;
+            const pct   = total > 0 ? Math.round(done / total * 100) : 0;
+            notifs.unshift({
+              color: 'blue',
+              titulo: plan.nombre || 'Tu plan de estudio',
+              mensaje: `${pct}% completado · ${done} de ${total} sesiones`,
+              accion: { tipo: 'abrir_plan', plan_id: plan.id }
+            });
           }
+          break; // show at most 1 plan notification
         }
       } catch(e) { /* silent */ }
     }
@@ -784,14 +797,13 @@ function handleNotifClick(el) {
       break;
     case 'continuar_plan':
       switchView('historial');
+      setTimeout(() => { try { switchHistTab('planes'); } catch(_){} }, 300);
+      break;
+    case 'abrir_plan':
+      if (action.plan_id) openPlanDetail(action.plan_id);
       break;
     case 'ver_plan_review':
-      if (action.sesion_id) {
-        startPlanSession(action.sesion_id, action.plan_id);
-      } else if (action.plan_id) {
-        switchView('historial');
-        setTimeout(() => openPlanDetail(action.plan_id), 350);
-      }
+      if (action.plan_id) openPlanDetail(action.plan_id);
       break;
     case 'ver_errores':
       switchView('historial');
