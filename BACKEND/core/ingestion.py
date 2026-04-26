@@ -44,6 +44,9 @@ Devuelve SOLO el siguiente JSON sin texto adicional, sin markdown, sin ```json:
             {
               "titulo_corto": "string (máx 60 caracteres)",
               "texto_completo": "string (explicación completa con todo el contexto necesario para entenderlo de forma independiente)",
+              "tipo": "teorico" | "practico",
+              "enunciado": "string (SOLO si tipo='practico'; el enunciado del problema con sus datos pero SIN la solución)",
+              "solucion_pasos": "string (SOLO si tipo='practico'; resolución paso a paso, clara y didáctica, con resultado final)",
               "orden": 1
             }
           ]
@@ -59,6 +62,18 @@ REGLAS CRÍTICAS:
 - No hay límite artificial de palabras por átomo. Incluye todo el contexto necesario.
 - No uses chunking por número de caracteres. Usa lógica semántica.
 - Cubre TODO el contenido del documento sin omitir nada relevante.
+
+CLASIFICACIÓN DE TIPO (campo "tipo") — OBLIGATORIA:
+- "teorico" = definición, concepto, propiedad, teorema enunciado, contexto histórico, demostración cualitativa, ley o principio explicado conceptualmente. Es contenido de COMPRENSIÓN.
+- "practico" = ejercicio resuelto, problema con datos numéricos concretos, aplicación de fórmula con valores específicos, cálculo paso a paso. Es contenido de EJECUCIÓN.
+- Si el documento muestra una fórmula con valores numéricos resueltos, es "practico".
+- Si solo se enuncia/define la fórmula sin aplicarla a un caso, es "teorico".
+- En caso de duda, default "teorico".
+
+CAMPOS PARA TIPO="practico":
+- "enunciado": el problema tal como se le presentaría al estudiante para que lo resuelva. Incluye datos, contexto, qué se pide. NO incluyas la solución aquí.
+- "solucion_pasos": resolución completa paso a paso, mostrando el razonamiento, las fórmulas usadas con los valores, y el resultado final claramente marcado.
+- Para tipo="teorico" estos dos campos pueden omitirse o ser null.
 """.strip()
 
 
@@ -118,6 +133,10 @@ async def procesar_pdf(
                 subtema_id = subtema_res.data[0]["id"]
 
                 for atomo_data in subtema_data.get("atomos", []):
+                    tipo = atomo_data.get("tipo", "teorico")
+                    if tipo not in ("teorico", "practico"):
+                        tipo = "teorico"
+                    es_practico = tipo == "practico"
                     atomo_res = (
                         db.table("atomos")
                         .insert({
@@ -128,6 +147,9 @@ async def procesar_pdf(
                             "titulo_corto": atomo_data["titulo_corto"],
                             "texto_completo": atomo_data["texto_completo"],
                             "orden": atomo_data["orden"],
+                            "tipo": tipo,
+                            "enunciado": atomo_data.get("enunciado") if es_practico else None,
+                            "solucion_pasos": atomo_data.get("solucion_pasos") if es_practico else None,
                         })
                         .execute()
                     )

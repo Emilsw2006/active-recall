@@ -41,7 +41,9 @@ INPUTS:
 - exam_date: {exam_date}
 - today: {today}
 - total_atoms: {total_atoms}
-- selected_atoms (muestra): {selected_atoms_sample}
+- total_teoricos: {total_teoricos}
+- total_practicos: {total_practicos}
+- subtemas_breakdown (lista de subtemas con conteo por tipo): {subtemas_breakdown}
 - diagnostic_results: {diagnostic_results}
 - intensity: {intensity}
 - questions_per_session: {questions_per_session}
@@ -71,15 +73,25 @@ PASO 2 — CALCULAR MODO SEGÚN DÍAS HASTA EXAMEN
   3–7 días  → strategy_mode = "accelerated"
   8+ días   → strategy_mode = "full"
 
-PASO 3 — CAPA 1: SESIONES INITIAL
-  - n_sesiones_initial = ceil(total_atoms / questions_per_session)
-  - Distribuir esas sesiones a lo largo de los dias disponibles.
+PASO 3 — CAPA 1: SESIONES INITIAL (separadas por modo: oral vs practico)
+  - n_sesiones_orales    = ceil(total_teoricos  / questions_per_session)
+  - n_sesiones_practicas = ceil(total_practicos / questions_per_session)
+  - n_sesiones_initial   = n_sesiones_orales + n_sesiones_practicas
+  - Cada sesión TIENE UN ÚNICO MODO: "oral" (átomos teóricos por voz) o "practico" (ejercicios autoevaluados paso a paso).
+  - Si un subtema es MIXTO (tiene teóricos y prácticos), genera SESIONES SEPARADAS: una oral con sus teóricos y una práctica con sus prácticos. Nunca mezcles modos en la misma sesión.
+  - Distribuir las sesiones a lo largo de los dias disponibles, intercalando oral y práctico para variar.
   - Prioridad de exposición: bajo → medio → alto.
   - Reservar 1/3 de los días para sesiones review — NO llenar todos los días con initial.
   - Carga diaria dinámica según intensity:
       rapido: 2 sesiones/día max
       equilibrado: 1 sesión/día estudio + hueco para review
       exhaustivo: 1 sesión/día con muchas reviews
+
+TÍTULO Y MODO POR SESIÓN — OBLIGATORIO:
+  - Cada sesión DEBE incluir "modo" ("oral" | "practico") y "titulo" (máx 40 caracteres, descriptivo).
+  - El título debe reflejar el subtema o concepto que esa sesión cubrirá. Ej: "Restricción presupuestaria", "Ejercicios: maximización", "Funciones de utilidad", "Repaso: elasticidad".
+  - Para sesiones review, el título puede ser tipo "Repaso: <concepto>".
+  - NO uses títulos genéricos como "Sesión 1" o "Estudio".
 
 PASO 4 — CAPA 2: SPACED REPETITION
   - Por cada grupo de sesiones initial, crear review automático.
@@ -109,6 +121,8 @@ Retorna ÚNICAMENTE JSON válido (sin markdown, sin texto extra):
   "today": [
     {{
       "type": "diagnostic | initial | review | reinforcement",
+      "modo": "oral | practico",
+      "titulo": "string (máx 40 chars, descriptivo del concepto)",
       "slot": "morning | afternoon | evening | anytime",
       "number_of_questions": {questions_per_session},
       "is_review_session": false,
@@ -121,6 +135,8 @@ Retorna ÚNICAMENTE JSON válido (sin markdown, sin texto extra):
       "sessions": [
         {{
           "type": "initial | review | reinforcement",
+          "modo": "oral | practico",
+          "titulo": "string (máx 40 chars, descriptivo del concepto)",
           "slot": "anytime",
           "number_of_questions": {questions_per_session},
           "is_review_session": false,
@@ -168,9 +184,21 @@ async def generar_plan_de_estudio(
     lang_instr = _LANG_INSTRUCTION.get(lang, _LANG_INSTRUCTION["es"])
     today_str = date.today().isoformat()
 
-    # Pasar solo muestra de átomos (IDs + titulo) para no sobrecargar el contexto
-    atoms_sample = [{"id": a["id"], "titulo_corto": a.get("titulo_corto", "")} for a in selected_atoms[:60]]
-    atoms_sample_str = json.dumps(atoms_sample, ensure_ascii=False)
+    # Agregación por (tema, subtema) con conteo por tipo (teorico/practico)
+    breakdown_map: dict[tuple[str, str], dict[str, int]] = {}
+    total_teoricos = 0
+    total_practicos = 0
+    for a in selected_atoms:
+        key = (a.get("tema_titulo", ""), a.get("subtema_titulo", ""))
+        rec = breakdown_map.setdefault(key, {"tema": key[0], "subtema": key[1], "n_teoricos": 0, "n_practicos": 0})
+        if (a.get("tipo") or "teorico") == "practico":
+            rec["n_practicos"] += 1
+            total_practicos += 1
+        else:
+            rec["n_teoricos"] += 1
+            total_teoricos += 1
+    subtemas_breakdown = list(breakdown_map.values())
+    breakdown_str = json.dumps(subtemas_breakdown, ensure_ascii=False)
     diag_str = json.dumps(diagnostic_results, ensure_ascii=False)
 
     from datetime import date as _date
@@ -184,7 +212,9 @@ async def generar_plan_de_estudio(
         exam_date=exam_date,
         today=today_str,
         total_atoms=len(selected_atoms),
-        selected_atoms_sample=atoms_sample_str,
+        total_teoricos=total_teoricos,
+        total_practicos=total_practicos,
+        subtemas_breakdown=breakdown_str,
         diagnostic_results=diag_str,
         intensity=intensity,
         questions_per_session=questions_per_session,

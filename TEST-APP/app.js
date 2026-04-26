@@ -322,15 +322,16 @@ function _showBtn(id, show) { const el = $(id); if (el) el.style.display = show 
 
 // ─ Navigation Arch (7 Vistas) ─
 function switchView(viewName) {
-  const views = ['historial', 'hub', 'materiales', 'lobby', 'duelo', 'resumen', 'test'];
-  const slidePos = { 
-    'historial': -100, 
-    'hub': 0, 
-    'materiales': 100, 
-    'lobby': 200, 
-    'duelo': 300, 
-    'resumen': 400, 
-    'test': 500 
+  const views = ['historial', 'hub', 'materiales', 'lobby', 'duelo', 'resumen', 'test', 'practica'];
+  const slidePos = {
+    'historial': -100,
+    'hub': 0,
+    'materiales': 100,
+    'lobby': 200,
+    'duelo': 300,
+    'resumen': 400,
+    'test': 500,
+    'practica': 600
   };
 
   views.forEach(v => {
@@ -356,7 +357,7 @@ function switchView(viewName) {
   const appEl = $('screen-app');
   const wasInDuelo = appEl && appEl.classList.contains('session-mode');
   if (appEl) {
-    appEl.classList.toggle('session-mode', viewName === 'duelo' || viewName === 'test');
+    appEl.classList.toggle('session-mode', viewName === 'duelo' || viewName === 'test' || viewName === 'practica');
     appEl.classList.toggle('lobby-mode', viewName === 'lobby');
   }
   // Stop any playing audio when leaving the session view
@@ -5916,7 +5917,11 @@ function _planRenderLevels(sessions, planMeta) {
       ctaAction  = '';
     }
     const nQ = s.n_preguntas || nDefault;
-    const titleText = isReview ? `Sesión de repaso` : `Sesión ${s.numero}`;
+    const baseTitle = isReview ? `Sesión de repaso` : (s.nombre || `Sesión ${s.numero}`);
+    const modoBadge = (s.modo === 'practico')
+      ? ` <span class="level-mode-badge practico">Práctico</span>`
+      : '';
+    const titleText = `${baseTitle}${modoBadge}`;
     const subText = `${nQ} preguntas · ${tipoLabel(s)}`;
     if (showStartHere && isActive) {
       html += `
@@ -6146,11 +6151,172 @@ async function startPlanSession(sesionId, planIdOverride) {
   const planId = planIdOverride || _currentPlanDetailId;
   closePlanDetail();
   try {
+    // Fast meta call to know whether this is oral or practico
+    let modo = 'oral';
+    try {
+      const meta = await api(`/sesion/${sesionId}/meta`);
+      modo = meta.modo || 'oral';
+    } catch(_) {}
+
+    if (modo === 'practico') {
+      startPracticaSession(sesionId, planId);
+      return;
+    }
+
     sessPlanId = planId;
     sessDurationType = 'plan';
     await resumeSessionFromHistory(sesionId, curSubjectId, curSubjectName, 'plan');
   } catch(e) {
     toast(e.message, 'err');
+  }
+}
+
+// ─ Modo práctica (autoevaluado paso a paso) ────────────────────────────────
+let _practicaQueue = [];   // [{id, titulo_corto, enunciado, solucion_pasos}, ...]
+let _practicaIdx   = 0;
+let _practicaSesionId = null;
+let _practicaPlanId   = null;
+let _practicaResultados = []; // [{atomo_id, estado: 'verde'|'rojo'}]
+
+async function startPracticaSession(sesionId, planId) {
+  _practicaSesionId = sesionId;
+  _practicaPlanId   = planId || null;
+  _practicaIdx = 0;
+  _practicaResultados = [];
+
+  switchView('practica');
+  const loading = $('practica-loading');
+  const content = $('practica-content');
+  const done    = $('practica-done-screen');
+  if (loading) loading.style.display = 'flex';
+  if (content) content.style.display = 'none';
+  if (done)    done.style.display    = 'none';
+
+  try {
+    const atoms = await api(`/sesion/${sesionId}/atomos_practica`);
+    _practicaQueue = atoms || [];
+    if (!_practicaQueue.length) {
+      toast('No hay ejercicios prácticos en esta sesión', 'err');
+      closePracticaSession();
+      return;
+    }
+    if (loading) loading.style.display = 'none';
+    if (content) content.style.display = 'flex';
+    _practicaRender();
+  } catch(e) {
+    toast(e.message || 'Error cargando ejercicios', 'err');
+    closePracticaSession();
+  }
+}
+
+function _practicaRender() {
+  const a = _practicaQueue[_practicaIdx];
+  if (!a) return;
+  const tit = $('practica-titulo');
+  const enu = $('practica-enunciado');
+  const sol = $('practica-solucion');
+  const wrap = $('practica-solucion-wrap');
+  const doneBtn = $('practica-done-btn');
+  const counter = $('practica-counter');
+  const fill    = $('practica-prog-fill');
+
+  if (tit) tit.textContent = a.titulo_corto || `Ejercicio ${_practicaIdx + 1}`;
+  if (enu) enu.textContent = a.enunciado || '(sin enunciado)';
+  if (sol) sol.textContent = a.solucion_pasos || '';
+  if (wrap) wrap.classList.add('hidden');
+  if (doneBtn) doneBtn.style.display = '';
+  const total = _practicaQueue.length;
+  if (counter) counter.textContent = `${_practicaIdx + 1} / ${total}`;
+  if (fill)    fill.style.width    = `${Math.round((_practicaIdx / total) * 100)}%`;
+}
+
+function practicaShowSolution() {
+  const wrap = $('practica-solucion-wrap');
+  const doneBtn = $('practica-done-btn');
+  if (wrap) wrap.classList.remove('hidden');
+  if (doneBtn) doneBtn.style.display = 'none';
+  // Scroll suave hacia la solución
+  setTimeout(() => {
+    const sol = $('practica-solucion');
+    if (sol && sol.scrollIntoView) sol.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  }, 80);
+}
+
+async function practicaEval(estado) {
+  const a = _practicaQueue[_practicaIdx];
+  if (!a) return;
+  _practicaResultados.push({ atomo_id: a.id, estado });
+  // Persistir en background (no bloqueante)
+  api(`/sesion/${_practicaSesionId}/practica-resultado`, {
+    method: 'POST',
+    body: JSON.stringify({ atomo_id: a.id, estado }),
+  }).catch(() => {});
+
+  _practicaIdx++;
+  if (_practicaIdx >= _practicaQueue.length) {
+    await _practicaFinalize();
+  } else {
+    _practicaRender();
+  }
+}
+
+async function practicaSimilar() {
+  const a = _practicaQueue[_practicaIdx];
+  if (!a) return;
+  const btn = $('practica-similar-btn');
+  if (btn) btn.disabled = true;
+  try {
+    const data = await api(`/atomo/${a.id}/similar`, { method: 'POST', timeoutMs: 35000 });
+    if (data && data.enunciado) {
+      // Reemplaza el átomo actual con el nuevo enunciado/solución (no avanza)
+      _practicaQueue[_practicaIdx] = {
+        ...a,
+        enunciado: data.enunciado,
+        solucion_pasos: data.solucion_pasos || '',
+      };
+      _practicaRender();
+      toast('Nuevo ejercicio generado', 'ok');
+    } else {
+      toast('No se pudo generar otro ejercicio', 'err');
+    }
+  } catch(e) {
+    toast(e.message || 'Error generando ejercicio', 'err');
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function _practicaFinalize() {
+  // Marcar la sesión como completada
+  try {
+    await api(`/sesion/${_practicaSesionId}/finalizar`, { method: 'POST' });
+  } catch(_) {}
+
+  const content = $('practica-content');
+  const done    = $('practica-done-screen');
+  const sub     = $('practica-done-sub');
+  if (content) content.style.display = 'none';
+  if (done)    done.style.display    = 'flex';
+  const total = _practicaResultados.length;
+  const verdes = _practicaResultados.filter(r => r.estado === 'verde').length;
+  if (sub) sub.textContent = `${verdes}/${total} bien`;
+  const fill = $('practica-prog-fill');
+  if (fill) fill.style.width = '100%';
+}
+
+function closePracticaSession() {
+  _practicaQueue = [];
+  _practicaIdx = 0;
+  _practicaResultados = [];
+  const planId = _practicaPlanId;
+  _practicaSesionId = null;
+  _practicaPlanId = null;
+  // Volver al historial (donde están los planes) o al hub
+  if (planId) {
+    switchView('historial');
+    setTimeout(() => { try { switchHistTab('planes'); loadPlanes(); } catch(_) {} }, 250);
+  } else {
+    switchView('hub');
   }
 }
 

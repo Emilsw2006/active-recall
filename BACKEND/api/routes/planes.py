@@ -40,21 +40,40 @@ async def crear_plan(body: CrearPlanRequest):
 
     atomos_por_sesion = max(5, min(body.atomos_por_sesion, 20))
 
-    # Recolectar átomos
+    # Recolectar átomos (incluye tipo + nombre tema/subtema para segmentación oral/práctico)
     total_atomos = 0
     atomos_detalles = []
     for tema_id in body.temas_elegidos:
-        st_res = db.table("subtemas").select("id").eq("tema_id", tema_id).execute()
+        tema_row = db.table("temas").select("titulo").eq("id", tema_id).single().execute()
+        tema_titulo = (tema_row.data or {}).get("titulo", "")
+        st_res = db.table("subtemas").select("id, titulo").eq("tema_id", tema_id).execute()
         for st in (st_res.data or []):
-            a_res = db.table("atomos").select("id, titulo_corto").eq("subtema_id", st["id"]).execute()
+            a_res = (
+                db.table("atomos")
+                .select("id, titulo_corto, tipo")
+                .eq("subtema_id", st["id"])
+                .is_("es_duplicado_de", "null")
+                .execute()
+            )
             if a_res.data:
+                for a in a_res.data:
+                    a["subtema_titulo"] = st.get("titulo", "")
+                    a["tema_titulo"] = tema_titulo
+                    a["tipo"] = a.get("tipo") or "teorico"
                 atomos_detalles.extend(a_res.data)
                 total_atomos += len(a_res.data)
 
     if total_atomos == 0:
         raise HTTPException(status_code=400, detail="Los temas seleccionados no tienen átomos procesados aún")
 
-    n_sesiones_fallback = ceil(total_atomos / atomos_por_sesion)
+    # Fallback: separar conteo por tipo para preservar la dualidad oral/práctico
+    _n_teoricos_fb  = sum(1 for a in atomos_detalles if a.get("tipo") != "practico")
+    _n_practicos_fb = sum(1 for a in atomos_detalles if a.get("tipo") == "practico")
+    n_sesiones_fallback = (
+        (ceil(_n_teoricos_fb  / atomos_por_sesion) if _n_teoricos_fb  > 0 else 0)
+        + (ceil(_n_practicos_fb / atomos_por_sesion) if _n_practicos_fb > 0 else 0)
+        or 1
+    )
 
     # Recolectar resultados de diagnóstico (resultados filtra por atomo_id — no tiene usuario_id)
     atomo_ids = [a["id"] for a in atomos_detalles]
@@ -132,11 +151,16 @@ async def crear_plan(body: CrearPlanRequest):
             todas_las_sesiones_generadas.extend(day.get("sessions", []))
 
         today = date.today()
+        sess_idx = 0
         for ss in todas_las_sesiones_generadas:
             # Skip review sessions — they are created lazily after each normal session completes
             if ss.get("is_review_session", False):
                 continue
+            sess_idx += 1
             tipo = ss.get("type", "initial")
+            modo_raw = (ss.get("modo") or "oral").lower()
+            modo = modo_raw if modo_raw in ("oral", "practico") else "oral"
+            titulo = (ss.get("titulo") or "").strip() or f"Sesión {sess_idx}"
             day_offset = ss.get("day_offset", 0)
             fecha_objetivo = (today + timedelta(days=day_offset)).isoformat()
             db.table("sesiones").insert({
@@ -153,9 +177,17 @@ async def crear_plan(body: CrearPlanRequest):
                 "n_preguntas":            ss.get("number_of_questions", atomos_por_sesion),
                 "fecha_objetivo":         fecha_objetivo,
                 "slot":                   ss.get("slot", "anytime"),
+                "modo":                   modo,
+                "nombre":                 titulo[:80],
             }).execute()
     else:
-        for _ in range(n_sesiones_fallback):
+        # Fallback: distribuir teóricos/prácticos en sesiones del modo correspondiente
+        n_teoricos  = sum(1 for a in atomos_detalles if a.get("tipo") != "practico")
+        n_practicos = sum(1 for a in atomos_detalles if a.get("tipo") == "practico")
+        n_orales    = max(1, ceil(n_teoricos  / atomos_por_sesion)) if n_teoricos  > 0 else 0
+        n_practs    = max(1, ceil(n_practicos / atomos_por_sesion)) if n_practicos > 0 else 0
+        for i in range(n_orales + n_practs):
+            modo_fb = "oral" if i < n_orales else "practico"
             db.table("sesiones").insert({
                 "usuario_id":             body.usuario_id,
                 "asignatura_id":          body.asignatura_id,
@@ -165,6 +197,8 @@ async def crear_plan(body: CrearPlanRequest):
                 "current_question_index": 0,
                 "plan_id":                plan_id,
                 "lang":                   body.lang,
+                "modo":                   modo_fb,
+                "nombre":                 f"Sesión {i+1}",
             }).execute()
 
     logger.info(f"Plan '{plan_nombre}' creado ({n_sesiones} sesiones, {total_atomos} átomos)")
@@ -252,7 +286,7 @@ async def sesiones_del_plan(plan_id: str):
     db = get_service_client()
     ses_res = (
         db.table("sesiones")
-        .select("id, status, current_question_index, fecha_inicio, fecha_fin, is_review_session, tipo_sesion, n_preguntas, fecha_objetivo, slot")
+        .select("id, status, current_question_index, fecha_inicio, fecha_fin, is_review_session, tipo_sesion, n_preguntas, fecha_objetivo, slot, modo, nombre")
         .eq("plan_id", plan_id)
         .order("fecha_objetivo", desc=False, nullsfirst=True)
         .order("id", desc=False)
@@ -272,6 +306,8 @@ async def sesiones_del_plan(plan_id: str):
             "n_preguntas": s.get("n_preguntas"),
             "fecha_objetivo": s.get("fecha_objetivo"),
             "slot": s.get("slot", "anytime"),
+            "modo": s.get("modo") or "oral",
+            "nombre": s.get("nombre"),
         }
         for i, s in enumerate(sessions)
     ]

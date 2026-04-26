@@ -29,6 +29,9 @@ class AtomoSesion:
     orden: int
     pregunta: Optional[str] = None
     uso_pista: bool = False  # True si el estudiante pidió pista → cap amarillo
+    tipo: str = "teorico"     # teorico | practico
+    enunciado: Optional[str] = None        # solo si tipo='practico'
+    solucion_pasos: Optional[str] = None   # solo si tipo='practico'
 
 
 @dataclass
@@ -291,14 +294,27 @@ async def cargar_sesion(
     if usuario_res.data:
         mundo_analogias = usuario_res.data[0].get("mundo_analogias") or ""
 
-    # Átomos de los temas elegidos (sin duplicados)
-    atomos_res = await asyncio.to_thread(
-        lambda: db.table("atomos")
-        .select("id, titulo_corto, texto_completo, embedding, tema_id, orden")
+    # Modo de la sesión: 'oral' (teóricos por voz) | 'practico' (ejercicios autoevaluados)
+    sesion_meta = await asyncio.to_thread(
+        lambda: db.table("sesiones").select("modo").eq("id", sesion_id).single().execute()
+    )
+    modo_sesion = ((sesion_meta.data or {}).get("modo") or "oral").lower()
+    if modo_sesion not in ("oral", "practico"):
+        modo_sesion = "oral"
+
+    # Átomos de los temas elegidos (sin duplicados), filtrados por tipo según modo
+    atomos_query = (
+        db.table("atomos")
+        .select("id, titulo_corto, texto_completo, embedding, tema_id, orden, tipo, enunciado, solucion_pasos")
         .in_("tema_id", temas_elegidos)
         .is_("es_duplicado_de", "null")
-        .execute()
     )
+    if modo_sesion == "practico":
+        atomos_query = atomos_query.eq("tipo", "practico")
+    else:
+        # Oral: teóricos. Si no hay aún (datos antiguos sin tipo), default cubre todo gracias al CHECK + DEFAULT.
+        atomos_query = atomos_query.eq("tipo", "teorico")
+    atomos_res = await asyncio.to_thread(lambda: atomos_query.execute())
 
     if not atomos_res.data:
         logger.warning(f"[{sesion_id}] Sin átomos para los temas {temas_elegidos}")
@@ -361,6 +377,9 @@ async def cargar_sesion(
             embedding=json.loads(a["embedding"]) if isinstance(a["embedding"], str) else (a["embedding"] or []),
             tema_id=a["tema_id"],
             orden=a["orden"],
+            tipo=a.get("tipo") or "teorico",
+            enunciado=a.get("enunciado"),
+            solucion_pasos=a.get("solucion_pasos"),
         )
         for a in atomos_ordenados
     ]

@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=59" />
+<link rel="stylesheet" href="style.css?v=60" />
 <!-- KaTeX — LaTeX rendering (no build step required) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
@@ -893,6 +893,82 @@
 
     </div>
 
+    <!-- 8. PRACTICA (autoevaluado paso a paso) -->
+    <div id="v-practica" class="view-slide" style="transform:translateX(100%)">
+      <div class="practica-topbar">
+        <button class="practica-back-btn" onclick="closePracticaSession()" aria-label="Volver">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <div class="practica-prog-wrap">
+          <div class="practica-prog-track"><div class="practica-prog-fill" id="practica-prog-fill"></div></div>
+          <span class="practica-prog-label" id="practica-counter">1 / 1</span>
+        </div>
+      </div>
+
+      <div class="practica-scrollable">
+        <!-- Loading -->
+        <div id="practica-loading" class="practica-loading">
+          <div class="gooey-loader" role="status" aria-label="Cargando">
+            <svg class="gooey-loader-svg" aria-hidden="true">
+              <defs>
+                <filter id="gooey-loader-filter-2">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation="12" result="blur"/>
+                  <feColorMatrix in="blur" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 48 -7" result="goo"/>
+                  <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+                </filter>
+              </defs>
+            </svg>
+            <div class="gooey-loader-track"></div>
+          </div>
+          <div class="practica-loading-title">Preparando ejercicios</div>
+        </div>
+
+        <!-- Content -->
+        <div id="practica-content" class="practica-content" style="display:none">
+          <div class="practica-card">
+            <div class="practica-titulo" id="practica-titulo"></div>
+            <div class="practica-enunciado" id="practica-enunciado"></div>
+
+            <button class="practica-done-btn" id="practica-done-btn" onclick="practicaShowSolution()">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px;vertical-align:-2px"><polyline points="20 6 9 17 4 12"/></svg>
+              He hecho el ejercicio
+            </button>
+
+            <div id="practica-solucion-wrap" class="practica-solucion-wrap hidden">
+              <div class="practica-solucion-label">Solución paso a paso</div>
+              <div class="practica-solucion" id="practica-solucion"></div>
+              <div class="practica-eval">
+                <button class="practica-eval-btn rojo" onclick="practicaEval('rojo')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  Mal
+                </button>
+                <button class="practica-eval-btn verde" onclick="practicaEval('verde')">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                  Bien
+                </button>
+                <button class="practica-eval-btn ghost" onclick="practicaSimilar()" id="practica-similar-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
+                  Otro similar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Done screen -->
+        <div id="practica-done-screen" class="practica-done-screen" style="display:none">
+          <div class="practica-done-circle">
+            <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+          </div>
+          <div class="practica-done-title">¡Sesión completada!</div>
+          <div class="practica-done-sub" id="practica-done-sub"></div>
+          <div class="practica-done-actions">
+            <button class="practica-done-btn-exit" onclick="closePracticaSession()">Volver</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <!-- Navegación Flotante Inferior -->
@@ -1601,7 +1677,7 @@
 
 </div>
 
-<script src="app.js?v=50"></script>
+<script src="app.js?v=51"></script>
 <script>
 // goNotif, _notifIdx, _onNotifScroll are defined in app.js (scroll-snap based)
 // Auto-advance every 5s

@@ -716,6 +716,8 @@ async def finalizar_sesion(sesion_id: str):
             "n_preguntas":            n_rev,
             "fecha_objetivo":         review_date,
             "slot":                   "anytime",
+            "modo":                   sesion.get("modo") or "oral",
+            "nombre":                 f"Repaso: {sesion.get('nombre') or 'sesión'}"[:80],
         }).execute()
         logger.info(f"[{sesion_id}] Review session created for plan {plan_id} at {review_date}")
 
@@ -741,3 +743,162 @@ async def postpone_session(sesion_id: str):
     db.table("sesiones").update({"fecha_objetivo": new_date}).eq("id", sesion_id).execute()
     logger.info(f"Session {sesion_id} postponed to {new_date}")
     return {"ok": True, "fecha_objetivo": new_date}
+
+
+# ── Modo práctico (autoevaluado paso a paso) ─────────────────────────────────
+
+@router.get("/sesion/{sesion_id}/meta")
+async def sesion_meta(sesion_id: str):
+    """Devuelve metadatos minimales de la sesión (usado por frontend para decidir flujo)."""
+    db = get_service_client()
+    res = (
+        db.table("sesiones")
+        .select("id, status, modo, nombre, plan_id, n_preguntas, lang, asignatura_id, temas_elegidos, duration_type")
+        .eq("id", sesion_id)
+        .single()
+        .execute()
+    )
+    if not res.data:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+    s = res.data
+    return {
+        "id": s["id"],
+        "status": s.get("status"),
+        "modo": s.get("modo") or "oral",
+        "nombre": s.get("nombre"),
+        "plan_id": s.get("plan_id"),
+        "n_preguntas": s.get("n_preguntas"),
+        "lang": s.get("lang", "es"),
+        "asignatura_id": s.get("asignatura_id"),
+        "temas_elegidos": s.get("temas_elegidos") or [],
+        "duration_type": s.get("duration_type"),
+    }
+
+
+@router.get("/sesion/{sesion_id}/atomos_practica")
+async def atomos_practica_sesion(sesion_id: str):
+    """Devuelve los átomos prácticos (con enunciado + solución) de una sesión modo='practico'.
+    Filtra por temas_elegidos de la sesión y excluye duplicados.
+    Limita a n_preguntas si está definido."""
+    db = get_service_client()
+    sres = db.table("sesiones").select("temas_elegidos, n_preguntas, modo").eq("id", sesion_id).single().execute()
+    if not sres.data:
+        raise HTTPException(status_code=404, detail="Sesión no encontrada")
+    sesion = sres.data
+    temas = sesion.get("temas_elegidos") or []
+    if not temas:
+        return []
+    n_max = sesion.get("n_preguntas") or 10
+    # Excluir átomos ya respondidos en esta sesión (para reanudar)
+    respondidos_res = db.table("resultados").select("atomo_id").eq("sesion_id", sesion_id).execute()
+    ids_respondidos = {r["atomo_id"] for r in (respondidos_res.data or [])}
+
+    a_res = (
+        db.table("atomos")
+        .select("id, titulo_corto, enunciado, solucion_pasos, tema_id, orden")
+        .in_("tema_id", temas)
+        .eq("tipo", "practico")
+        .is_("es_duplicado_de", "null")
+        .order("orden", desc=False)
+        .execute()
+    )
+    rows = [a for a in (a_res.data or []) if a["id"] not in ids_respondidos]
+    return [
+        {
+            "id": a["id"],
+            "titulo_corto": a.get("titulo_corto"),
+            "enunciado": a.get("enunciado") or "",
+            "solucion_pasos": a.get("solucion_pasos") or "",
+        }
+        for a in rows[:n_max]
+    ]
+
+
+class PracticaResultadoRequest(BaseModel):
+    atomo_id: str = Field(..., max_length=36)
+    estado: Literal["verde", "amarillo", "rojo"]
+
+
+@router.post("/sesion/{sesion_id}/practica-resultado")
+async def guardar_practica_resultado(sesion_id: str, body: PracticaResultadoRequest):
+    """Guarda la autoevaluación (verde/rojo) de un ejercicio práctico."""
+    db = get_service_client()
+    db.table("resultados").insert({
+        "sesion_id": sesion_id,
+        "atomo_id": body.atomo_id,
+        "estado": body.estado,
+        "respuesta_usuario": "[práctica autoevaluada]",
+        "similitud_coseno": 1.0 if body.estado == "verde" else 0.0,
+    }).execute()
+    return {"ok": True}
+
+
+@router.post("/atomo/{atomo_id}/similar")
+async def generar_ejercicio_similar(atomo_id: str):
+    """Pide a Gemini un nuevo ejercicio del MISMO TIPO/dificultad que el átomo dado.
+    No persiste — es transitorio para refuerzo en sesión práctica."""
+    db = get_service_client()
+    a_res = db.table("atomos").select("titulo_corto, texto_completo, enunciado, solucion_pasos, tipo").eq("id", atomo_id).single().execute()
+    if not a_res.data:
+        raise HTTPException(status_code=404, detail="Átomo no encontrado")
+    a = a_res.data
+    if (a.get("tipo") or "teorico") != "practico":
+        raise HTTPException(status_code=400, detail="Este átomo no es de tipo práctico")
+
+    prompt = f"""Eres un generador de ejercicios prácticos. Te paso un ejercicio existente y debes crear OTRO EJERCICIO SIMILAR del mismo tipo y dificultad, pero con datos numéricos diferentes y un planteamiento ligeramente distinto.
+
+EJERCICIO ORIGINAL:
+Concepto: {a.get('titulo_corto', '')}
+Enunciado: {a.get('enunciado', '')}
+Solución original: {a.get('solucion_pasos', '')}
+
+Devuelve SOLO este JSON (sin markdown, sin texto adicional):
+{{
+  "enunciado": "string (nuevo enunciado con datos diferentes, sin la solución)",
+  "solucion_pasos": "string (resolución paso a paso completa con el resultado final)"
+}}
+
+Reglas: misma técnica/fórmula que el original, datos diferentes, dificultad equivalente."""
+
+    try:
+        import google.genai as genai
+        from google.genai import types
+        from config import settings as _s
+        from core.limits import GEMINI_SEM
+        if _s.gemini_api_key:
+            client = genai.Client(api_key=_s.gemini_api_key)
+        else:
+            client = genai.Client(vertexai=True, project=_s.google_cloud_project, location=_s.google_cloud_location)
+
+        def _call():
+            return client.models.generate_content(
+                model=_s.gemini_model,
+                contents=prompt,
+                config=types.GenerateContentConfig(
+                    temperature=0.7,
+                    response_mime_type="application/json",
+                ),
+            )
+
+        async with GEMINI_SEM:
+            response = await asyncio.wait_for(asyncio.to_thread(_call), timeout=30.0)
+
+        import json as _json
+        text = response.text.strip()
+        if text.startswith("```"):
+            text = text.split("```", 2)[1]
+            if text.startswith("json"):
+                text = text[4:]
+            text = text.strip()
+        if text.endswith("```"):
+            text = text[:-3].strip()
+        data = _json.loads(text)
+        return {
+            "enunciado": data.get("enunciado", ""),
+            "solucion_pasos": data.get("solucion_pasos", ""),
+        }
+    except asyncio.TimeoutError:
+        raise HTTPException(status_code=504, detail="Timeout generando ejercicio similar")
+    except Exception as e:
+        logger.error(f"Error generando ejercicio similar para {atomo_id}: {e}")
+        raise HTTPException(status_code=500, detail="No se pudo generar el ejercicio")
