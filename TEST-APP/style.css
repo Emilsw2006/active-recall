@@ -252,6 +252,7 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   line-height: 1.45;
   letter-spacing: -0.02em;
   margin: 0;
+  display: none; /* solo waveform en mòbil; el desktop pot tornar-la a mostrar */
 }
 /* ─ Waveform animado ─ */
 .hub-waveform {
@@ -400,12 +401,12 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 .hub-start-btn {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   width: 100%;
   background: rgba(255,255,255,0.38);
   border: 1px solid rgba(255,255,255,0.62);
   border-radius: var(--r-pill);
-  padding: 18px 20px 18px 28px;
+  padding: 18px 28px;
   font-size: 1.08rem;
   font-weight: 600;
   color: var(--fg1);
@@ -422,7 +423,8 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   transform: translateY(-1px);
 }
 .hub-start-btn:active { transform: scale(.97); }
-/* mini waveform en el botón */
+/* mini waveform en el botón — oculta en mòbil */
+.hub-start-waveform { display: none; }
 .hub-start-waveform {
   display: flex;
   align-items: center;
@@ -6760,7 +6762,8 @@ button { touch-action: manipulation; }
     flex: unset;
     padding: 28px 32px;
   }
-  .hub-phrase { font-size: 1.35rem; }
+  .hub-phrase { font-size: 1.35rem; display: block; } /* restore on desktop */
+  .hub-start-waveform { display: flex; }              /* restore icon on desktop */
 
   /* Cards row — side by side, constrained width */
   .hub-cards-row {
