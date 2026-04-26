@@ -5798,7 +5798,8 @@ let _planTabsLoaded = { study: false, progress: false, files: false };
 
 // Format day name (short, language-aware)
 function _planDayShort(d) {
-  return d.toLocaleDateString(LANG === 'es' ? 'es' : (LANG === 'de' ? 'de' : 'en'), { weekday: 'short' });
+  const _l = (typeof currentLang !== 'undefined' ? currentLang : 'es');
+  return d.toLocaleDateString(_l === 'es' ? 'es' : (_l === 'de' ? 'de' : 'en'), { weekday: 'short' });
 }
 
 function _planRenderWeekStrip(planMeta, sessions) {
@@ -5968,7 +5969,7 @@ async function _planRenderProgress(planId) {
     const pct = data.pct_completadas || 0;
     const circumference = 2 * Math.PI * 78;
     const offset = circumference * (1 - pct / 100);
-    const dayLabels = (LANG === 'es')
+    const dayLabels = ((typeof currentLang !== 'undefined' ? currentLang : 'es') === 'es')
       ? ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
       : ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
     const maxBar = Math.max(1, ...data.ultimos_7_dias.map(d => d.sesiones));
