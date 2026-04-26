@@ -2587,6 +2587,24 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   flex-direction: column;
 }
 .fallos-overlay.open { display: flex; }
+/* Nav arrows: posicionades als cantons inferiors en mòbil */
+.fallos-nav-chev {
+  position: fixed;
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 24px);
+  width: 44px; height: 44px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.88);
+  border: 1px solid rgba(28,22,18,0.12);
+  color: #1c1612;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; z-index: 2010;
+  box-shadow: 0 8px 24px -8px rgba(28,22,18,0.28), inset 0 1px 0 rgba(255,255,255,0.85);
+  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
+  transition: background .18s ease, transform .18s ease;
+}
+.fallos-nav-prev { left: 24px; }
+.fallos-nav-next { right: 24px; }
+.fallos-nav-chev:active { background: #1c1612; color: #fdfaf7; transform: scale(0.94); }
 /* Card wrapper: mobile = fills screen, desktop = centred liquid glass card */
 .fallos-card {
   display: flex; flex-direction: column; flex: 1; min-height: 0;
@@ -8821,24 +8839,17 @@ button { touch-action: manipulation; }
   .fallos-overlay .fallos-inner-dot { background: rgba(28,22,18,0.18); }
   .fallos-overlay .fallos-inner-dot.active { background: #1c1612; }
 
-  /* ── Fletxes nav de la revisió ── */
+  /* ── Fletxes nav de la revisió — desktop: costats centrats ── */
   .fallos-nav-chev {
     position: absolute !important;
-    top: 50%;
+    top: 50% !important;
+    bottom: auto !important;
     transform: translateY(-50%);
     width: 44px !important; height: 44px !important;
-    border-radius: 50%;
-    background: rgba(255,255,255,0.85) !important;
-    border: 1px solid rgba(28,22,18,0.10) !important;
-    color: #1c1612;
-    display: inline-flex !important; align-items: center; justify-content: center;
-    cursor: pointer; z-index: 2;
-    box-shadow: 0 8px 24px -8px rgba(28,22,18,0.22), inset 0 1px 0 rgba(255,255,255,0.85);
-    backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-    transition: transform .18s ease, background .18s ease, box-shadow .18s ease;
   }
-  .fallos-nav-prev { left: max(16px, calc(50% - 310px - 58px)); }
-  .fallos-nav-next { right: max(16px, calc(50% - 310px - 58px)); }
+  .fallos-nav-prev { left: max(16px, calc(50% - 310px - 58px)) !important; right: auto !important; }
+  .fallos-nav-next { right: max(16px, calc(50% - 310px - 58px)) !important; left: auto !important; }
+  .fallos-nav-chev:active { transform: translateY(-50%) scale(0.94) !important; }
   .fallos-nav-chev:hover {
     background: #1c1612 !important; color: #fdfaf7 !important;
     transform: translateY(-50%) scale(1.06);
