@@ -1816,10 +1816,22 @@ async function loadDocs() {
   if (!list.innerHTML || list.innerHTML.includes('empty-state')) {
     list.innerHTML = `<div class="empty-state">${T('empty_loading')}</div>`;
   }
+
+  // Save any in-flight upload temp cards (not yet in DB) before refreshing the list
+  const tempUploadCards = Array.from(list.querySelectorAll('.doc-uploading'));
+
   try {
     const docs = await api(`/documentos/asignatura/${curSubjectId}`);
+    const knownIds = new Set(docs.map(d => `doc-card-${d.id}`));
+
     if (!docs.length) {
-      list.innerHTML = `<div class="empty-state">${T('empty_no_notes')}</div>`;
+      // If there are active upload temp cards, keep them visible instead of empty state
+      if (tempUploadCards.length) {
+        list.innerHTML = '';
+        tempUploadCards.forEach(c => list.appendChild(c));
+      } else {
+        list.innerHTML = `<div class="empty-state">${T('empty_no_notes')}</div>`;
+      }
       return;
     }
     list.className = 'doc-list';
@@ -1883,6 +1895,12 @@ async function loadDocs() {
       list.innerHTML = `<div class="empty-state">${T('empty_no_notes')}</div>`;
     }
 
+    // Re-prepend any upload temp cards whose doc isn't in the API response yet
+    // (upload fetch still in progress → doc not in DB → would otherwise disappear)
+    tempUploadCards.forEach(c => {
+      if (!knownIds.has(c.id)) list.prepend(c);
+    });
+
     // If any docs still processing, start per-doc polling (no self-loop)
     const procDocs = docs.filter(d => d.estado === 'procesando');
     for (const d of procDocs) {
@@ -1891,7 +1909,11 @@ async function loadDocs() {
       }
     }
   } catch(e) {
-    list.innerHTML = `<div class="empty-state" style="color:var(--red)">${e.message}</div>`;
+    // Don't wipe existing doc cards on a failed refresh — only show error if list was empty/loading
+    const hasContent = list.querySelector('.doc-card');
+    if (!hasContent) {
+      list.innerHTML = `<div class="empty-state" style="color:var(--red)">${e.message}</div>`;
+    }
   }
 }
 
