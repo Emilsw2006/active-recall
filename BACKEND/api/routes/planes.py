@@ -306,6 +306,120 @@ async def eliminar_plan(plan_id: str):
     return {"ok": True}
 
 
+@router.get("/plan/{plan_id}/progress")
+async def progress_del_plan(plan_id: str):
+    """Stats agregades del plan per al tab Progreso."""
+    db = get_service_client()
+
+    ses_res = (
+        db.table("sesiones")
+        .select("id, status, fecha_fin, is_review_session")
+        .eq("plan_id", plan_id)
+        .execute()
+    )
+    sesiones = ses_res.data or []
+    sesion_ids = [s["id"] for s in sesiones]
+
+    completadas = sum(1 for s in sesiones if s["status"] == "completada")
+    totales = len(sesiones)
+
+    # Resultats: comptar verdes/grocs/vermells
+    verde = amarillo = rojo = 0
+    atomos_dominados = set()
+    atomos_revisar = set()
+    if sesion_ids:
+        # Supabase .in_() pot tenir límit; per seguretat, fragmentem si fa falta
+        BATCH = 100
+        for i in range(0, len(sesion_ids), BATCH):
+            batch = sesion_ids[i : i + BATCH]
+            res_data = (
+                db.table("resultados")
+                .select("atomo_id, estado")
+                .in_("sesion_id", batch)
+                .execute()
+                .data
+                or []
+            )
+            for r in res_data:
+                est = r.get("estado", "rojo")
+                if est == "verde":
+                    verde += 1
+                    atomos_dominados.add(r["atomo_id"])
+                elif est == "amarillo":
+                    amarillo += 1
+                elif est == "rojo":
+                    rojo += 1
+                    atomos_revisar.add(r["atomo_id"])
+
+    # Eliminar de "revisar" els que han acabat dominats
+    atomos_revisar -= atomos_dominados
+
+    respondidas = verde + amarillo + rojo
+    correctas = verde
+    accuracy = round((correctas / respondidas) * 100) if respondidas else 0
+    pct_completades = round((completadas / totales) * 100) if totales else 0
+
+    # Últims 7 dies: sessions completades per data
+    today = date.today()
+    dias = []
+    by_date = {}
+    for s in sesiones:
+        if s["status"] == "completada" and s.get("fecha_fin"):
+            try:
+                d = s["fecha_fin"][:10]
+                by_date[d] = by_date.get(d, 0) + 1
+            except Exception:
+                pass
+    for offset in range(6, -1, -1):
+        d = (today - timedelta(days=offset)).isoformat()
+        dias.append({"fecha": d, "sesiones": by_date.get(d, 0)})
+
+    return {
+        "sesiones_completadas": completadas,
+        "sesiones_totales": totales,
+        "pct_completadas": pct_completades,
+        "preguntas_respondidas": respondidas,
+        "preguntas_correctas": correctas,
+        "accuracy_pct": accuracy,
+        "atomos_dominados": len(atomos_dominados),
+        "atomos_revisar": len(atomos_revisar),
+        "ultimos_7_dias": dias,
+    }
+
+
+@router.get("/plan/{plan_id}/documentos")
+async def documentos_del_plan(plan_id: str):
+    """Documents lligats als temes del plan (tab Archivos)."""
+    db = get_service_client()
+
+    plan_res = db.table("planes").select("temas_elegidos").eq("id", plan_id).execute()
+    if not plan_res.data:
+        raise HTTPException(status_code=404, detail="Plan no encontrado")
+    tema_ids = plan_res.data[0].get("temas_elegidos") or []
+    if not tema_ids:
+        return []
+
+    # temes -> documento_id
+    temas_res = (
+        db.table("temas")
+        .select("id, documento_id")
+        .in_("id", tema_ids)
+        .execute()
+    )
+    doc_ids = list({t["documento_id"] for t in (temas_res.data or []) if t.get("documento_id")})
+    if not doc_ids:
+        return []
+
+    docs_res = (
+        db.table("documentos")
+        .select("id, nombre_archivo, estado, fecha_subida")
+        .in_("id", doc_ids)
+        .order("fecha_subida", desc=True)
+        .execute()
+    )
+    return docs_res.data or []
+
+
 @router.get("/plan/{plan_id}/test-atomos")
 async def test_atomos_plan(plan_id: str):
     """Devuelve átomos únicos de todas las sesiones del plan para test global."""

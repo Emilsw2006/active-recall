@@ -15,7 +15,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="style.css?v=57" />
+<link rel="stylesheet" href="style.css?v=58" />
 <!-- KaTeX — LaTeX rendering (no build step required) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" crossorigin="anonymous">
 <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" crossorigin="anonymous"></script>
@@ -1217,23 +1217,40 @@
   </button>
 </div>
 
-<!-- Plan Detail Overlay -->
+<!-- Plan Detail Overlay (v2 — gamified) -->
 <div class="plan-detail-overlay" id="plan-detail-overlay">
-  <div class="plan-detail-header">
+  <!-- Top bar: close + actions -->
+  <div class="plan-detail-topbar">
     <button class="ajustes-close plan-detail-close-btn" onclick="closePlanDetail()">
       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
     </button>
-    <div class="plan-detail-header-info">
-      <div class="plan-detail-title" id="plan-detail-title">Plan</div>
-      <div class="plan-detail-meta-text" id="plan-detail-meta"></div>
-    </div>
+    <button class="plan-detail-action-btn" id="plan-settings-btn" onclick="openPlanSettings()" aria-label="Ajustes">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+    </button>
   </div>
-  <!-- Progress bar -->
-  <div class="plan-header-progress" id="plan-header-progress">
-    <div class="plan-header-progress-fill" id="plan-header-progress-fill"></div>
+  <!-- Weekly calendar strip -->
+  <div class="plan-week-strip" id="plan-week-strip"></div>
+  <!-- Title + countdown -->
+  <div class="plan-detail-titlebar">
+    <div class="plan-detail-title" id="plan-detail-title">Plan</div>
+    <div class="plan-detail-countdown" id="plan-detail-countdown"></div>
   </div>
-  <!-- Single-slide body -->
-  <div class="plan-detail-body" id="plan-detail-body"></div>
+  <!-- Segmented tabs -->
+  <div class="plan-tabs" role="tablist">
+    <button class="plan-tab-pill active" data-plan-tab="study" onclick="switchPlanTab('study')">Estudio</button>
+    <button class="plan-tab-pill" data-plan-tab="progress" onclick="switchPlanTab('progress')">
+      Progreso <span class="plan-tab-pill-badge" id="plan-tab-progress-badge">0%</span>
+    </button>
+    <button class="plan-tab-pill" data-plan-tab="files" onclick="switchPlanTab('files')">
+      Archivos <span class="plan-tab-pill-badge" id="plan-tab-files-badge">0</span>
+    </button>
+  </div>
+  <!-- Tab panes -->
+  <div class="plan-detail-body" id="plan-detail-body">
+    <div class="plan-tab-pane active" data-plan-pane="study" id="plan-pane-study"></div>
+    <div class="plan-tab-pane" data-plan-pane="progress" id="plan-pane-progress"></div>
+    <div class="plan-tab-pane" data-plan-pane="files" id="plan-pane-files"></div>
+  </div>
 </div>
 
 <!-- Próximas full-screen overlay (slides in from right) -->
@@ -1582,7 +1599,7 @@
 
 </div>
 
-<script src="app.js?v=47"></script>
+<script src="app.js?v=48"></script>
 <script>
 // goNotif, _notifIdx, _onNotifScroll are defined in app.js (scroll-snap based)
 // Auto-advance every 5s

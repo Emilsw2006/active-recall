@@ -5754,296 +5754,357 @@ async function openRevision(sesionId) {
   }
 }
 
-// ─ Plan detail overlay ─
+// ─ Plan detail overlay (v2 — gamified) ─
 
 let _currentPlanDetailId = '';
+let _currentPlanSessions = [];
+let _currentPlanMeta = {};
+let _planTabsLoaded = { study: false, progress: false, files: false };
+
+// Format day name (short, language-aware)
+function _planDayShort(d) {
+  return d.toLocaleDateString(LANG === 'es' ? 'es' : (LANG === 'de' ? 'de' : 'en'), { weekday: 'short' });
+}
+
+function _planRenderWeekStrip(planMeta, sessions) {
+  const stripEl = $('plan-week-strip');
+  if (!stripEl) return;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const todayStr = _localDateStr();
+
+  // Compute week range: 3 days before, today, 3 days after
+  // BUT: if exam is within ±3 days, recenter so exam is visible
+  const examStr = planMeta.fecha_examen || '';
+  let startOffset = -3;
+  if (examStr) {
+    const examDate = new Date(examStr + 'T12:00:00'); examDate.setHours(0,0,0,0);
+    const daysToExam = Math.round((examDate - today) / 86400000);
+    if (daysToExam >= -3 && daysToExam <= 6) {
+      startOffset = Math.min(-1, daysToExam - 6); // make sure exam is in the visible window
+      if (startOffset < -3) startOffset = -3;
+    }
+  }
+
+  // Index sessions by date
+  const sessByDate = {};
+  const completedByDate = {};
+  sessions.forEach(s => {
+    const d = s.fecha_objetivo;
+    if (!d) return;
+    if (!sessByDate[d]) sessByDate[d] = 0;
+    sessByDate[d]++;
+    if (s.status === 'completada') {
+      if (!completedByDate[d]) completedByDate[d] = 0;
+      completedByDate[d]++;
+    }
+  });
+
+  let html = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(today); d.setDate(today.getDate() + startOffset + i);
+    const yyyy = d.getFullYear();
+    const mm = String(d.getMonth()+1).padStart(2,'0');
+    const dd = String(d.getDate()).padStart(2,'0');
+    const dStr = `${yyyy}-${mm}-${dd}`;
+    const isToday = dStr === todayStr;
+    const isExam  = examStr && dStr === examStr;
+    const hasSess = (sessByDate[dStr] || 0) > 0;
+    const isCompleted = hasSess && completedByDate[dStr] === sessByDate[dStr];
+    const cls = ['plan-week-day'];
+    if (isExam) cls.push('exam');
+    else if (isToday) cls.push('today');
+    else if (isCompleted) cls.push('completed');
+    else if (hasSess) cls.push('has-session');
+    const inner = isExam
+      ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`
+      : d.getDate();
+    html += `
+      <div class="${cls.join(' ')}">
+        <div class="plan-week-day-name">${_planDayShort(d)}</div>
+        <div class="plan-week-day-circle">${inner}</div>
+      </div>`;
+  }
+  stripEl.innerHTML = html;
+}
+
+function _planRenderCountdown(planMeta) {
+  const el = $('plan-detail-countdown');
+  if (!el) return;
+  const examStr = planMeta.fecha_examen;
+  if (!examStr) { el.textContent = ''; return; }
+  const today = new Date(); today.setHours(0,0,0,0);
+  const exam = new Date(examStr + 'T12:00:00'); exam.setHours(0,0,0,0);
+  const days = Math.round((exam - today) / 86400000);
+  el.classList.remove('urgent');
+  let txt = '';
+  if (days < 0)        txt = `Examen pasado`;
+  else if (days === 0) txt = `Examen hoy`;
+  else if (days === 1) { txt = `Examen mañana`; el.classList.add('urgent'); }
+  else if (days <= 3)  { txt = `Examen en ${days} días`; el.classList.add('urgent'); }
+  else                 txt = `Examen en ${days} días`;
+  el.textContent = txt;
+}
+
+function _planRenderLevels(sessions, planMeta) {
+  const pane = $('plan-pane-study');
+  if (!pane) return;
+  if (!sessions.length) {
+    pane.innerHTML = `<div class="plan-empty-state">${T('hist_empty_sessions') || 'Sin sesiones'}</div>`;
+    return;
+  }
+  const nDefault = planMeta.atomos_por_sesion || 10;
+  // Sequential gating: find first non-completed
+  let firstPendingIdx = -1;
+  for (let i = 0; i < sessions.length; i++) {
+    if (sessions[i].status !== 'completada') { firstPendingIdx = i; break; }
+  }
+  const completadas = sessions.filter(s => s.status === 'completada').length;
+  const showStartHere = completadas === 0 && firstPendingIdx >= 0;
+
+  const tipoLabel = s => {
+    if (s.is_review_session) return 'Repaso';
+    if (s.tipo_sesion === 'reinforcement') return 'Refuerzo';
+    return 'Estudio';
+  };
+
+  let html = `<div class="plan-level-list">`;
+  sessions.forEach((s, i) => {
+    const isCompleted = s.status === 'completada';
+    const isActive    = i === firstPendingIdx;
+    const isLocked    = !isCompleted && !isActive;
+    const isReview    = !!s.is_review_session;
+    const cls = ['plan-level-item'];
+    if (isCompleted) cls.push('completed');
+    if (isActive)    cls.push('active');
+    if (isLocked)    cls.push('locked');
+    if (isReview)    cls.push('review');
+    const numContent = isCompleted
+      ? `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`
+      : (isReview ? '↺' : s.numero);
+    let ctaContent;
+    let ctaAction;
+    if (isCompleted) {
+      ctaContent = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7L3 8"/><polyline points="3 3 3 8 8 8"/></svg>`;
+      ctaAction  = `openRevision('${s.id}')`;
+    } else if (isActive) {
+      ctaContent = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+      ctaAction  = `startPlanSession('${s.id}')`;
+    } else {
+      ctaContent = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
+      ctaAction  = '';
+    }
+    const nQ = s.n_preguntas || nDefault;
+    const titleText = isReview ? `Sesión de repaso` : `Sesión ${s.numero}`;
+    const subText = `${nQ} preguntas · ${tipoLabel(s)}`;
+    if (showStartHere && isActive) {
+      html += `
+        <div class="plan-start-here">
+          <span class="plan-start-here-text">Empieza aquí</span>
+          <svg class="plan-start-here-arrow" width="36" height="24" viewBox="0 0 36 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+            <path d="M2 4 C 12 8, 22 14, 30 22"/>
+            <polyline points="24 22 30 22 30 16"/>
+          </svg>
+        </div>`;
+    }
+    html += `
+      <div class="${cls.join(' ')}" data-sess-id="${s.id}">
+        <div class="plan-level-num">${numContent}</div>
+        <div class="plan-level-info">
+          <div class="plan-level-title">${titleText}</div>
+          <div class="plan-level-sub">${subText}</div>
+        </div>
+        <button class="plan-level-cta" ${ctaAction ? `onclick="${ctaAction}"` : 'disabled'}>${ctaContent}</button>
+      </div>`;
+  });
+  html += `</div>`;
+  pane.innerHTML = html;
+}
+
+async function _planRenderProgress(planId) {
+  const pane = $('plan-pane-progress');
+  if (!pane) return;
+  pane.innerHTML = `<div class="plan-empty-state">${T('rev_loading') || 'Cargando...'}</div>`;
+  try {
+    const data = await api(`/plan/${planId}/progress`);
+    const pct = data.pct_completadas || 0;
+    const circumference = 2 * Math.PI * 78;
+    const offset = circumference * (1 - pct / 100);
+    const dayLabels = (LANG === 'es')
+      ? ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom']
+      : ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+    const maxBar = Math.max(1, ...data.ultimos_7_dias.map(d => d.sesiones));
+
+    const weekBars = data.ultimos_7_dias.map(d => {
+      const dt = new Date(d.fecha + 'T12:00:00');
+      const lbl = dayLabels[(dt.getDay() + 6) % 7]; // Mon=0
+      const w = Math.round((d.sesiones / maxBar) * 100);
+      return `
+        <div class="plan-week-bar-row">
+          <span class="plan-week-bar-day">${lbl}</span>
+          <div class="plan-week-bar-track"><div class="plan-week-bar-fill" style="width:${d.sesiones ? Math.max(8, w) : 0}%"></div></div>
+          <span class="plan-week-bar-val">${d.sesiones}</span>
+        </div>`;
+    }).join('');
+
+    pane.innerHTML = `
+      <div class="plan-progress-wrap">
+        <div class="plan-progress-ring">
+          <svg viewBox="0 0 180 180">
+            <defs>
+              <linearGradient id="planRingGradient" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0%" stop-color="#f5d28a"/>
+                <stop offset="100%" stop-color="#e8a030"/>
+              </linearGradient>
+            </defs>
+            <circle class="plan-progress-ring-bg" cx="90" cy="90" r="78" fill="none" stroke-width="12"/>
+            <circle class="plan-progress-ring-fill" cx="90" cy="90" r="78" fill="none" stroke-width="12"
+              stroke-dasharray="${circumference}" stroke-dashoffset="${offset}"/>
+          </svg>
+          <div class="plan-progress-ring-center">
+            <div class="plan-progress-ring-pct">${pct}%</div>
+            <div class="plan-progress-ring-label">${data.sesiones_completadas}/${data.sesiones_totales} sesiones</div>
+          </div>
+        </div>
+        <div class="plan-stat-grid">
+          <div class="plan-stat-card">
+            <div class="plan-stat-card-val">${data.preguntas_respondidas}</div>
+            <div class="plan-stat-card-label">Preguntas respondidas</div>
+          </div>
+          <div class="plan-stat-card">
+            <div class="plan-stat-card-val">${data.accuracy_pct}%</div>
+            <div class="plan-stat-card-label">Precisión</div>
+          </div>
+          <div class="plan-stat-card">
+            <div class="plan-stat-card-val">${data.atomos_dominados}</div>
+            <div class="plan-stat-card-label">Conceptos dominados</div>
+          </div>
+          <div class="plan-stat-card">
+            <div class="plan-stat-card-val">${data.atomos_revisar}</div>
+            <div class="plan-stat-card-label">A revisar</div>
+          </div>
+        </div>
+        <div class="plan-week-bars">
+          <div class="plan-week-bars-title">Últimos 7 días</div>
+          ${weekBars}
+        </div>
+      </div>`;
+  } catch(e) {
+    pane.innerHTML = `<div class="plan-empty-state" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+async function _planRenderFiles(planId) {
+  const pane = $('plan-pane-files');
+  if (!pane) return;
+  pane.innerHTML = `<div class="plan-empty-state">${T('rev_loading') || 'Cargando...'}</div>`;
+  try {
+    const docs = await api(`/plan/${planId}/documentos`);
+    if (!docs.length) {
+      pane.innerHTML = `<div class="plan-empty-state">Sin documentos asociados</div>`;
+      const badge = $('plan-tab-files-badge'); if (badge) badge.textContent = '0';
+      return;
+    }
+    const badge = $('plan-tab-files-badge'); if (badge) badge.textContent = String(docs.length);
+    const html = `<div class="plan-files-list">${docs.map(d => `
+      <div class="plan-file-card">
+        <div class="plan-file-icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+        </div>
+        <div class="plan-file-info">
+          <div class="plan-file-name">${d.nombre_archivo || 'Documento'}</div>
+          <div class="plan-file-sub">${d.estado === 'listo' ? 'Procesado' : d.estado || ''}</div>
+        </div>
+      </div>`).join('')}</div>`;
+    pane.innerHTML = html;
+  } catch(e) {
+    pane.innerHTML = `<div class="plan-empty-state" style="color:var(--red)">${e.message}</div>`;
+  }
+}
+
+function switchPlanTab(name) {
+  document.querySelectorAll('.plan-tab-pill').forEach(b => {
+    b.classList.toggle('active', b.dataset.planTab === name);
+  });
+  document.querySelectorAll('.plan-tab-pane').forEach(p => {
+    p.classList.toggle('active', p.dataset.planPane === name);
+  });
+  if (name === 'progress' && !_planTabsLoaded.progress) {
+    _planTabsLoaded.progress = true;
+    _planRenderProgress(_currentPlanDetailId);
+  }
+  if (name === 'files' && !_planTabsLoaded.files) {
+    _planTabsLoaded.files = true;
+    _planRenderFiles(_currentPlanDetailId);
+  }
+}
+
+function openPlanSettings() {
+  if (confirm(T('plan_delete_confirm') || '¿Eliminar este plan?')) {
+    const pid = _currentPlanDetailId;
+    closePlanDetail();
+    api(`/plan/${pid}`, { method: 'DELETE' })
+      .then(() => { toast(T('toast_plan_deleted') || 'Plan eliminado', 'ok'); if (typeof loadPlanes === 'function') loadPlanes(); })
+      .catch(e => toast(e.message, 'err'));
+  }
+}
 
 async function openPlanDetail(planId) {
   _currentPlanDetailId = planId;
+  _planTabsLoaded = { study: false, progress: false, files: false };
   const overlay = $('plan-detail-overlay');
   if (!overlay) return;
 
+  // Reset tabs to study
+  document.querySelectorAll('.plan-tab-pill').forEach(b => {
+    b.classList.toggle('active', b.dataset.planTab === 'study');
+  });
+  document.querySelectorAll('.plan-tab-pane').forEach(p => {
+    p.classList.toggle('active', p.dataset.planPane === 'study');
+  });
+
   const p = _planCache[planId] || {};
-  const fechaExamen = p.fecha_examen || '';
-  const completadas = p.sesiones_completadas || 0;
-  const totales     = p.sesiones_totales || p.total_sesiones || 0;
+  _currentPlanMeta = p;
 
-  const titleEl     = $('plan-detail-title');
-  const metaEl      = $('plan-detail-meta');
-  const bodyEl      = $('plan-detail-body');
-  const progressBar = $('plan-header-progress-fill');
+  // Title + countdown
+  const titleEl = $('plan-detail-title');
+  if (titleEl) titleEl.textContent = p.nombre || 'Plan';
+  _planRenderCountdown(p);
 
-  if (titleEl) titleEl.textContent = p.nombre || '';
-
-  if (metaEl) {
-    const fechaFmt = fechaExamen
-      ? new Date(fechaExamen + 'T12:00:00').toLocaleDateString('es', { day: 'numeric', month: 'short', year: 'numeric' })
-      : '—';
-    const daysLeft = fechaExamen
-      ? Math.ceil((new Date(fechaExamen + 'T12:00:00') - new Date()) / 86400000)
-      : null;
-    const daysBadge = daysLeft !== null && daysLeft > 0
-      ? `<span class="plan-meta-days-badge">${daysLeft}d</span>`
-      : '';
-    metaEl.innerHTML = `<span>${T('plan_exam')} ${fechaFmt} · ${completadas}/${totales}</span>${daysBadge}`;
-  }
-
-  // Progress bar
-  if (progressBar) {
-    const pct = totales > 0 ? Math.round(completadas / totales * 100) : 0;
-    progressBar.style.width = `${pct}%`;
-  }
-
-  if (bodyEl) bodyEl.innerHTML = `<div style="color:rgba(255,255,255,0.45);font-size:.82rem;padding:12px 0">${T('rev_loading')}</div>`;
+  // Show overlay with loading state in study pane
+  const studyPane = $('plan-pane-study');
+  if (studyPane) studyPane.innerHTML = `<div class="plan-empty-state">${T('rev_loading') || 'Cargando...'}</div>`;
+  // Reset week strip with empty placeholder
+  _planRenderWeekStrip(p, []);
   overlay.classList.add('open');
 
   try {
     const sessions = await api(`/plan/${planId}/sesiones`);
-    if (!sessions.length) {
-      bodyEl.innerHTML = `<div style="color:rgba(255,255,255,0.45);font-size:.83rem;text-align:center;padding:24px">${T('hist_empty_sessions')}</div>`;
-      return;
-    }
-    const nDefault = p.atomos_por_sesion || 10;
+    _currentPlanSessions = sessions;
 
-    const today = _localDateStr();
-    const yesterday = (() => { const d = new Date(); d.setDate(d.getDate()-1); return d.toISOString().split('T')[0]; })();
-    const pending = sessions.filter(s => s.status !== 'completada');
-    const done    = sessions.filter(s => s.status === 'completada');
-    const review  = pending.filter(s => s.is_review_session);
-    const normal  = pending.filter(s => !s.is_review_session);
+    // Re-render week strip with real session data
+    _planRenderWeekStrip(p, sessions);
 
-    // Split: past (missed), today/current, future
-    const pastSess   = normal.filter(s => s.fecha_objetivo && s.fecha_objetivo < today);
-    const todaySess  = normal.filter(s => !s.fecha_objetivo || s.fecha_objetivo === today);
-    const futureSess = normal.filter(s => s.fecha_objetivo && s.fecha_objetivo > today);
+    // Render levels (sequential gating)
+    _planRenderLevels(sessions, p);
+    _planTabsLoaded.study = true;
 
-    const _sessLabel = s => {
-      const nQ   = s.n_preguntas || nDefault;
-      const prog = s.current_question_index || 0;
-      if (s.status === 'completada') return TF('plan_n_questions', {n: `${nQ}/${nQ}`});
-      if (s.status === 'empezada')   return TF('plan_n_questions', {n: `${prog}/${nQ}`});
-      return TF('plan_n_questions', {n: `0/${nQ}`});
-    };
-
-    const _tipoLabel = s => {
-      if (s.is_review_session) return 'Repaso';
-      const tipo = s.tipo_sesion || 'initial';
-      if (tipo === 'reinforcement') return 'Refuerzo';
-      return 'Estudio';
-    };
-
-    const _cardDateLabel = fechaStr => {
-      if (!fechaStr) return '';
-      const tom = new Date(); tom.setDate(tom.getDate() + 1);
-      const tomStr = `${tom.getFullYear()}-${String(tom.getMonth()+1).padStart(2,'0')}-${String(tom.getDate()).padStart(2,'0')}`;
-      if (fechaStr === tomStr) return 'Mañana';
-      const d = new Date(fechaStr + 'T12:00:00');
-      return d.toLocaleDateString('es', { weekday: 'short', day: 'numeric', month: 'short' });
-    };
-
-    const renderNormal = (s, highlight) => `
-      <div class="plan-detail-sess${s.status === 'completada' ? ' done' : ''}${highlight ? ' next' : ''}" data-sess-id="${s.id}">
-        <div class="plan-detail-sess-num">${s.status === 'completada' ? '✓' : s.numero}</div>
-        <div class="plan-detail-sess-info">
-          <div class="plan-detail-sess-label">${TF('plan_session_n', {n: s.numero})}</div>
-          <div class="plan-detail-sess-status">${_sessLabel(s)}</div>
-        </div>
-        ${s.status === 'completada'
-          ? `<button class="plan-detail-sess-btn plan-detail-sess-btn-ghost" onclick="openRevision('${s.id}')">${T('hist_review')}</button>`
-          : `<button class="plan-detail-sess-btn${highlight ? '' : ' plan-detail-sess-btn-ghost'}" onclick="startPlanSession('${s.id}')">${T('plan_start_session')}</button>`
-        }
-      </div>`;
-
-    const renderReview = s => `
-      <div class="plan-detail-sess review${s.status === 'completada' ? ' done' : ''}">
-        <div class="plan-detail-sess-num" style="font-size:.85rem">${s.status === 'completada' ? '✓' : '↺'}</div>
-        <div class="plan-detail-sess-info">
-          <div class="plan-detail-sess-label">Sesión de repaso</div>
-          <div class="plan-detail-sess-status">${_sessLabel(s)}</div>
-        </div>
-        ${s.status === 'completada'
-          ? `<button class="plan-detail-sess-btn plan-detail-sess-btn-ghost" onclick="openRevision('${s.id}')">${T('hist_review')}</button>`
-          : `<button class="plan-detail-sess-btn plan-detail-sess-btn-review" onclick="startPlanSession('${s.id}')">Hacer</button>`
-        }
-      </div>`;
-
-    const renderProximaCard = s => {
-      const nQ = s.n_preguntas || nDefault;
-      const isRev = s.is_review_session;
-      const dateLabel = _cardDateLabel(s.fecha_objetivo);
-      return `
-        <div class="plan-proximas-card${isRev ? ' review' : ''}">
-          ${dateLabel ? `<div class="plan-proximas-card-date">${dateLabel}</div>` : ''}
-          <div class="plan-proximas-card-num">${s.numero}</div>
-          <div class="plan-proximas-card-tipo">${_tipoLabel(s)}</div>
-          <div class="plan-proximas-card-sub">${nQ} preguntas</div>
-          <button class="plan-proximas-card-btn${isRev ? ' review' : ''}" onclick="startPlanSession('${s.id}')">${isRev ? 'Hacer' : T('plan_start_session')}</button>
-        </div>`;
-    };
-
-    let html = '';
-
-    if (review.length) {
-      html += `<div class="plan-detail-section-title plan-detail-section-review">REPASO</div>`;
-      html += review.map(renderReview).join('');
-    }
-
-    if (pastSess.length) {
-      html += `<div class="plan-detail-section-title" style="color:rgba(248,113,113,0.75)">ATRASADAS (${pastSess.length})</div>`;
-      html += pastSess.map(s => `<div style="opacity:.65">${renderNormal(s, false)}</div>`).join('');
-    }
-
-    if (todaySess.length) {
-      html += `<div class="plan-detail-section-title">HOY</div>`;
-      html += todaySess.map((s, i) => renderNormal(s, i === 0 && !pastSess.length)).join('');
-    }
-
-    // "Ver próximas" row — opens full-screen proximas overlay
-    if (futureSess.length) {
-      // Store future sessions for the overlay to render
-      _proximasSessions = futureSess;
-      html += `
-        <div class="plan-proximas-row" onclick="openProximas()">
-          <div class="plan-proximas-row-left">
-            <div class="plan-proximas-row-label">Próximas sesiones</div>
-            <div class="plan-proximas-row-sub">${futureSess.length} sesiones programadas</div>
-          </div>
-          <div class="plan-proximas-row-arrow">›</div>
-        </div>`;
-    }
-
-    if (done.length) {
-      const toggleId = `plan-done-${planId}`;
-      html += `<div class="plan-detail-section-title plan-detail-section-toggle" onclick="togglePlanDone('${toggleId}',this)">
-        COMPLETADAS (${done.length}) <span class="plan-detail-toggle-arrow">▾</span>
-      </div>
-      <div id="${toggleId}" class="plan-detail-done-list">
-        ${done.map(s => renderNormal(s, false)).join('')}
-      </div>`;
-    }
-
-    bodyEl.innerHTML = html;
-    if (bodyEl) _attachSwipeTomorrow(bodyEl);
+    // Update progress badge in tab
+    const completadas = sessions.filter(s => s.status === 'completada').length;
+    const totals = sessions.length;
+    const pct = totals > 0 ? Math.round(completadas / totals * 100) : 0;
+    const pBadge = $('plan-tab-progress-badge'); if (pBadge) pBadge.textContent = `${pct}%`;
   } catch(e) {
-    if (bodyEl) bodyEl.innerHTML = `<div style="color:var(--red);font-size:.82rem;padding:8px">${e.message}</div>`;
+    if (studyPane) studyPane.innerHTML = `<div class="plan-empty-state" style="color:var(--red)">${e.message}</div>`;
   }
 }
 
-// ── Próximas full-screen overlay ─────────────────────────────────────────────
-let _proximasSessions = [];
+// Backwards-compat stubs (called by deleted code paths in older bundles)
+function openProximas() { /* removed in v2 */ }
+function closeProximas() { /* removed in v2 */ }
 
-function openProximas() {
-  const overlay = $('proximas-overlay');
-  const bodyEl  = $('proximas-body');
-  if (!overlay || !bodyEl) return;
-
-  const nDefault = (_planCache[_currentPlanDetailId] || {}).atomos_por_sesion || 10;
-  const today = _localDateStr();
-
-  const _tipoLabel = s => {
-    if (s.is_review_session) return '↺ Repaso';
-    const tipo = s.tipo_sesion || 'initial';
-    if (tipo === 'reinforcement') return '⟳ Refuerzo';
-    return '● Estudio';
-  };
-
-  const _dayLabel = fechaStr => {
-    if (!fechaStr) return '';
-    const tom = new Date(); tom.setDate(tom.getDate() + 1);
-    const tomStr = `${tom.getFullYear()}-${String(tom.getMonth()+1).padStart(2,'0')}-${String(tom.getDate()).padStart(2,'0')}`;
-    if (fechaStr === today)   return 'Hoy';
-    if (fechaStr === tomStr)  return 'Mañana';
-    const d = new Date(fechaStr + 'T12:00:00');
-    return d.toLocaleDateString('es', { weekday: 'long', day: 'numeric', month: 'short' });
-  };
-
-  // Group by date
-  const byDate = {};
-  _proximasSessions.forEach(s => {
-    const key = s.fecha_objetivo || 'sin-fecha';
-    if (!byDate[key]) byDate[key] = [];
-    byDate[key].push(s);
-  });
-
-  let html = '';
-  Object.keys(byDate).sort().forEach(dateKey => {
-    const label = dateKey === 'sin-fecha' ? 'Sin fecha' : _dayLabel(dateKey);
-    html += `<div class="plan-detail-section-title" style="padding-top:4px">${label.toUpperCase()}</div>`;
-    byDate[dateKey].forEach(s => {
-      const nQ = s.n_preguntas || nDefault;
-      const isRev = s.is_review_session;
-      html += `
-        <div class="plan-detail-sess${isRev ? ' review' : ''}" data-sess-id="${s.id}">
-          <div class="plan-detail-sess-num" style="${isRev ? 'font-size:.85rem' : ''}">${isRev ? '↺' : s.numero}</div>
-          <div class="plan-detail-sess-info">
-            <div class="plan-detail-sess-label">${_tipoLabel(s)}</div>
-            <div class="plan-detail-sess-status">${nQ} preguntas</div>
-          </div>
-          <button class="plan-detail-sess-btn plan-detail-sess-btn-ghost" onclick="closeProximas();startPlanSession('${s.id}')">Empezar</button>
-        </div>`;
-    });
-  });
-
-  bodyEl.innerHTML = html || `<div style="color:rgba(255,255,255,0.35);font-size:.82rem;padding:20px 4px">Sin sesiones próximas</div>`;
-  _attachSwipeTomorrow(bodyEl);
-  overlay.classList.add('open');
-}
-
-function closeProximas() {
-  const overlay = $('proximas-overlay');
-  if (overlay) overlay.classList.remove('open');
-}
-
-// ── Plan detail: swipe-to-tomorrow on session cards ─────────────────────────
-function _attachSwipeTomorrow(container) {
-  const cards = container.querySelectorAll('.plan-detail-sess[data-sess-id]');
-  cards.forEach(card => {
-    if (card.classList.contains('done')) return;
-    let sx = 0, sy = 0, tx = 0, active = false;
-
-    card.addEventListener('touchstart', e => {
-      sx = e.touches[0].clientX;
-      sy = e.touches[0].clientY;
-      active = false; tx = 0;
-      card.style.transition = '';
-    }, {passive: true});
-
-    card.addEventListener('touchmove', e => {
-      const dx = e.touches[0].clientX - sx;
-      const dy = e.touches[0].clientY - sy;
-      if (!active && Math.abs(dy) > Math.abs(dx) + 8) return; // vertical scroll
-      if (dx <= 0) { if (active) { card.style.transform = ''; active = false; } return; }
-      active = true;
-      tx = Math.min(dx, 110);
-      card.style.transform = `translateX(${tx}px)`;
-      const ratio = Math.min(tx / 68, 1);
-      card.style.background = `rgba(52,211,153,${0.07 + ratio * 0.11})`;
-      card.style.borderColor = `rgba(52,211,153,${0.12 + ratio * 0.28})`;
-    }, {passive: true});
-
-    card.addEventListener('touchend', async () => {
-      const threshold = 68;
-      card.style.transition = 'transform .22s var(--ease-out,ease), background .22s, border-color .22s';
-      card.style.transform = '';
-      card.style.background = '';
-      card.style.borderColor = '';
-      if (active && tx >= threshold) {
-        const sessId = card.dataset.sessId;
-        card.style.opacity = '0.45';
-        try {
-          await api(`/sesion/${sessId}/postpone`, {method: 'PATCH'});
-          toast('Movido a mañana ☀️', 'ok');
-          await openPlanDetail(_currentPlanDetailId);
-        } catch(err) {
-          card.style.opacity = '';
-          toast(err.message, 'err');
-        }
-      }
-      setTimeout(() => { card.style.transition = ''; }, 250);
-      active = false; tx = 0;
-    }, {passive: true});
-  });
-}
 
 function togglePlanDone(id, titleEl) {
   const el = document.getElementById(id);
