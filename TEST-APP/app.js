@@ -1983,7 +1983,7 @@ async function loadDocTemas(docId) {
             const tipoAgg = st.tipo_agg || 'teorico';
             const tipoLbl = tipoAgg === 'mixto' ? 'Mixto' : (tipoAgg === 'practico' ? 'Práctico' : 'Teoría');
             const tipoBadge = `<span class="subtema-badge ${tipoAgg}">${tipoLbl}</span>`;
-            return `<div class="doc-subtema-item${_clickOk ? '' : ' disabled'}"${_clickOk ? ` onclick="openSubtemaPanel('${esc(st.titulo)}','${esc(t.titulo)}','${esc(t.id)}','${esc(st.id || '')}');event.stopPropagation()"` : ''}>
+            return `<div class="doc-subtema-item${_clickOk ? '' : ' disabled'}"${_clickOk ? ` onclick="openSubtemaPanel('${esc(st.titulo)}','${esc(t.titulo)}','${esc(t.id)}','${esc(st.id || '')}',${st.n_practicos||0});event.stopPropagation()"` : ''}>
               <div class="doc-subtema-dot"></div>
               <span class="doc-subtema-title">${esc(st.titulo)}</span>
               ${tipoBadge}
@@ -2032,7 +2032,7 @@ async function _checkPracticaSection(docId) {
 let _sepScrollListenerAdded = false;
 let _sepCurrentExercises = [];
 
-async function openSubtemaPanel(subtemaTitle, temaTitle, temaId, subtemaId) {
+async function openSubtemaPanel(subtemaTitle, temaTitle, temaId, subtemaId, nPracticosSubtema = 0) {
   const panel = document.getElementById('subtema-ejemplo-panel');
   if (!panel) return;
 
@@ -2101,11 +2101,11 @@ async function openSubtemaPanel(subtemaTitle, temaTitle, temaId, subtemaId) {
     let ejercicios = (allEjercicios || []).filter(matchFn);
     let genError = null;
 
-    // If no exercises exist yet for THIS subtema → auto-generate from its atoms
+    // If no exercises exist yet for THIS subtema → auto-generate from its atoms.
+    // Decisión basada en el contenido del subtema (n_practicos), NO en el tipo de asignatura.
     if (!ejercicios.length) {
-      const subj = (_subjData || []).find(s => s.id === asigId);
-      const asigTipo = (subj && subj.tipo) || 'teorica';
-      if ((asigTipo === 'practica' || asigTipo === 'mixta') && (subtemaId || temaId)) {
+      const hasAtomsPracticos = nPracticosSubtema > 0;
+      if (hasAtomsPracticos && (subtemaId || temaId)) {
         const res = await _generateSubtemaBatch(temaId, subtemaId, subtemaTitle, 0);
         ejercicios = res.ejercicios;
         genError = res.error;
@@ -2113,7 +2113,7 @@ async function openSubtemaPanel(subtemaTitle, temaTitle, temaId, subtemaId) {
     }
 
     _sepCurrentExercises = ejercicios;
-    _renderSepExerciseList(ejercicios, track, counter, dots, temaId, subtemaId, subtemaTitle, genError);
+    _renderSepExerciseList(ejercicios, track, counter, dots, temaId, subtemaId, subtemaTitle, genError, nPracticosSubtema);
 
   } catch(e) {
     if (track) track.innerHTML = `<div class="sep-swipe-page"><div class="practica-empty" style="color:var(--red)">${e.message}</div></div>`;
@@ -2151,14 +2151,12 @@ function sepNavExercise(dir) {
 }
 
 /** Renders the full list of exercises as swipeable cards */
-function _renderSepExerciseList(ejercicios, track, counter, dots, temaId, subtemaId, subtemaTitle, genError) {
+function _renderSepExerciseList(ejercicios, track, counter, dots, temaId, subtemaId, subtemaTitle, genError, nPracticosSubtema = 0) {
   if (!track) return;
   track.innerHTML = '';
 
   if (!ejercicios.length) {
-    const subj = (_subjData || []).find(s => s.id === curSubjectId);
-    const asigTipo = (subj && subj.tipo) || 'teorica';
-    const canGenerate = (asigTipo === 'practica' || asigTipo === 'mixta') && (!!subtemaId || !!temaId);
+    const canGenerate = (nPracticosSubtema > 0) && (!!subtemaId || !!temaId);
     const subtemaTitleEsc = JSON.stringify(subtemaTitle || '').replace(/"/g, '&quot;');
 
     let title = 'Sin ejercicios para este subtema';
@@ -2169,7 +2167,7 @@ function _renderSepExerciseList(ejercicios, track, counter, dots, temaId, subtem
     } else if (canGenerate) {
       sub = 'No encontramos ejercicios en los apuntes de este subtema.';
     } else {
-      sub = 'Esta asignatura es teórica. Cambia el tipo a práctica o mixta en ajustes para generar ejercicios.';
+      sub = 'Este subtema no contiene átomos prácticos. Sube apuntes con ejercicios o fórmulas para generar ejercicios.';
     }
 
     track.innerHTML = `
@@ -2181,7 +2179,7 @@ function _renderSepExerciseList(ejercicios, track, counter, dots, temaId, subtem
         </div>
         <div class="sep-empty-title">${title}</div>
         <div class="sep-empty-sub">${sub}</div>
-        ${canGenerate ? `<button class="btn-pill sep-empty-cta" onclick="_retrySepGenerate('${temaId || ''}','${subtemaId || ''}', ${subtemaTitleEsc})">${genError ? 'Reintentar' : 'Generar con IA'}</button>` : ''}
+        ${canGenerate ? `<button class="btn-pill sep-empty-cta" onclick="_retrySepGenerate('${temaId || ''}','${subtemaId || ''}', ${subtemaTitleEsc}, ${nPracticosSubtema})">${genError ? 'Reintentar' : 'Generar con IA'}</button>` : ''}
       </div>`;
     if (counter) counter.textContent = '';
     if (dots) dots.innerHTML = '';
@@ -2336,7 +2334,7 @@ async function _generateSubtemaBatch(temaId, subtemaId, subtemaTitle, n = 0) {
 }
 
 /** Retry button from empty state */
-async function _retrySepGenerate(temaId, subtemaId, subtemaTitle) {
+async function _retrySepGenerate(temaId, subtemaId, subtemaTitle, nPracticosSubtema = 1) {
   const track   = document.getElementById('sep-swipe-track');
   const counter = document.getElementById('sep-counter');
   const dots    = document.getElementById('sep-dots');
@@ -2361,7 +2359,7 @@ async function _retrySepGenerate(temaId, subtemaId, subtemaTitle) {
   }
   const res = await _generateSubtemaBatch(temaId, subtemaId, subtemaTitle, 0);
   _sepCurrentExercises = res.ejercicios;
-  _renderSepExerciseList(res.ejercicios, track, counter, dots, temaId, subtemaId, subtemaTitle, res.error);
+  _renderSepExerciseList(res.ejercicios, track, counter, dots, temaId, subtemaId, subtemaTitle, res.error, nPracticosSubtema);
 }
 
 function closeSubtemaPanel() {
