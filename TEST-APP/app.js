@@ -5833,8 +5833,7 @@ function _planRenderWeekStrip(planMeta, sessions) {
   const completedByDate = {};
   const sessIdByDate = {}; // primer sesion_id por día → click hace scroll a esa card
   sessions.forEach(s => {
-    const d = s.fecha_objetivo;
-    if (!d) return;
+    const d = s.fecha_objetivo || todayStr; // sesiones sin fecha → aparecen hoy
     if (!sessByDate[d]) sessByDate[d] = 0;
     sessByDate[d]++;
     if (!sessIdByDate[d]) sessIdByDate[d] = s.id;

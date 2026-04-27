@@ -64,11 +64,22 @@ REGLAS CRÍTICAS:
 - Cubre TODO el contenido del documento sin omitir nada relevante.
 
 CLASIFICACIÓN DE TIPO (campo "tipo") — OBLIGATORIA:
-- "teorico" = definición, concepto, propiedad, teorema enunciado, contexto histórico, demostración cualitativa, ley o principio explicado conceptualmente. Es contenido de COMPRENSIÓN.
-- "practico" = ejercicio resuelto, problema con datos numéricos concretos, aplicación de fórmula con valores específicos, cálculo paso a paso. Es contenido de EJECUCIÓN.
-- Si el documento muestra una fórmula con valores numéricos resueltos, es "practico".
-- Si solo se enuncia/define la fórmula sin aplicarla a un caso, es "teorico".
-- En caso de duda, default "teorico".
+PREGUNTA CLAVE: ¿Puede el estudiante responder este contenido hablando, sin papel ni calculadora?
+  → SÍ (respuesta oral) = "teorico"
+  → NO (necesita calcular, resolver, aplicar fórmula con números) = "practico"
+
+"teorico" = todo lo que se responde con palabras: definiciones, conceptos, propiedades enunciadas, teoremas sin aplicar, historia, fechas, nombres, análisis literario, gramática, geografía, biología conceptual, economía conceptual sin cálculos, leyes/principios explicados en palabras.
+  Ejemplos teórico: "¿Qué es la elasticidad-precio?", "¿Cuándo fue la Revolución Francesa?", "¿Qué establece la ley de Ohm?", "Definición de integral".
+
+"practico" = todo lo que requiere papel/calculadora: matemáticas, física, química, economía CON NÚMEROS, problemas con datos a resolver, aplicación de fórmulas con valores, cálculos paso a paso.
+  Ejemplos práctico: "Calcula la elasticidad si P=10, Q=50", "Resuelve la integral de x²+3x", "Un objeto de 5kg cae 10m, ¿qué velocidad alcanza?", "Balancea H₂+O₂→H₂O".
+  REGLA CRÍTICA: Cualquier ejercicio de mates/física/química/economía CON DATOS NUMÉRICOS es "practico", aunque el documento lo presente como "ejemplo resuelto" o "demostración".
+
+REGLAS ADICIONALES:
+- Fórmula sola sin valores numéricos → "teorico" (se memoriza oralmente: "F=m·a")
+- Historia, lengua, literatura, geografía, biología descriptiva → "teorico" siempre
+- Fórmula aplicada con valores numéricos concretos → "practico" siempre
+- Test rápido: ¿necesitas una calculadora? SÍ → "practico". NO → "teorico"
 
 CAMPOS PARA TIPO="practico":
 - "enunciado": el problema tal como se le presentaría al estudiante para que lo resuelva. Incluye datos, contexto, qué se pide. NO incluyas la solución aquí.

@@ -186,8 +186,10 @@ async def crear_plan(body: CrearPlanRequest):
         n_practicos = sum(1 for a in atomos_detalles if a.get("tipo") == "practico")
         n_orales    = max(1, ceil(n_teoricos  / atomos_por_sesion)) if n_teoricos  > 0 else 0
         n_practs    = max(1, ceil(n_practicos / atomos_por_sesion)) if n_practicos > 0 else 0
+        today_fb = date.today()
         for i in range(n_orales + n_practs):
             modo_fb = "oral" if i < n_orales else "practico"
+            fecha_objetivo_fb = (today_fb + timedelta(days=i)).isoformat()
             db.table("sesiones").insert({
                 "usuario_id":             body.usuario_id,
                 "asignatura_id":          body.asignatura_id,
@@ -199,6 +201,7 @@ async def crear_plan(body: CrearPlanRequest):
                 "lang":                   body.lang,
                 "modo":                   modo_fb,
                 "nombre":                 f"Sesión {i+1}",
+                "fecha_objetivo":         fecha_objetivo_fb,
             }).execute()
 
     logger.info(f"Plan '{plan_nombre}' creado ({n_sesiones} sesiones, {total_atomos} átomos)")
