@@ -3027,15 +3027,46 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 .plan-level-info { flex: 1; min-width: 0; }
 .plan-level-title { font-size: .96rem; font-weight: 600; color: var(--fg1); line-height: 1.25; }
 .plan-level-sub   { font-size: .72rem; color: var(--fg3); margin-top: 3px; }
+/* ─ Mode badges in plan-detail levels ─ */
 .level-mode-badge {
-  display: inline-block; vertical-align: middle; margin-left: 6px;
-  font-size: .58rem; font-weight: 700; padding: 2px 7px; border-radius: 99px;
-  letter-spacing: .04em; text-transform: uppercase;
-  line-height: 1.4;
+  display: inline-flex; align-items: center; gap: 3px;
+  vertical-align: middle;
+  font-size: .62rem; font-weight: 700; padding: 3px 8px; border-radius: 99px;
+  letter-spacing: .02em; line-height: 1.3;
 }
 .level-mode-badge.practico {
-  background: rgba(180,140,210,0.20); color: #6e4595;
-  border: 1px solid rgba(180,140,210,0.32);
+  background: rgba(180,140,210,0.22); color: #6e4595;
+  border: 1px solid rgba(180,140,210,0.35);
+}
+.level-mode-badge.oral {
+  background: rgba(80,160,240,0.15); color: #2563eb;
+  border: 1px solid rgba(80,160,240,0.28);
+}
+.level-mode-badge.test {
+  background: rgba(245,158,11,0.15); color: #b45309;
+  border: 1px solid rgba(245,158,11,0.28);
+}
+/* ─ Mode chips in sesiones history cards ─ */
+.sess-mode-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  font-size: .62rem; font-weight: 700; padding: 2px 8px; border-radius: 99px;
+  letter-spacing: .02em; white-space: nowrap; flex-shrink: 0;
+}
+.sess-mode-chip.practico {
+  background: rgba(180,140,210,0.18); color: #6e4595;
+  border: 1px solid rgba(180,140,210,0.30);
+}
+.sess-mode-chip.oral {
+  background: rgba(80,160,240,0.14); color: #2563eb;
+  border: 1px solid rgba(80,160,240,0.24);
+}
+.sess-mode-chip.test {
+  background: rgba(245,158,11,0.14); color: #b45309;
+  border: 1px solid rgba(245,158,11,0.24);
+}
+.sess-mode-chip.repaso {
+  background: rgba(120,100,220,0.14); color: #6d55c7;
+  border: 1px solid rgba(120,100,220,0.24);
 }
 .plan-level-cta {
   flex-shrink: 0; width: 36px; height: 36px; border-radius: 50%;

@@ -5322,7 +5322,9 @@ async function loadSessions() {
         <div class="sess-acc-item" id="sess-acc-${s.sesion_id}" onclick="toggleSessCard('${s.sesion_id}')">
           <div class="sess-acc-header">
             <div class="sess-acc-info">
-              <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">${isTestSess ? '<span class="sess-acc-test-badge">TEST</span>' : isRepaso ? '<span class="sess-acc-test-badge" style="background:rgba(120,100,220,0.35);color:#c4b5fd;border-color:rgba(120,100,220,0.5)">REPASO</span>' : ''}${s.modo === 'practico' ? '<span class="sess-acc-test-badge mode-practico">PRÁCTICO</span>' : (s.modo === 'oral' && s.plan_id) ? '<span class="sess-acc-test-badge mode-oral">ORAL</span>' : ''}${esc(sesNombre)}</div>
+              <div class="sess-acc-title" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+                ${isTestSess ? '<span class="sess-mode-chip test">📝 Test</span>' : isRepaso ? '<span class="sess-mode-chip repaso">↺ Repaso</span>' : s.modo === 'practico' ? '<span class="sess-mode-chip practico">✏️ Práctico</span>' : s.plan_id ? '<span class="sess-mode-chip oral">🎙️ Oral</span>' : ''}
+                ${esc(sesNombre)}</div>
               <div class="sess-acc-meta">${fecha}${hora ? ' · ' + hora : ''}</div>
               ${c.total > 0 ? `<div class="sess-acc-stats">${c.verde > 0 ? `<span class="sess-stat-pill g">${c.verde}</span>` : ''}${c.amarillo > 0 ? `<span class="sess-stat-pill y">${c.amarillo}</span>` : ''}${c.rojo > 0 ? `<span class="sess-stat-pill r">${c.rojo}</span>` : ''}<span class="sess-stat-total">${fraccion}</span></div>` : `<div class="sess-acc-stats"><span class="sess-stat-total">${fraccion}</span></div>`}
             </div>
@@ -5950,11 +5952,14 @@ function _planRenderLevels(sessions, planMeta) {
     }
     const nQ = s.n_preguntas || nDefault;
     const baseTitle = isReview ? `Sesión de repaso` : (s.nombre || `Sesión ${s.numero}`);
-    const modoBadge = (s.modo === 'practico')
-      ? ` <span class="level-mode-badge practico">Práctico</span>`
-      : '';
-    const titleText = `${baseTitle}${modoBadge}`;
-    const subText = `${nQ} preguntas · ${tipoLabel(s)}`;
+    // Icono de modo
+    const modoIcon = s.duration_type === 'test'
+      ? `<span class="level-mode-badge test">📝 Test</span>`
+      : s.modo === 'practico'
+        ? `<span class="level-mode-badge practico">✏️ Práctico</span>`
+        : `<span class="level-mode-badge oral">🎙️ Oral</span>`;
+    const titleText = `${baseTitle}`;
+    const subText = `${modoIcon} · ${nQ} preguntas`;
     if (showStartHere && isActive) {
       html += `
         <div class="plan-start-here">
