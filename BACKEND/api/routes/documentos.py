@@ -198,15 +198,31 @@ async def temas_documento(documento_id: str):
         total_atomos_tema = 0
 
         for subtema in subtemas_res.data:
-            conteo_res = (
+            # Obtener átomos con su tipo para poder derivar tipo_agg
+            atomos_res = (
                 db.table("atomos")
-                .select("id", count="exact")
+                .select("id, tipo")
                 .eq("subtema_id", subtema["id"])
                 .execute()
             )
-            n_atomos = conteo_res.count or 0
+            atomos_data = atomos_res.data or []
+            n_atomos = len(atomos_data)
+            n_practicos = sum(1 for a in atomos_data if (a.get("tipo") or "teorico") == "practico")
+            n_teoricos = n_atomos - n_practicos
+            if n_practicos == 0:
+                tipo_agg = "teorico"
+            elif n_teoricos == 0:
+                tipo_agg = "practico"
+            else:
+                tipo_agg = "mixto"
             total_atomos_tema += n_atomos
-            subtemas_con_conteo.append({**subtema, "n_atomos": n_atomos})
+            subtemas_con_conteo.append({
+                **subtema,
+                "n_atomos": n_atomos,
+                "n_practicos": n_practicos,
+                "n_teoricos": n_teoricos,
+                "tipo_agg": tipo_agg,
+            })
 
         resultado.append({
             **tema,

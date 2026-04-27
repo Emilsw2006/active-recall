@@ -273,11 +273,14 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   animation: fadeUp .45s var(--ease-out) .16s both;
 }
 .hub-card {
-  flex: 1;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 96px;          /* altura fija — no varía con el contenido */
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 14px 14px 16px;
+  justify-content: center;
+  gap: 4px;
+  padding: 12px 14px;
   border-radius: var(--r-lg);
   background: rgba(255,255,255,0.50);
   border: 1px solid rgba(255,255,255,0.70);
@@ -316,7 +319,7 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   opacity: .6;
 }
 .hub-card-val {
-  font-size: 2.5rem;
+  font-size: 2.1rem;
   font-weight: 700;
   line-height: 1;
   color: var(--fg1);
@@ -324,11 +327,14 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   position: relative;
 }
 .hub-card-sub {
-  font-size: .76rem;
+  font-size: .72rem;
   color: var(--fg2);
   font-weight: 500;
-  line-height: 1.3;
+  line-height: 1.2;
   position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .hub-card-week {
   font-size: .70rem;
@@ -1532,6 +1538,17 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 .doc-subtema-arrow {
   opacity: 0.3; flex-shrink: 0;
 }
+.subtema-badge {
+  display: inline-block; flex-shrink: 0;
+  font-size: .56rem; font-weight: 700;
+  padding: 2px 7px; border-radius: 99px;
+  letter-spacing: .04em; text-transform: uppercase;
+  line-height: 1.3;
+  border: 1px solid transparent;
+}
+.subtema-badge.teorico  { background: rgba(120,170,220,0.18); color: #2c5a87; border-color: rgba(120,170,220,0.30); }
+.subtema-badge.practico { background: rgba(180,140,210,0.20); color: #6e4595; border-color: rgba(180,140,210,0.32); }
+.subtema-badge.mixto    { background: rgba(200,170,120,0.22); color: #7a5a18; border-color: rgba(200,170,120,0.36); }
 
 .doc-status-processing { font-size: .78rem; color: var(--yellow); display: flex; align-items: center; gap: 4px; }
 .doc-status-error { font-size: .78rem; color: var(--red); }
@@ -2644,8 +2661,10 @@ input, textarea { -webkit-appearance: none; appearance: none; }
 /* Inner wrapper — groups all plan-detail v2 children for mobile (full-height) & desktop (card) */
 .plan-detail-inner {
   flex: 1; display: flex; flex-direction: column; overflow: hidden; min-height: 0;
-  /* Solid cream bg on mobile so glass level cards are visible against it */
-  background: rgba(250, 244, 236, 0.72);
+  /* Liquid glass real: capa translúcida sobre el gradient con blur */
+  background: linear-gradient(180deg, rgba(250,244,236,0.55) 0%, rgba(250,244,236,0.40) 100%);
+  backdrop-filter: blur(18px) saturate(1.1);
+  -webkit-backdrop-filter: blur(18px) saturate(1.1);
 }
 
 /* Próximas: full-screen, slides in from the right */
@@ -2881,6 +2900,18 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   background: transparent;
   transition: all .22s ease;
 }
+.plan-week-day[onclick] {
+  cursor: pointer;
+  transition: background .15s ease, transform .15s ease;
+}
+.plan-week-day[onclick]:hover { background: rgba(255,255,255,0.45); }
+.plan-week-day[onclick]:active { transform: scale(.94); }
+@keyframes planLevelFlash {
+  0%   { box-shadow: 0 6px 20px -10px rgba(28,22,18,0.16), inset 0 1px 0 rgba(255,255,255,0.85); }
+  40%  { box-shadow: 0 0 0 3px rgba(255,180,90,0.55), 0 8px 28px -6px rgba(255,180,90,0.40), inset 0 1px 0 rgba(255,255,255,0.95); }
+  100% { box-shadow: 0 6px 20px -10px rgba(28,22,18,0.16), inset 0 1px 0 rgba(255,255,255,0.85); }
+}
+.plan-level-item.plan-level-flash { animation: planLevelFlash 1.2s ease; }
 .plan-week-day.has-session .plan-week-day-circle {
   border-style: solid; border-color: rgba(28,22,18,0.30);
   background: rgba(255,255,255,0.55);
@@ -3935,6 +3966,26 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   color: #6b97ff; font-size: .68rem; font-weight: 700;
   padding: 2px 8px; border-radius: 99px; letter-spacing: .06em; text-transform: uppercase;
 }
+.sess-acc-test-badge.mode-practico {
+  background: rgba(180,140,210,0.22);
+  border-color: rgba(180,140,210,0.40);
+  color: #6e4595;
+}
+.sess-acc-test-badge.mode-oral {
+  background: rgba(120,170,220,0.22);
+  border-color: rgba(120,170,220,0.40);
+  color: #2c5a87;
+}
+/* Píldoras de stats sin caracteres ✕/◑/✓ */
+.sess-stat-pill {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 18px; padding: 0 6px;
+  border-radius: 99px; font-size: .68rem; font-weight: 700;
+  font-variant-numeric: tabular-nums; line-height: 1;
+}
+.sess-stat-pill.g { background: rgba(120,200,140,0.28); color: #2d6f47; border: 1px solid rgba(120,200,140,0.36); }
+.sess-stat-pill.y { background: rgba(245,200,90,0.28);  color: #8a6014; border: 1px solid rgba(245,200,90,0.36); }
+.sess-stat-pill.r { background: rgba(230,120,120,0.28); color: #8a3a3a; border: 1px solid rgba(230,120,120,0.36); }
 
 /* ─ Subject tipo picker in Settings ─ */
 .ajustes-tipo-section {
@@ -7229,7 +7280,8 @@ button { touch-action: manipulation; }
     width: 100%;
     gap: 16px;
   }
-  .hub-card-val { font-size: 2.8rem; }
+  .hub-card { height: 110px; }
+  .hub-card-val { font-size: 2.5rem; }
 
   /* CTA — constrained width */
   .hub-cta-wrap {
@@ -7536,23 +7588,9 @@ button { touch-action: manipulation; }
     margin-top: 5px;
     flex-wrap: wrap;
   }
-  #sessions-list .sess-stat-dot {
-    display: inline-flex; align-items: center; gap: 2px;
-    font-size: .70rem; font-weight: 700;
-    padding: 2px 8px; border-radius: 99px;
-    line-height: 1.4;
-  }
-  #sessions-list .sess-stat-dot.g {
-    background: rgba(76,175,129,0.18); color: #2e8b5d;
-    border: 1px solid rgba(76,175,129,0.28);
-  }
-  #sessions-list .sess-stat-dot.y {
-    background: rgba(232,160,48,0.18); color: #b87410;
-    border: 1px solid rgba(232,160,48,0.28);
-  }
-  #sessions-list .sess-stat-dot.r {
-    background: rgba(220,80,90,0.16); color: #b8333d;
-    border: 1px solid rgba(220,80,90,0.24);
+  #sessions-list .sess-stat-pill {
+    min-width: 24px; height: 20px; padding: 0 8px;
+    font-size: .72rem;
   }
   #sessions-list .sess-stat-total {
     font-size: .76rem; color: rgba(28,22,18,0.45); font-weight: 500;

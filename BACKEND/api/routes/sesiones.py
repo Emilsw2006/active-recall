@@ -50,7 +50,7 @@ async def listar_sesiones_usuario(
 
     q = (
         db.table("sesiones")
-        .select("id, asignatura_id, duration_type, status, fecha_inicio, fecha_fin, current_question_index, temas_elegidos, plan_id, lang, nombre, n_preguntas, test_draft")
+        .select("id, asignatura_id, duration_type, status, fecha_inicio, fecha_fin, current_question_index, temas_elegidos, plan_id, lang, nombre, n_preguntas, test_draft, modo")
         .eq("usuario_id", usuario_id)
         .order("fecha_inicio", desc=True)
     )
@@ -147,6 +147,7 @@ async def listar_sesiones_usuario(
             "nombre": nombre_final,
             "n_preguntas": s.get("n_preguntas"),
             "has_test_draft": s.get("test_draft") is not None,
+            "modo": s.get("modo", "oral"),
         })
 
     # Regenerar los nombres faltantes con la IA, en background (sin bloquear la respuesta).
@@ -654,12 +655,17 @@ async def finalizar_sesion(sesion_id: str):
 
     # Átomos que tenían que responderse
     temas = sesion["temas_elegidos"]
-    atomos_res = (
+    sesion_modo = sesion.get("modo") or "oral"
+    atomos_q = (
         db.table("atomos")
-        .select("id, titulo_corto, texto_completo")
+        .select("id, titulo_corto, texto_completo, tipo")
         .in_("tema_id", temas)
-        .execute()
     )
+    # En modo práctico solo cuentan los átomos prácticos; los teóricos
+    # de los mismos temas no deben marcarse como "saltados".
+    if sesion_modo == "practico":
+        atomos_q = atomos_q.eq("tipo", "practico")
+    atomos_res = atomos_q.execute()
     todos_ids = {a["id"]: a for a in (atomos_res.data or [])}
 
     # Átomos que ya tienen resultado

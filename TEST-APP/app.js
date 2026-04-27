@@ -1979,13 +1979,18 @@ async function loadDocTemas(docId) {
         </div>
         ${hasSubtemas ? `
         <div class="doc-tema-body" id="tema-body-${t.id}" style="display:none">
-          ${subtemas.map(st => `
-            <div class="doc-subtema-item${_clickOk ? '' : ' disabled'}"${_clickOk ? ` onclick="openSubtemaPanel('${esc(st.titulo)}','${esc(t.titulo)}','${esc(t.id)}','${esc(st.id || '')}');event.stopPropagation()"` : ''}>
+          ${subtemas.map(st => {
+            const tipoAgg = st.tipo_agg || 'teorico';
+            const tipoLbl = tipoAgg === 'mixto' ? 'Mixto' : (tipoAgg === 'practico' ? 'Práctico' : 'Teoría');
+            const tipoBadge = `<span class="subtema-badge ${tipoAgg}">${tipoLbl}</span>`;
+            return `<div class="doc-subtema-item${_clickOk ? '' : ' disabled'}"${_clickOk ? ` onclick="openSubtemaPanel('${esc(st.titulo)}','${esc(t.titulo)}','${esc(t.id)}','${esc(st.id || '')}');event.stopPropagation()"` : ''}>
               <div class="doc-subtema-dot"></div>
               <span class="doc-subtema-title">${esc(st.titulo)}</span>
+              ${tipoBadge}
               <span class="doc-subtema-count">${st.n_atomos}</span>
               ${_clickOk ? `<svg class="doc-subtema-arrow" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><polyline points="9 18 15 12 9 6"/></svg>` : ''}
-            </div>`).join('')}
+            </div>`;
+          }).join('')}
         </div>` : ''}
       </div>`;
     }).join('');
@@ -5209,7 +5214,9 @@ async function loadSessions() {
     ]);
 
     const allSubjSess = [
-      ...sessions.filter(s => s.asignatura_id === curSubjectId && !s.plan_id),
+      // Excluir sesiones de plan ORAL (esas viven solo en planes), pero sí
+      // incluir las de plan PRÁCTICO en el historial estándar.
+      ...sessions.filter(s => s.asignatura_id === curSubjectId && (!s.plan_id || s.modo === 'practico')),
       ...repasoSessions.filter(s => s.asignatura_id === curSubjectId),
     ];
     const filteredTests = tests.filter(t => t.asignatura_id === curSubjectId);
@@ -5315,9 +5322,9 @@ async function loadSessions() {
         <div class="sess-acc-item" id="sess-acc-${s.sesion_id}" onclick="toggleSessCard('${s.sesion_id}')">
           <div class="sess-acc-header">
             <div class="sess-acc-info">
-              <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px">${isTestSess ? '<span class="sess-acc-test-badge">TEST</span>' : isRepaso ? '<span class="sess-acc-test-badge" style="background:rgba(120,100,220,0.35);color:#c4b5fd;border-color:rgba(120,100,220,0.5)">REPASO</span>' : ''}${esc(sesNombre)}</div>
+              <div class="sess-acc-title" style="display:flex;align-items:center;gap:7px;flex-wrap:wrap">${isTestSess ? '<span class="sess-acc-test-badge">TEST</span>' : isRepaso ? '<span class="sess-acc-test-badge" style="background:rgba(120,100,220,0.35);color:#c4b5fd;border-color:rgba(120,100,220,0.5)">REPASO</span>' : ''}${s.modo === 'practico' ? '<span class="sess-acc-test-badge mode-practico">PRÁCTICO</span>' : (s.modo === 'oral' && s.plan_id) ? '<span class="sess-acc-test-badge mode-oral">ORAL</span>' : ''}${esc(sesNombre)}</div>
               <div class="sess-acc-meta">${fecha}${hora ? ' · ' + hora : ''}</div>
-              ${c.total > 0 ? `<div class="sess-acc-stats">${c.verde > 0 ? `<span class="sess-stat-dot g">✓${c.verde}</span>` : ''}${c.amarillo > 0 ? `<span class="sess-stat-dot y">◑${c.amarillo}</span>` : ''}${c.rojo > 0 ? `<span class="sess-stat-dot r">✕${c.rojo}</span>` : ''}<span class="sess-stat-total">${fraccion}</span></div>` : `<div class="sess-acc-stats"><span class="sess-stat-total">${fraccion}</span></div>`}
+              ${c.total > 0 ? `<div class="sess-acc-stats">${c.verde > 0 ? `<span class="sess-stat-pill g">${c.verde}</span>` : ''}${c.amarillo > 0 ? `<span class="sess-stat-pill y">${c.amarillo}</span>` : ''}${c.rojo > 0 ? `<span class="sess-stat-pill r">${c.rojo}</span>` : ''}<span class="sess-stat-total">${fraccion}</span></div>` : `<div class="sess-acc-stats"><span class="sess-stat-total">${fraccion}</span></div>`}
             </div>
             <span class="sess-acc-badge">${badgeTxt}</span>
             <svg class="sess-acc-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 12 15 18 9"/></svg>
@@ -5824,11 +5831,13 @@ function _planRenderWeekStrip(planMeta, sessions) {
   // Index sessions by date
   const sessByDate = {};
   const completedByDate = {};
+  const sessIdByDate = {}; // primer sesion_id por día → click hace scroll a esa card
   sessions.forEach(s => {
     const d = s.fecha_objetivo;
     if (!d) return;
     if (!sessByDate[d]) sessByDate[d] = 0;
     sessByDate[d]++;
+    if (!sessIdByDate[d]) sessIdByDate[d] = s.id;
     if (s.status === 'completada') {
       if (!completedByDate[d]) completedByDate[d] = 0;
       completedByDate[d]++;
@@ -5854,13 +5863,24 @@ function _planRenderWeekStrip(planMeta, sessions) {
     const inner = isExam
       ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`
       : d.getDate();
+    const targetSid = sessIdByDate[dStr];
+    const onclickAttr = targetSid ? ` onclick="_planScrollToSession('${targetSid}')"` : '';
     html += `
-      <div class="${cls.join(' ')}">
+      <div class="${cls.join(' ')}"${onclickAttr}>
         <div class="plan-week-day-name">${_planDayShort(d)}</div>
         <div class="plan-week-day-circle">${inner}</div>
       </div>`;
   }
   stripEl.innerHTML = html;
+}
+
+// Scroll to a session card in the levels list and flash it briefly
+function _planScrollToSession(sesionId) {
+  const card = document.getElementById(`plan-level-${sesionId}`);
+  if (!card) return;
+  card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.add('plan-level-flash');
+  setTimeout(() => card.classList.remove('plan-level-flash'), 1200);
 }
 
 function _planRenderCountdown(planMeta) {
@@ -5947,7 +5967,7 @@ function _planRenderLevels(sessions, planMeta) {
         </div>`;
     }
     html += `
-      <div class="${cls.join(' ')}" data-sess-id="${s.id}">
+      <div class="${cls.join(' ')}" id="plan-level-${s.id}" data-sess-id="${s.id}">
         <div class="plan-level-num">${numContent}</div>
         <div class="plan-level-info">
           <div class="plan-level-title">${titleText}</div>
