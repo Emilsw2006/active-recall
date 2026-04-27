@@ -1,9 +1,15 @@
 """
 Vectoriza átomos con sentence-transformers (all-MiniLM-L6-v2, 384 dims).
 Guarda embeddings en Supabase.
+
+IMPORTANTE: model.encode() es CPU-bound y síncrono. Se ejecuta en un
+thread pool via run_in_executor para no bloquear el event loop de uvicorn
+durante la vectorización (que puede durar 15-30s con 50+ átomos).
 """
 
+import asyncio
 from datetime import datetime
+from functools import partial
 from typing import List
 
 import numpy as np
@@ -26,6 +32,12 @@ def get_model() -> SentenceTransformer:
     return _model
 
 
+def _encode_sync(textos: List[str]) -> np.ndarray:
+    """Codificación síncrona — se llama desde run_in_executor, no bloquea el event loop."""
+    model = get_model()
+    return model.encode(textos, normalize_embeddings=True, show_progress_bar=False)
+
+
 def embed_texto(texto: str) -> List[float]:
     """Genera embedding para un texto. Devuelve lista de 384 floats."""
     model = get_model()
@@ -40,19 +52,23 @@ async def vectorize_atomos(
     """
     Vectoriza una lista de átomos y guarda los embeddings en Supabase.
     Cada átomo debe tener 'id' y 'texto_completo'.
+
+    La codificación corre en un thread pool para no bloquear el event loop.
     """
     if not atomos:
         logger.warning(f"[{documento_id}] No hay átomos para vectorizar")
         return
 
     db = get_service_client()
-    model = get_model()
     inicio = datetime.now()
-
-    logger.info(f"[{documento_id}] Vectorizando {len(atomos)} átomos...")
+    logger.info(f"[{documento_id}] Vectorizando {len(atomos)} átomos (thread pool)...")
 
     textos = [a["texto_completo"] for a in atomos]
-    embeddings = model.encode(textos, normalize_embeddings=True, show_progress_bar=False)
+
+    # ── Clave: corre en thread pool — el event loop queda libre ──────────────
+    loop = asyncio.get_event_loop()
+    embeddings = await loop.run_in_executor(None, _encode_sync, textos)
+    # ─────────────────────────────────────────────────────────────────────────
 
     errores = 0
     for atomo, embedding in zip(atomos, embeddings):

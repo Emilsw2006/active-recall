@@ -35,5 +35,7 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=120s --retries=3 \
 
 EXPOSE 8000
 
-# Single worker to save RAM — increase to 2 on servers with 4GB+
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+# 2 workers: uno atiende requests mientras el otro vectoriza/ingesta en background.
+# Con run_in_executor en vectorizer.py el event loop nunca se bloquea.
+# RAM: ~165MB/worker × 2 = ~330MB sobre 956MB disponibles — seguro.
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
