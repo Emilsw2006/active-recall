@@ -2905,6 +2905,7 @@ function startSessionFlow() {
   toast(T('sess_starting'), 'info');
   api('/sesion/crear', {
     method: 'POST',
+    timeoutMs: 60000,   // session creation can be slow when generating first questions
     body: JSON.stringify({
       usuario_id: uid,
       asignatura_id: curSubjectId,
@@ -3599,8 +3600,8 @@ function setVoiceState(state) {
   const STAR = `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
 
   const states = {
-    connecting:         { svg: BARS,  txt: '',               cls: 'loading' },
-    waiting:            { svg: BARS,  txt: '',               cls: 'loading' },
+    connecting:         { svg: '',    txt: '',               cls: 'loading' },
+    waiting:            { svg: '',    txt: '',               cls: 'loading' },
     speaking_ai:        { svg: BARS,  txt: '',               cls: 'speaking' },
     listening:          { svg: BARS,  txt: '',               cls: 'listening' },
     finishing:          { svg: BARS,  txt: '',               cls: 'loading' },
@@ -3615,6 +3616,19 @@ function setVoiceState(state) {
   orb.innerHTML = s.svg;
   if (s.cls) orb.classList.add(s.cls);
   if (statusEl && s.txt) statusEl.textContent = s.txt;
+
+  // ── Loading vs orb visibility ──
+  // During connecting/waiting (initial load): show gooey-loader, hide orb
+  // During any other state: hide gooey-loader, show orb
+  const blobWrap = document.querySelector('.duelo-blob-wrap');
+  const isLoadingPhase = (state === 'connecting' || state === 'waiting');
+  if (isLoadingPhase) {
+    if (typeof showSessionLoading === 'function') showSessionLoading();
+    if (blobWrap) blobWrap.classList.add('hidden-by-loader');
+  } else {
+    if (typeof hideSessionLoading === 'function') hideSessionLoading();
+    if (blobWrap) blobWrap.classList.remove('hidden-by-loader');
+  }
 }
 
 function orbClick() {

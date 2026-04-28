@@ -2151,27 +2151,13 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   animation: orb-breathe 4s ease-in-out infinite;
 }
 
-/* LOADING — only show bars, hide the glass ball body */
+/* LOADING — breathe only, no spinning arc (orb hidden via JS, gooey-loader takes over) */
 .voice-orb.loading {
-  animation: none;
-  background: transparent !important;
-  box-shadow: none !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  border: none !important;
+  animation: orb-breathe 2.2s ease-in-out infinite;
 }
 .voice-orb.loading::before { content: none; }
-/* Animate the bars while loading */
-.voice-orb.loading .orb-bar {
-  animation: orb-bar-wave .9s ease-in-out infinite;
-}
-.voice-orb.loading .orb-bar:nth-child(1) { animation-delay: .00s; }
-.voice-orb.loading .orb-bar:nth-child(2) { animation-delay: .10s; }
-.voice-orb.loading .orb-bar:nth-child(3) { animation-delay: .20s; }
-.voice-orb.loading .orb-bar:nth-child(4) { animation-delay: .30s; }
-.voice-orb.loading .orb-bar:nth-child(5) { animation-delay: .20s; }
-.voice-orb.loading .orb-bar:nth-child(6) { animation-delay: .10s; }
-.voice-orb.loading .orb-bar:nth-child(7) { animation-delay: .00s; }
+/* Hide the orb-blob-wrap while gooey-loader is visible */
+.duelo-blob-wrap.hidden-by-loader { visibility: hidden; }
 
 /* Bars shared by listening + speaking */
 .orb-wave {
