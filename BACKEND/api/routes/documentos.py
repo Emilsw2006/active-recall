@@ -84,13 +84,22 @@ async def temas_por_asignatura(asignatura_id: str):
             st_res = db.table("subtemas").select("id").eq("tema_id", tema["id"]).execute()
             st_ids = [s["id"] for s in (st_res.data or [])]
             n_atomos = 0
+            n_practicos = 0
+            n_teoricos = 0
             for sid in st_ids:
-                a_res = db.table("atomos").select("id", count="exact").eq("subtema_id", sid).execute()
-                n_atomos += a_res.count or 0
+                a_res = db.table("atomos").select("id, tipo").eq("subtema_id", sid).execute()
+                atoms = a_res.data or []
+                n_atomos += len(atoms)
+                n_practicos += sum(1 for a in atoms if (a.get("tipo") or "teorico") == "practico")
+                n_teoricos += sum(1 for a in atoms if (a.get("tipo") or "teorico") != "practico")
+            tipo_agg = "teorico" if n_practicos == 0 else ("practico" if n_teoricos == 0 else "mixto")
             temas_out.append({
                 "id": tema["id"],
                 "titulo": tema["titulo"],
                 "n_atomos": n_atomos,
+                "n_practicos": n_practicos,
+                "n_teoricos": n_teoricos,
+                "tipo_agg": tipo_agg,
                 "documento_id": doc["id"],
                 "documento_nombre": doc["nombre_archivo"],
             })

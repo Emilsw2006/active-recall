@@ -2151,11 +2151,27 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   animation: orb-breathe 4s ease-in-out infinite;
 }
 
-/* LOADING — breathe only, no spinning arc */
+/* LOADING — only show bars, hide the glass ball body */
 .voice-orb.loading {
-  animation: orb-breathe 2.2s ease-in-out infinite;
+  animation: none;
+  background: transparent !important;
+  box-shadow: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border: none !important;
 }
 .voice-orb.loading::before { content: none; }
+/* Animate the bars while loading */
+.voice-orb.loading .orb-bar {
+  animation: orb-bar-wave .9s ease-in-out infinite;
+}
+.voice-orb.loading .orb-bar:nth-child(1) { animation-delay: .00s; }
+.voice-orb.loading .orb-bar:nth-child(2) { animation-delay: .10s; }
+.voice-orb.loading .orb-bar:nth-child(3) { animation-delay: .20s; }
+.voice-orb.loading .orb-bar:nth-child(4) { animation-delay: .30s; }
+.voice-orb.loading .orb-bar:nth-child(5) { animation-delay: .20s; }
+.voice-orb.loading .orb-bar:nth-child(6) { animation-delay: .10s; }
+.voice-orb.loading .orb-bar:nth-child(7) { animation-delay: .00s; }
 
 /* Bars shared by listening + speaking */
 .orb-wave {
@@ -2991,6 +3007,27 @@ input, textarea { -webkit-appearance: none; appearance: none; }
   position: relative; padding: 8px 4px 24px;
   display: flex; flex-direction: column; gap: 0;
 }
+/* Day filter bar — shown when user clicks a day in week-strip */
+.plan-day-filter-bar {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 14px;
+  background: rgba(255,228,170,0.55);
+  border: 1px solid rgba(232,160,48,0.40);
+  border-radius: 12px;
+  font-size: .82rem; font-weight: 700;
+  color: #5a3a08;
+  backdrop-filter: blur(8px);
+}
+.plan-day-filter-clear {
+  background: rgba(28,22,18,0.85); color: #fdfaf7;
+  border: none; border-radius: 99px;
+  padding: 6px 14px; font-size: .72rem; font-weight: 700;
+  cursor: pointer;
+}
+.plan-day-filter-clear:hover { background: #1c1612; }
+
 /* Day separator headers in plan session list */
 .plan-day-header {
   font-size: .70rem; font-weight: 700; letter-spacing: .07em;

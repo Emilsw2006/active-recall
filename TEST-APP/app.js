@@ -1091,6 +1091,10 @@ function setStudyMode(mode) {
   const tabEl = mode === 'voz' ? $('ltab-voz') : $('ltab-test');
   if (tabEl) tabEl.classList.add('active');
   checkMicPermission();
+  // Re-render topic list with mode filter applied
+  if (typeof renderTopicList === 'function' && sessDocTopics && sessDocTopics.length) {
+    renderTopicList();
+  }
   // All modes move to next step immediately.
   lobbyGoStep(1);
 }
@@ -2809,13 +2813,34 @@ function renderTopicList() {
     container.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.50);font-size:.85rem">${T('empty_no_notes')}</div>`;
     return;
   }
-  container.innerHTML = sessDocTopics.map((t, i) => `
-    <div class="lobby-topic-item checked" id="topic-${i}" onclick="toggleTopic(${i})">
-      <div class="lobby-topic-cb">${CHECK_SVG}</div>
-      <span class="lobby-topic-name">${esc(t.titulo)}</span>
-      <span class="lobby-topic-n">${TF('mat_atoms_count', {n: t.n_atomos})}</span>
-    </div>
-  `).join('');
+  // Filter topics by selected mode:
+  //   voz/oral → only topics with theoretical atoms
+  //   practica → only topics with practical atoms
+  //   test     → all topics
+  const filtered = sessDocTopics.filter(t => {
+    if (modeSelector === 'practica') return (t.n_practicos || 0) > 0;
+    if (modeSelector === 'voz')      return (t.n_teoricos  || t.n_atomos || 0) > 0;
+    return true;
+  });
+  if (!filtered.length) {
+    const msg = modeSelector === 'practica'
+      ? 'No hay temas con ejercicios prácticos. Cambia a "Oral" o sube apuntes con ejercicios.'
+      : 'No hay temas con contenido teórico para sesión oral.';
+    container.innerHTML = `<div style="padding:20px;text-align:center;color:rgba(255,255,255,0.55);font-size:.85rem;line-height:1.5">${msg}</div>`;
+    return;
+  }
+  container.innerHTML = filtered.map((t, i) => {
+    // Find the original index in sessDocTopics so toggleTopic still works
+    const origIdx = sessDocTopics.indexOf(t);
+    const tipoBadge = t.tipo_agg === 'practico' ? '✏️' : (t.tipo_agg === 'mixto' ? '🟣' : '🎙️');
+    const showCount = modeSelector === 'practica' ? (t.n_practicos || 0) : (t.n_teoricos || t.n_atomos || 0);
+    return `
+      <div class="lobby-topic-item checked" id="topic-${origIdx}" onclick="toggleTopic(${origIdx})">
+        <div class="lobby-topic-cb">${CHECK_SVG}</div>
+        <span class="lobby-topic-name">${esc(t.titulo)}</span>
+        <span class="lobby-topic-n">${TF('mat_atoms_count', {n: showCount})}</span>
+      </div>`;
+  }).join('');
 }
 
 function toggleTopic(i) {
@@ -5882,18 +5907,18 @@ function _planScrollToSession(sesionId) {
   setTimeout(() => card.classList.remove('plan-level-flash'), 1200);
 }
 
+// Filter session list to a specific day. Click on week-strip → filter, not just scroll.
+let _planDayFilter = null;
 function _planScrollToDay(dateStr) {
-  // Scroll to day header; fall back to first session card on that date
-  const header = document.getElementById(`plan-day-${dateStr}`);
-  if (header) {
-    header.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    return;
+  _planDayFilter = dateStr;
+  if (typeof _currentPlanSessions !== 'undefined' && _currentPlanSessions && _currentPlanMeta) {
+    _planRenderLevels(_currentPlanSessions, _currentPlanMeta);
   }
-  // Fallback: find first session card with matching fecha_objetivo
-  const cards = document.querySelectorAll('.plan-level-item[data-sess-id]');
-  for (const card of cards) {
-    const sid = card.getAttribute('data-sess-id');
-    if (sid) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); break; }
+}
+function _planClearDayFilter() {
+  _planDayFilter = null;
+  if (typeof _currentPlanSessions !== 'undefined' && _currentPlanSessions && _currentPlanMeta) {
+    _planRenderLevels(_currentPlanSessions, _currentPlanMeta);
   }
 }
 
@@ -5915,11 +5940,23 @@ function _planRenderCountdown(planMeta) {
   el.textContent = txt;
 }
 
-function _planRenderLevels(sessions, planMeta) {
+function _planRenderLevels(allSessions, planMeta) {
   const pane = $('plan-pane-study');
   if (!pane) return;
-  if (!sessions.length) {
+  if (!allSessions.length) {
     pane.innerHTML = `<div class="plan-empty-state">${T('hist_empty_sessions') || 'Sin sesiones'}</div>`;
+    return;
+  }
+  // Apply day filter if active
+  const sessions = _planDayFilter
+    ? allSessions.filter(s => (s.fecha_objetivo || '') === _planDayFilter)
+    : allSessions;
+  if (_planDayFilter && !sessions.length) {
+    pane.innerHTML = `
+      <div class="plan-day-filter-bar">
+        <span>Día sin sesiones programadas</span>
+        <button class="plan-day-filter-clear" onclick="_planClearDayFilter()">Ver todas</button>
+      </div>`;
     return;
   }
   const nDefault = planMeta.atomos_por_sesion || 10;
@@ -5948,7 +5985,15 @@ function _planRenderLevels(sessions, planMeta) {
     } catch(_) { return dateStr; }
   };
 
-  let html = `<div class="plan-level-list">`;
+  let html = '';
+  if (_planDayFilter) {
+    html += `
+      <div class="plan-day-filter-bar">
+        <span>${_fmtDay(_planDayFilter)}</span>
+        <button class="plan-day-filter-clear" onclick="_planClearDayFilter()">Ver todas</button>
+      </div>`;
+  }
+  html += `<div class="plan-level-list">`;
   let lastDate = null;
   sessions.forEach((s, i) => {
     const isCompleted = s.status === 'completada';
@@ -6140,6 +6185,7 @@ function openPlanSettings() {
 async function openPlanDetail(planId) {
   _currentPlanDetailId = planId;
   _planTabsLoaded = { study: false, progress: false, files: false };
+  _planDayFilter = null;  // reset day filter on each open
   const overlay = $('plan-detail-overlay');
   if (!overlay) return;
 
