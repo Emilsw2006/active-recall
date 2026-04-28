@@ -3574,12 +3574,12 @@ function setVoiceState(state) {
   const STAR = `<svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
 
   const states = {
-    connecting:         { svg: '',    txt: 'Conectando...', cls: 'loading' },
-    waiting:            { svg: '',    txt: '',               cls: 'loading' },
+    connecting:         { svg: BARS,  txt: '',               cls: 'loading' },
+    waiting:            { svg: BARS,  txt: '',               cls: 'loading' },
     speaking_ai:        { svg: BARS,  txt: '',               cls: 'speaking' },
     listening:          { svg: BARS,  txt: '',               cls: 'listening' },
-    finishing:          { svg: '',    txt: '',               cls: 'loading' },
-    processing:         { svg: '',    txt: '',               cls: 'loading' },
+    finishing:          { svg: BARS,  txt: '',               cls: 'loading' },
+    processing:         { svg: BARS,  txt: '',               cls: 'speaking' },
     evaluated_verde:    { svg: CHK,   txt: T('feedback_correct'),   cls: 'evaluated-verde' },
     evaluated_amarillo: { svg: HALF,  txt: T('feedback_almost'),    cls: 'evaluated-amarillo' },
     evaluated_rojo:     { svg: X,     txt: T('feedback_incorrect'), cls: 'evaluated-rojo' },
@@ -5863,7 +5863,7 @@ function _planRenderWeekStrip(planMeta, sessions) {
       ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 10v6M2 10l10-5 10 5-10 5z"/><path d="M6 12v5c3 3 9 3 12 0v-5"/></svg>`
       : d.getDate();
     const targetSid = sessIdByDate[dStr];
-    const onclickAttr = targetSid ? ` onclick="_planScrollToSession('${targetSid}')"` : '';
+    const onclickAttr = hasSess ? ` onclick="_planScrollToDay('${dStr}')"` : '';
     html += `
       <div class="${cls.join(' ')}"${onclickAttr}>
         <div class="plan-week-day-name">${_planDayShort(d)}</div>
@@ -5880,6 +5880,21 @@ function _planScrollToSession(sesionId) {
   card.scrollIntoView({ behavior: 'smooth', block: 'center' });
   card.classList.add('plan-level-flash');
   setTimeout(() => card.classList.remove('plan-level-flash'), 1200);
+}
+
+function _planScrollToDay(dateStr) {
+  // Scroll to day header; fall back to first session card on that date
+  const header = document.getElementById(`plan-day-${dateStr}`);
+  if (header) {
+    header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    return;
+  }
+  // Fallback: find first session card with matching fecha_objetivo
+  const cards = document.querySelectorAll('.plan-level-item[data-sess-id]');
+  for (const card of cards) {
+    const sid = card.getAttribute('data-sess-id');
+    if (sid) { card.scrollIntoView({ behavior: 'smooth', block: 'center' }); break; }
+  }
 }
 
 function _planRenderCountdown(planMeta) {
@@ -5922,11 +5937,29 @@ function _planRenderLevels(sessions, planMeta) {
     return 'Estudio';
   };
 
+  // Helper: format date as "Lun 28 abr"
+  const _fmtDay = (dateStr) => {
+    if (!dateStr) return '';
+    try {
+      const d = new Date(dateStr + 'T00:00:00');
+      const dayNames = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+      const monNames = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+      return `${dayNames[d.getDay()]} ${d.getDate()} ${monNames[d.getMonth()]}`;
+    } catch(_) { return dateStr; }
+  };
+
   let html = `<div class="plan-level-list">`;
+  let lastDate = null;
   sessions.forEach((s, i) => {
     const isCompleted = s.status === 'completada';
     const isActive    = i === firstPendingIdx;
     const isLocked    = !isCompleted && !isActive;
+    // Day header when date changes
+    const sessionDate = s.fecha_objetivo || null;
+    if (sessionDate && sessionDate !== lastDate) {
+      lastDate = sessionDate;
+      html += `<div class="plan-day-header" id="plan-day-${sessionDate}">${_fmtDay(sessionDate)}</div>`;
+    }
     const isReview    = !!s.is_review_session;
     const cls = ['plan-level-item'];
     if (isCompleted) cls.push('completed');
@@ -5943,7 +5976,7 @@ function _planRenderLevels(sessions, planMeta) {
       ctaAction  = `openRevision('${s.id}')`;
     } else if (isActive) {
       ctaContent = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
-      ctaAction  = `startPlanSession('${s.id}')`;
+      ctaAction  = `startPlanSession('${s.id}', null, '${s.modo || 'oral'}')`;
     } else {
       ctaContent = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>`;
       ctaAction  = '';
@@ -5958,16 +5991,7 @@ function _planRenderLevels(sessions, planMeta) {
         : `<span class="level-mode-badge oral">🎙️ Oral</span>`;
     const titleText = `${baseTitle}`;
     const subText = `${modoIcon} · ${nQ} preguntas`;
-    if (showStartHere && isActive) {
-      html += `
-        <div class="plan-start-here">
-          <span class="plan-start-here-text">Empieza aquí</span>
-          <svg class="plan-start-here-arrow" width="36" height="24" viewBox="0 0 36 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
-            <path d="M2 4 C 12 8, 22 14, 30 22"/>
-            <polyline points="24 22 30 22 30 16"/>
-          </svg>
-        </div>`;
-    }
+    // "Empieza aquí" label removed — the active card's highlight is sufficient
     html += `
       <div class="${cls.join(' ')}" id="plan-level-${s.id}" data-sess-id="${s.id}">
         <div class="plan-level-num">${numContent}</div>
@@ -6182,16 +6206,12 @@ function closePlanDetail() {
   closeProximas();
 }
 
-async function startPlanSession(sesionId, planIdOverride) {
+async function startPlanSession(sesionId, planIdOverride, modoOverride) {
   const planId = planIdOverride || _currentPlanDetailId;
   closePlanDetail();
   try {
-    // Fast meta call to know whether this is oral or practico
-    let modo = 'oral';
-    try {
-      const meta = await api(`/sesion/${sesionId}/meta`);
-      modo = meta.modo || 'oral';
-    } catch(_) {}
+    // Use mode passed directly from plan session data — avoids meta API race condition
+    const modo = modoOverride || 'oral';
 
     if (modo === 'practico') {
       startPracticaSession(sesionId, planId);

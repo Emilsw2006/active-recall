@@ -181,14 +181,13 @@ async def crear_plan(body: CrearPlanRequest):
                 "nombre":                 titulo[:80],
             }).execute()
     else:
-        # Fallback: distribuir teóricos/prácticos en sesiones del modo correspondiente
+        # Fallback: una sesión por bloque, modo dominante
         n_teoricos  = sum(1 for a in atomos_detalles if a.get("tipo") != "practico")
         n_practicos = sum(1 for a in atomos_detalles if a.get("tipo") == "practico")
-        n_orales    = max(1, ceil(n_teoricos  / atomos_por_sesion)) if n_teoricos  > 0 else 0
-        n_practs    = max(1, ceil(n_practicos / atomos_por_sesion)) if n_practicos > 0 else 0
+        modo_fb     = "oral" if n_teoricos >= n_practicos else "practico"
+        n_sesiones_fb = max(1, ceil(len(atomos_detalles) / atomos_por_sesion))
         today_fb = date.today()
-        for i in range(n_orales + n_practs):
-            modo_fb = "oral" if i < n_orales else "practico"
+        for i in range(n_sesiones_fb):
             fecha_objetivo_fb = (today_fb + timedelta(days=i)).isoformat()
             db.table("sesiones").insert({
                 "usuario_id":             body.usuario_id,

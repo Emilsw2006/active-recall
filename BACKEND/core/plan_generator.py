@@ -73,13 +73,16 @@ PASO 2 — CALCULAR MODO SEGÚN DÍAS HASTA EXAMEN
   3–7 días  → strategy_mode = "accelerated"
   8+ días   → strategy_mode = "full"
 
-PASO 3 — CAPA 1: SESIONES INITIAL (separadas por modo: oral vs practico)
-  - n_sesiones_orales    = ceil(total_teoricos  / questions_per_session)
-  - n_sesiones_practicas = ceil(total_practicos / questions_per_session)
-  - n_sesiones_initial   = n_sesiones_orales + n_sesiones_practicas
-  - Cada sesión TIENE UN ÚNICO MODO: "oral" (átomos teóricos por voz) o "practico" (ejercicios autoevaluados paso a paso).
-  - Si un subtema es MIXTO (tiene teóricos y prácticos), genera SESIONES SEPARADAS: una oral con sus teóricos y una práctica con sus prácticos. Nunca mezcles modos en la misma sesión.
-  - Distribuir las sesiones a lo largo de los dias disponibles, intercalando oral y práctico para variar.
+PASO 3 — CAPA 1: SESIONES INITIAL (UNA sesión por bloque temático)
+  - n_sesiones_initial = ceil(total_atoms / questions_per_session)
+  - Cada sesión TIENE UN ÚNICO MODO: "oral" o "practico".
+  - REGLA CLAVE: UNA SOLA SESIÓN por subtema/bloque. NUNCA crees dos sesiones para el mismo subtema.
+    - Si el subtema tiene solo teóricos → modo "oral".
+    - Si el subtema tiene solo prácticos → modo "practico".
+    - Si el subtema es MIXTO (tiene ambos tipos) → usa el MODO DOMINANTE:
+        n_teoricos >= n_practicos → modo "oral"
+        n_practicos > n_teoricos  → modo "practico"
+  - Distribuir las sesiones a lo largo de los dias disponibles.
   - Prioridad de exposición: bajo → medio → alto.
   - Reservar 1/3 de los días para sesiones review — NO llenar todos los días con initial.
   - Carga diaria dinámica según intensity:
